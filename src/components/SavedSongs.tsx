@@ -26,8 +26,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow,
-  Tooltip
+  TableRow
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -333,7 +332,7 @@ const SavedSongs = () => {
                 type="date"
                 value={perfDate}
                 onChange={(e) => setPerfDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
+                slotProps={{ inputLabel: { shrink: true } }}
                 fullWidth
               />
               <TextField
@@ -341,7 +340,7 @@ const SavedSongs = () => {
                 type="time"
                 value={perfTime}
                 onChange={(e) => setPerfTime(e.target.value)}
-                InputLabelProps={{ shrink: true }}
+                slotProps={{ inputLabel: { shrink: true } }}
                 fullWidth
               />
               <TextField
