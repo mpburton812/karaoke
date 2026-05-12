@@ -1,6 +1,20 @@
-import { db } from './src/db.js';
+import { createClient } from "@libsql/client";
 import axios from 'axios';
 import { parse } from 'csv-parse/sync';
+
+// Initialize DB client using process.env (compatible with GitHub Actions)
+const url = process.env.VITE_TURSO_DATABASE_URL;
+const authToken = process.env.VITE_TURSO_AUTH_TOKEN;
+
+if (!url || !authToken) {
+  console.error("Missing Turso credentials. Ensure VITE_TURSO_DATABASE_URL and VITE_TURSO_AUTH_TOKEN are set.");
+  process.exit(1);
+}
+
+const db = createClient({
+  url: url,
+  authToken: authToken,
+});
 
 async function updateCatalog() {
   console.log('Fetching KaraFun catalog...');
@@ -14,14 +28,10 @@ async function updateCatalog() {
 
     console.log(`Parsed ${records.length} records. Updating database...`);
 
-    // We use a transaction for speed and safety
-    // Note: This script assumes environment variables for Turso are set in the GitHub Action
-    
-    // Clear existing catalog (or use a temporary table for atomic switch)
+    // Clear existing catalog
     await db.execute("DELETE FROM karafun_catalog");
 
-    // Batch insert (Turso/LibSQL handles this well)
-    // We'll chunk them to avoid payload size limits
+    // Batch insert
     const chunkSize = 500;
     for (let i = 0; i < records.length; i += chunkSize) {
       const chunk = records.slice(i, i + chunkSize);
@@ -36,7 +46,10 @@ async function updateCatalog() {
         ]
       }));
       await db.batch(statements);
-      console.log(`Progress: ${i + chunk.length} / ${records.length}`);
+      
+      if (i % 5000 === 0) {
+        console.log(`Progress: ${i + chunk.length} / ${records.length}`);
+      }
     }
 
     console.log('Catalog update complete!');
