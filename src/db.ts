@@ -15,8 +15,16 @@ export const db = createClient({
 export const initDb = async () => {
   try {
     await db.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL
+      )
+    `);
+
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS songs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
         itunes_id INTEGER,
         track_name TEXT,
         artist_name TEXT,
@@ -36,9 +44,18 @@ export const initDb = async () => {
         loudness REAL,
         release_date TEXT,
         explicit BOOLEAN,
-        album TEXT
+        album TEXT,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     `);
+
+    // Migration: Add user_id column to songs if it doesn't exist
+    try {
+      await db.execute("ALTER TABLE songs ADD COLUMN user_id INTEGER");
+    } catch (e) {
+      // Column might already exist
+    }
+
     await db.execute(`
       CREATE TABLE IF NOT EXISTS karafun_catalog (
         id INTEGER PRIMARY KEY,
@@ -53,13 +70,22 @@ export const initDb = async () => {
       CREATE TABLE IF NOT EXISTS performances (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         song_id INTEGER,
+        user_id INTEGER,
         date TEXT,
         time TEXT,
         location TEXT,
         notes TEXT,
-        FOREIGN KEY (song_id) REFERENCES songs (id) ON DELETE CASCADE
+        FOREIGN KEY (song_id) REFERENCES songs (id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     `);
+
+    // Migration: Add user_id column to performances if it doesn't exist
+    try {
+      await db.execute("ALTER TABLE performances ADD COLUMN user_id INTEGER");
+    } catch (e) {
+      // Column might already exist
+    }
   } catch (error) {
     console.error("Error initializing database:", error);
   }

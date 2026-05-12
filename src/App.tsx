@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Container, 
   Box, 
@@ -7,11 +7,16 @@ import {
   Typography, 
   createTheme, 
   ThemeProvider, 
-  CssBaseline 
+  CssBaseline,
+  Button,
+  AppBar,
+  Toolbar
 } from '@mui/material';
+import LogoutIcon from '@mui/icons-material/Logout';
 import SongLookup from './components/SongLookup';
 import SavedSongs from './components/SavedSongs';
 import CatalogImporter from './components/CatalogImporter';
+import Login from './components/Login';
 
 const theme = createTheme({
   palette: {
@@ -57,14 +62,64 @@ function CustomTabPanel(props: TabPanelProps) {
 
 function App() {
   const [value, setValue] = useState(0);
+  const [currentUser, setCurrentUser] = useState<{ id: number; username: string } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('karaoke_user');
+    if (savedUser) {
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('karaoke_user');
+      }
+    }
+    setAuthChecked(true);
+  }, []);
+
+  const handleLogin = (user: { id: number; username: string }) => {
+    setCurrentUser(user);
+    localStorage.setItem('karaoke_user', JSON.stringify(user));
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('karaoke_user');
+    setValue(0);
+  };
 
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
   };
 
+  if (!authChecked) return null;
+
+  if (!currentUser) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Login onLogin={handleLogin} />
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      <AppBar position="static" color="transparent" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+            {currentUser.username}
+          </Typography>
+          <Button 
+            color="inherit" 
+            startIcon={<LogoutIcon />} 
+            onClick={handleLogout}
+          >
+            LOGOUT
+          </Button>
+        </Toolbar>
+      </AppBar>
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 2 }}>
           <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold' }}>
@@ -79,10 +134,10 @@ function App() {
           </Tabs>
         </Box>
         <CustomTabPanel value={value} index={0}>
-          <SongLookup />
+          <SongLookup currentUser={currentUser} />
         </CustomTabPanel>
         <CustomTabPanel value={value} index={1}>
-          <SavedSongs />
+          <SavedSongs currentUser={currentUser} />
         </CustomTabPanel>
         <CustomTabPanel value={value} index={2}>
           <Box sx={{ textAlign: 'center', mt: 4 }}>

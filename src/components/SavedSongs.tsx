@@ -68,7 +68,11 @@ interface Performance {
   notes: string;
 }
 
-const SavedSongs = () => {
+interface SavedSongsProps {
+  currentUser: { id: number; username: string };
+}
+
+const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
@@ -90,7 +94,10 @@ const SavedSongs = () => {
   const fetchSongs = async () => {
     setLoading(true);
     try {
-      const result = await db.execute("SELECT * FROM songs ORDER BY id DESC");
+      const result = await db.execute({
+        sql: "SELECT * FROM songs WHERE user_id = ? ORDER BY id DESC",
+        args: [currentUser.id]
+      });
       setSongs(result.rows as unknown as Song[]);
     } catch (err) {
       console.error('Error fetching songs:', err);
@@ -103,8 +110,8 @@ const SavedSongs = () => {
   const fetchPerformances = async (songId: number) => {
     try {
       const result = await db.execute({
-        sql: "SELECT * FROM performances WHERE song_id = ? ORDER BY date DESC, time DESC",
-        args: [songId]
+        sql: "SELECT * FROM performances WHERE song_id = ? AND user_id = ? ORDER BY date DESC, time DESC",
+        args: [songId, currentUser.id]
       });
       setPerformances(result.rows as unknown as Performance[]);
     } catch (err) {
@@ -151,8 +158,8 @@ const SavedSongs = () => {
     setSavingPerf(true);
     try {
       await db.execute({
-        sql: "INSERT INTO performances (song_id, date, time, location, notes) VALUES (?, ?, ?, ?, ?)",
-        args: [selectedSong.id, perfDate, perfTime, perfLocation, perfNotes]
+        sql: "INSERT INTO performances (song_id, user_id, date, time, location, notes) VALUES (?, ?, ?, ?, ?, ?)",
+        args: [selectedSong.id, currentUser.id, perfDate, perfTime, perfLocation, perfNotes]
       });
       setPerfDialogOpen(false);
       fetchPerformances(selectedSong.id);

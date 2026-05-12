@@ -35,7 +35,11 @@ interface iTunesSong {
   trackTimeMillis: number;
 }
 
-const SongLookup = () => {
+interface SongLookupProps {
+  currentUser: { id: number; username: string };
+}
+
+const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<iTunesSong[]>([]);
   const [loading, setLoading] = useState(false);
@@ -110,12 +114,13 @@ const SongLookup = () => {
       
       await db.execute({
         sql: `INSERT INTO songs (
-          itunes_id, track_name, artist_name, artwork_url, karafun_available,
+          user_id, itunes_id, track_name, artist_name, artwork_url, karafun_available,
           key, bpm, duration_ms, popularity, energy, danceability, happiness,
           acousticness, instrumentalness, liveness, speechiness, loudness,
           release_date, explicit, album
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
+          currentUser.id,
           selectedSong.trackId,
           selectedSong.trackName,
           selectedSong.artistName,
