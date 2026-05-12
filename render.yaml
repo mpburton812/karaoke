@@ -1,0 +1,15 @@
+services:
+  - type: static
+    name: gemini-karaoke
+    env: static
+    buildCommand: npm install && npm run build
+    publishPath: dist
+    envVars:
+      - key: VITE_TURSO_DATABASE_URL
+        sync: false
+      - key: VITE_TURSO_AUTH_TOKEN
+        sync: false
+    routes:
+      - type: rewrite
+        src: /*
+        dest: /index.html
