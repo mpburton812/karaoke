@@ -88,7 +88,7 @@ const CatalogImporter = () => {
         onClick={() => setOpen(true)}
         sx={{ ml: 2 }}
       >
-        Sync Catalog
+        Sync KaraFun
       </Button>
 
       <Dialog open={open} onClose={() => !importing && setOpen(false)} fullWidth maxWidth="xs">

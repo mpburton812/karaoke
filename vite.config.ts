@@ -10,7 +10,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'Gemini Karaoke',
+        name: 'Karaoke Companion',
         short_name: 'Karaoke',
         description: 'Modern Karaoke Song Manager',
         theme_color: '#121212',

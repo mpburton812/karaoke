@@ -68,7 +68,7 @@ function App() {
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 2 }}>
           <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold' }}>
-            Gemini Karaoke
+            Karaoke Companion
           </Typography>
           <CatalogImporter />
         </Box>
