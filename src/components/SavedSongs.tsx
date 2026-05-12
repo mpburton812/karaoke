@@ -189,6 +189,11 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     setNotesDialogOpen(true);
   };
 
+  const handleDirectPerform = (song: Song) => {
+    setSelectedSong(song);
+    handleOpenPerfDialog();
+  };
+
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
   if (error) return <Alert severity="error">{error}</Alert>;
 
@@ -405,9 +410,24 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                 <ListItem 
                   disablePadding
                   secondaryAction={
-                    <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); handleRemove(song.id); }}>
-                      <DeleteIcon />
-                    </IconButton>
+                    <Box>
+                      <IconButton 
+                        edge="end" 
+                        aria-label="perform" 
+                        sx={{ color: '#1DB954', mr: 1 }}
+                        onClick={(e) => { e.stopPropagation(); handleDirectPerform(song); }}
+                      >
+                        <PlayArrowIcon />
+                      </IconButton>
+                      <IconButton 
+                        edge="end" 
+                        aria-label="delete" 
+                        color="error"
+                        onClick={(e) => { e.stopPropagation(); handleRemove(song.id); }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
                   }
                 >
                   <ListItemButton 
