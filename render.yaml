@@ -4,10 +4,7 @@ services:
     runtime: static
     buildCommand: npm install && npm run build
     staticPublishPath: dist
-    envVars:
-      - key: VITE_TURSO_DATABASE_URL
-      - key: VITE_TURSO_AUTH_TOKEN
     routes:
       - type: rewrite
-        src: /*
-        dest: /index.html
+        source: /*
+        destination: /index.html
