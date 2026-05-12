@@ -15,10 +15,25 @@ import {
   Chip,
   IconButton,
   CircularProgress,
-  Alert
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tooltip
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import NotesIcon from '@mui/icons-material/Notes';
+import CloseIcon from '@mui/icons-material/Close';
 import { db } from '../db';
 
 interface Song {
@@ -45,11 +60,33 @@ interface Song {
   album: string;
 }
 
+interface Performance {
+  id: number;
+  song_id: number;
+  date: string;
+  time: string;
+  location: string;
+  notes: string;
+}
+
 const SavedSongs = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [performances, setPerformances] = useState<Performance[]>([]);
+  
+  // Performance Dialog State
+  const [perfDialogOpen, setPerfDialogOpen] = useState(false);
+  const [perfDate, setPerfDate] = useState('');
+  const [perfTime, setPerfTime] = useState('');
+  const [perfLocation, setPerfLocation] = useState('');
+  const [perfNotes, setPerfNotes] = useState('');
+  const [savingPerf, setSavingPerf] = useState(false);
+
+  // Notes Dialog State
+  const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+  const [activeNotes, setActiveNotes] = useState('');
 
   const fetchSongs = async () => {
     setLoading(true);
@@ -64,9 +101,27 @@ const SavedSongs = () => {
     }
   };
 
+  const fetchPerformances = async (songId: number) => {
+    try {
+      const result = await db.execute({
+        sql: "SELECT * FROM performances WHERE song_id = ? ORDER BY date DESC, time DESC",
+        args: [songId]
+      });
+      setPerformances(result.rows as unknown as Performance[]);
+    } catch (err) {
+      console.error('Error fetching performances:', err);
+    }
+  };
+
   useEffect(() => {
     fetchSongs();
   }, []);
+
+  useEffect(() => {
+    if (selectedSong) {
+      fetchPerformances(selectedSong.id);
+    }
+  }, [selectedSong]);
 
   const handleRemove = async (id: number) => {
     if (!window.confirm('Are you sure you want to remove this song?')) return;
@@ -83,30 +138,87 @@ const SavedSongs = () => {
     }
   };
 
+  const handleOpenPerfDialog = () => {
+    const now = new Date();
+    setPerfDate(now.toISOString().split('T')[0]);
+    setPerfTime(now.toTimeString().split(' ')[0].substring(0, 5));
+    setPerfLocation('');
+    setPerfNotes('');
+    setPerfDialogOpen(true);
+  };
+
+  const handleSavePerformance = async () => {
+    if (!selectedSong) return;
+    setSavingPerf(true);
+    try {
+      await db.execute({
+        sql: "INSERT INTO performances (song_id, date, time, location, notes) VALUES (?, ?, ?, ?, ?)",
+        args: [selectedSong.id, perfDate, perfTime, perfLocation, perfNotes]
+      });
+      setPerfDialogOpen(false);
+      fetchPerformances(selectedSong.id);
+    } catch (err) {
+      console.error('Error saving performance:', err);
+      alert('Failed to save performance.');
+    } finally {
+      setSavingPerf(false);
+    }
+  };
+
+  const handleDeletePerformance = async (perfId: number) => {
+    if (!window.confirm('Delete this performance record?')) return;
+    try {
+      await db.execute({
+        sql: "DELETE FROM performances WHERE id = ?",
+        args: [perfId]
+      });
+      setPerformances(performances.filter(p => p.id !== perfId));
+    } catch (err) {
+      console.error('Error deleting performance:', err);
+    }
+  };
+
+  const handleShowNotes = (notes: string) => {
+    setActiveNotes(notes);
+    setNotesDialogOpen(true);
+  };
+
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
   if (error) return <Alert severity="error">{error}</Alert>;
 
   if (selectedSong) {
     return (
       <Box sx={{ mt: 2 }}>
-        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Detail Navigation Buttons */}
+        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Button 
             startIcon={<ArrowBackIcon />} 
             onClick={() => setSelectedSong(null)}
           >
             RETURN TO LIST
           </Button>
-          <Button 
-            variant="contained" 
-            color="error" 
-            startIcon={<DeleteIcon />} 
-            onClick={() => handleRemove(selectedSong.id)}
-          >
-            REMOVE FROM LIST
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button 
+              variant="contained" 
+              color="primary" 
+              startIcon={<PlayArrowIcon />} 
+              onClick={handleOpenPerfDialog}
+            >
+              PERFORM
+            </Button>
+            <Button 
+              variant="contained" 
+              color="error" 
+              startIcon={<DeleteIcon />} 
+              onClick={() => handleRemove(selectedSong.id)}
+            >
+              REMOVE FROM LIST
+            </Button>
+          </Box>
         </Box>
 
-        <Paper elevation={3} sx={{ p: 4, borderRadius: 4 }}>
+        {/* Song Info Section */}
+        <Paper elevation={3} sx={{ p: 4, borderRadius: 4, mb: 4 }}>
           <Grid container spacing={4}>
             <Grid size={{ xs: 12, md: 4 }}>
               <Avatar 
@@ -169,6 +281,107 @@ const SavedSongs = () => {
             </Grid>
           </Grid>
         </Paper>
+
+        {/* Performance History Section */}
+        {performances.length > 0 && (
+          <Box sx={{ mt: 4 }}>
+            <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>Performance History</Typography>
+            <TableContainer component={Paper} elevation={3}>
+              <Table aria-label="performance history table">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Time</TableCell>
+                    <TableCell>Location</TableCell>
+                    <TableCell align="center">Notes</TableCell>
+                    <TableCell align="center">Delete</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {performances.map((perf) => (
+                    <TableRow key={perf.id}>
+                      <TableCell>{new Date(perf.date).toLocaleDateString()}</TableCell>
+                      <TableCell>{perf.time}</TableCell>
+                      <TableCell>{perf.location || '-'}</TableCell>
+                      <TableCell align="center">
+                        {perf.notes ? (
+                          <IconButton onClick={() => handleShowNotes(perf.notes)}>
+                            <NotesIcon />
+                          </IconButton>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton color="error" onClick={() => handleDeletePerformance(perf.id)}>
+                          <CloseIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+        )}
+
+        {/* Perform Dialog */}
+        <Dialog open={perfDialogOpen} onClose={() => !savingPerf && setPerfDialogOpen(false)} fullWidth maxWidth="xs">
+          <DialogTitle>Record Performance</DialogTitle>
+          <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+              <TextField
+                label="Date"
+                type="date"
+                value={perfDate}
+                onChange={(e) => setPerfDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />
+              <TextField
+                label="Time"
+                type="time"
+                value={perfTime}
+                onChange={(e) => setPerfTime(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />
+              <TextField
+                label="Location"
+                placeholder="e.g. Blue Note, Home"
+                value={perfLocation}
+                onChange={(e) => setPerfLocation(e.target.value)}
+                fullWidth
+              />
+              <TextField
+                label="Notes"
+                placeholder="How did it go?"
+                multiline
+                rows={3}
+                value={perfNotes}
+                onChange={(e) => setPerfNotes(e.target.value)}
+                fullWidth
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setPerfDialogOpen(false)} disabled={savingPerf}>Cancel</Button>
+            <Button onClick={handleSavePerformance} variant="contained" disabled={savingPerf}>
+              {savingPerf ? <CircularProgress size={24} /> : 'Save'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Notes View Dialog */}
+        <Dialog open={notesDialogOpen} onClose={() => setNotesDialogOpen(false)} fullWidth maxWidth="xs">
+          <DialogTitle>Performance Notes</DialogTitle>
+          <DialogContent dividers>
+            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+              {activeNotes}
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setNotesDialogOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     );
   }
