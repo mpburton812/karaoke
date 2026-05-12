@@ -83,10 +83,9 @@ const CatalogImporter = () => {
     <>
       <Button 
         variant="outlined" 
-        size="small" 
+        size="large" 
         startIcon={<CloudUploadIcon />} 
         onClick={() => setOpen(true)}
-        sx={{ ml: 2 }}
       >
         Sync KaraFun
       </Button>

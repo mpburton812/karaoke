@@ -70,12 +70,12 @@ function App() {
           <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold' }}>
             Karaoke Companion
           </Typography>
-          <CatalogImporter />
         </Box>
         <Box sx={{ width: '100%', borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={value} onChange={handleChange} centered textColor="primary" indicatorColor="primary">
             <Tab label="Song Lookup" />
             <Tab label="Song List" />
+            <Tab label="Admin" />
           </Tabs>
         </Box>
         <CustomTabPanel value={value} index={0}>
@@ -83,6 +83,15 @@ function App() {
         </CustomTabPanel>
         <CustomTabPanel value={value} index={1}>
           <SavedSongs />
+        </CustomTabPanel>
+        <CustomTabPanel value={value} index={2}>
+          <Box sx={{ textAlign: 'center', mt: 4 }}>
+            <Typography variant="h5" gutterBottom>Administrative Tools</Typography>
+            <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
+              Manage the KaraFun catalog index and other system settings.
+            </Typography>
+            <CatalogImporter />
+          </Box>
         </CustomTabPanel>
       </Container>
     </ThemeProvider>
