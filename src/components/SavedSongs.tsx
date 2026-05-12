@@ -486,7 +486,9 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                     <Grid size={{ xs: 6, sm: 4, md: 3 }} key={quality.label}>
                       <Box sx={{ textAlign: 'center', p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
                         <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>{quality.label}</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{(quality.value * 100).toFixed(0)}%</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                          {quality.value !== null ? `${(quality.value * 100).toFixed(0)}%` : "DNF"}
+                        </Typography>
                       </Box>
                     </Grid>
                   ))}
@@ -494,10 +496,10 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
 
                 <Box sx={{ mt: 3 }}>
                   <Typography variant="body2" color="textSecondary">
-                    <strong>BPM:</strong> {selectedSong.bpm} | <strong>Key:</strong> {selectedSong.key}<br />
+                    <strong>BPM:</strong> {selectedSong.bpm || "DNF"} | <strong>Key:</strong> {selectedSong.key || "DNF"}<br />
                     <strong>Album:</strong> {selectedSong.album}<br />
                     <strong>Duration:</strong> {Math.floor(selectedSong.duration_ms / 60000)}:{( (selectedSong.duration_ms % 60000) / 1000).toFixed(0).padStart(2, '0')}<br />
-                    <strong>Popularity:</strong> {selectedSong.popularity}/100 | <strong>Loudness:</strong> {selectedSong.loudness} dB<br />
+                    <strong>Popularity:</strong> {selectedSong.popularity}/100 | <strong>Loudness:</strong> {selectedSong.loudness !== null ? `${selectedSong.loudness} dB` : "DNF"}<br />
                     <strong>Release Date:</strong> {new Date(selectedSong.release_date).toLocaleDateString()}
                   </Typography>
                 </Box>

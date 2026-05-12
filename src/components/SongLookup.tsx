@@ -136,30 +136,6 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
   const [lyrics, setLyrics] = useState<string | null>(null);
 
   const fetchMusicalQualities = async (song: iTunesSong) => {
-    // Seed for pseudo-random variety
-    const seed = song.trackId;
-    const pseudoRandom = (offset: number) => {
-      const x = Math.sin(seed + offset) * 10000;
-      return x - Math.floor(x);
-    };
-
-    const isRock = song.primaryGenreName.toLowerCase().includes('rock') || song.primaryGenreName.toLowerCase().includes('metal');
-    const isPop = song.primaryGenreName.toLowerCase().includes('pop') || song.primaryGenreName.toLowerCase().includes('dance');
-    const isElectronic = song.primaryGenreName.toLowerCase().includes('electronic') || song.primaryGenreName.toLowerCase().includes('house');
-
-    const fallbackQualities = {
-      bpm: 70 + Math.floor(pseudoRandom(1) * 110),
-      key: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][Math.floor(pseudoRandom(2) * 12)] + (pseudoRandom(3) > 0.5 ? " Maj" : " Min"),
-      energy: isRock ? 0.7 + pseudoRandom(4) * 0.3 : (isPop ? 0.5 + pseudoRandom(4) * 0.4 : 0.3 + pseudoRandom(4) * 0.6),
-      danceability: isPop || isElectronic ? 0.6 + pseudoRandom(5) * 0.4 : 0.2 + pseudoRandom(5) * 0.6,
-      happiness: isPop ? 0.5 + pseudoRandom(6) * 0.5 : 0.1 + pseudoRandom(6) * 0.8,
-      acousticness: isRock ? 0.1 + pseudoRandom(7) * 0.2 : 0.1 + pseudoRandom(7) * 0.8,
-      instrumentalness: isElectronic ? 0.4 + pseudoRandom(8) * 0.5 : pseudoRandom(8) * 0.2,
-      liveness: 0.1 + pseudoRandom(9) * 0.3,
-      speechiness: 0.02 + pseudoRandom(10) * 0.1,
-      loudness: -15 + pseudoRandom(11) * 12
-    };
-
     try {
       // 1. Search MusicBrainz for the recording to get an MBID
       const mbSearchUrl = `https://musicbrainz.org/ws/2/recording/?query=recording:${encodeURIComponent(song.trackName)} AND artist:${encodeURIComponent(song.artistName)}&fmt=json`;
@@ -175,14 +151,16 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
           
           if (data) {
             return {
-              ...fallbackQualities, // Use fallbacks for BPM, Loudness, etc. not in high-level
-              key: data.tonal_atonal?.all?.tonal > 0.5 ? (data.key_edma?.all?.key || fallbackQualities.key) : fallbackQualities.key,
-              energy: 1 - (data.mood_acoustic?.all?.acoustic || 0.5), // Invert acousticness for a rough energy estimate
-              danceability: data.danceability?.all?.danceable || fallbackQualities.danceability,
-              happiness: data.mood_happy?.all?.happy || fallbackQualities.happiness,
-              acousticness: data.mood_acoustic?.all?.acoustic || fallbackQualities.acousticness,
-              instrumentalness: data.voice_instrumental?.all?.instrumental || fallbackQualities.instrumentalness,
-              speechiness: data.voice_instrumental?.all?.voice || fallbackQualities.speechiness,
+              bpm: null, // AcousticBrainz high-level doesn't have reliable BPM
+              key: data.tonal_atonal?.all?.tonal > 0.5 ? (data.key_edma?.all?.key || "DNF") : "DNF",
+              energy: 1 - (data.mood_acoustic?.all?.acoustic || 0.5), 
+              danceability: data.danceability?.all?.danceable || null,
+              happiness: data.mood_happy?.all?.happy || null,
+              acousticness: data.mood_acoustic?.all?.acoustic || null,
+              instrumentalness: data.voice_instrumental?.all?.instrumental || null,
+              liveness: null,
+              speechiness: data.voice_instrumental?.all?.voice || null,
+              loudness: null
             };
           }
         } catch (e) {
@@ -193,7 +171,19 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
       console.warn('MusicBrainz lookup failed', e);
     }
 
-    return fallbackQualities;
+    // Default to DNF if no data is found
+    return {
+      bpm: null,
+      key: "DNF",
+      energy: null,
+      danceability: null,
+      happiness: null,
+      acousticness: null,
+      instrumentalness: null,
+      liveness: null,
+      speechiness: null,
+      loudness: null
+    };
   };
 
   const handleSave = async () => {
@@ -201,11 +191,6 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
     setSaving(true);
     try {
       const qualities = await fetchMusicalQualities(selectedSong);
-      const seed = selectedSong.trackId;
-      const pseudoRandom = (offset: number) => {
-        const x = Math.sin(seed + offset) * 10000;
-        return x - Math.floor(x);
-      };
 
       await db.execute({
         sql: `INSERT INTO songs (
@@ -224,7 +209,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
           qualities.key,
           qualities.bpm,
           selectedSong.trackTimeMillis,
-          Math.floor(40 + pseudoRandom(12) * 60), // Variety in popularity
+          selectedSong.trackExplicitness === 'explicit' ? 100 : 80, // iTunes proxy popularity
           qualities.energy,
           qualities.danceability,
           qualities.happiness,
