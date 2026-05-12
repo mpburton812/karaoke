@@ -39,7 +39,16 @@ export const initDb = async () => {
         album TEXT
       )
     `);
-    console.log("Database initialized successfully");
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS karafun_catalog (
+        id INTEGER PRIMARY KEY,
+        title TEXT,
+        artist TEXT,
+        duration INTEGER,
+        styles TEXT
+      )
+    `);
+    await db.execute(`CREATE INDEX IF NOT EXISTS idx_karafun_title_artist ON karafun_catalog (title, artist)`);
   } catch (error) {
     console.error("Error initializing database:", error);
   }

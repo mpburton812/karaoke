@@ -71,18 +71,24 @@ const SongLookup = () => {
     setIsKarafunAvailable(null);
     
     try {
-      // Check Karafun availability via CORS proxy
-      // This is a naive check - searching Karafun's search page
+      // 1. Try checking the local KaraFun catalog table first (Instant)
+      const result = await db.execute({
+        sql: "SELECT id FROM karafun_catalog WHERE title LIKE ? AND artist LIKE ? LIMIT 1",
+        args: [`%${song.trackName}%`, `%${song.artistName}%`]
+      });
+
+      if (result.rows.length > 0) {
+        setIsKarafunAvailable(true);
+        setCheckingKarafun(false);
+        return;
+      }
+
+      // 2. Fallback to scraping if not found in local DB (Slow)
       const karafunSearchUrl = `https://www.karafun.com/search.html?query=${encodeURIComponent(song.trackName + ' ' + song.artistName)}`;
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(karafunSearchUrl)}`;
       
       const response = await axios.get(proxyUrl);
       const html = response.data.contents;
-      
-      // Look for indicators that the song was found. 
-      // This is brittle and depends on Karafun's HTML structure.
-      // Usually if there are no results, it says "No results found" or similar.
-      // A better way would be to check if there are song items in the list.
       const hasResults = html.includes('songList__item') || !html.includes('No results found');
       setIsKarafunAvailable(hasResults);
       

@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import SongLookup from './components/SongLookup';
 import SavedSongs from './components/SavedSongs';
+import CatalogImporter from './components/CatalogImporter';
 
 const theme = createTheme({
   palette: {
@@ -65,9 +66,12 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Typography variant="h3" component="h1" gutterBottom align="center" sx={{ fontWeight: 'bold' }}>
-          Gemini Karaoke
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold' }}>
+            Gemini Karaoke
+          </Typography>
+          <CatalogImporter />
+        </Box>
         <Box sx={{ width: '100%', borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={value} onChange={handleChange} centered textColor="primary" indicatorColor="primary">
             <Tab label="Song Lookup" />
