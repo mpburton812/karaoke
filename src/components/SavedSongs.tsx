@@ -63,7 +63,6 @@ interface Performance {
   id: number;
   song_id: number;
   date: string;
-  time: string;
   location: string;
   notes: string;
 }
@@ -82,7 +81,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   // Performance Dialog State
   const [perfDialogOpen, setPerfDialogOpen] = useState(false);
   const [perfDate, setPerfDate] = useState('');
-  const [perfTime, setPerfTime] = useState('');
   const [perfLocation, setPerfLocation] = useState('');
   const [perfNotes, setPerfNotes] = useState('');
   const [savingPerf, setSavingPerf] = useState(false);
@@ -110,7 +108,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const fetchPerformances = async (songId: number) => {
     try {
       const result = await db.execute({
-        sql: "SELECT * FROM performances WHERE song_id = ? AND user_id = ? ORDER BY date DESC, time DESC",
+        sql: "SELECT * FROM performances WHERE song_id = ? AND user_id = ? ORDER BY date DESC",
         args: [songId, currentUser.id]
       });
       setPerformances(result.rows as unknown as Performance[]);
@@ -147,7 +145,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const handleOpenPerfDialog = () => {
     const now = new Date();
     setPerfDate(now.toISOString().split('T')[0]);
-    setPerfTime(now.toTimeString().split(' ')[0].substring(0, 5));
     setPerfLocation('');
     setPerfNotes('');
     setPerfDialogOpen(true);
@@ -158,8 +155,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     setSavingPerf(true);
     try {
       await db.execute({
-        sql: "INSERT INTO performances (song_id, user_id, date, time, location, notes) VALUES (?, ?, ?, ?, ?, ?)",
-        args: [selectedSong.id, currentUser.id, perfDate, perfTime, perfLocation, perfNotes]
+        sql: "INSERT INTO performances (song_id, user_id, date, location, notes) VALUES (?, ?, ?, ?, ?)",
+        args: [selectedSong.id, currentUser.id, perfDate, perfLocation, perfNotes]
       });
       setPerfDialogOpen(false);
       fetchPerformances(selectedSong.id);
@@ -302,7 +299,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                 <TableHead>
                   <TableRow>
                     <TableCell>Date</TableCell>
-                    <TableCell>Time</TableCell>
                     <TableCell>Location</TableCell>
                     <TableCell align="center">Notes</TableCell>
                     <TableCell align="center">Delete</TableCell>
@@ -312,7 +308,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                   {performances.map((perf) => (
                     <TableRow key={perf.id}>
                       <TableCell>{new Date(perf.date).toLocaleDateString()}</TableCell>
-                      <TableCell>{perf.time}</TableCell>
                       <TableCell>{perf.location || '-'}</TableCell>
                       <TableCell align="center">
                         {perf.notes ? (
@@ -344,14 +339,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                 type="date"
                 value={perfDate}
                 onChange={(e) => setPerfDate(e.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
-                fullWidth
-              />
-              <TextField
-                label="Time"
-                type="time"
-                value={perfTime}
-                onChange={(e) => setPerfTime(e.target.value)}
                 slotProps={{ inputLabel: { shrink: true } }}
                 fullWidth
               />
