@@ -49,6 +49,7 @@ export const initDb = async () => {
         release_year INTEGER,
         personal_key TEXT DEFAULT 'Standard',
         vocal_status TEXT DEFAULT 'Practicing',
+        lyrics TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     `);
@@ -59,13 +60,14 @@ export const initDb = async () => {
       { name: 'genre', type: 'TEXT' },
       { name: 'release_year', type: 'INTEGER' },
       { name: 'personal_key', type: "TEXT DEFAULT 'Standard'" },
-      { name: 'vocal_status', type: "TEXT DEFAULT 'Practicing'" }
+      { name: 'vocal_status', type: "TEXT DEFAULT 'Practicing'" },
+      { name: 'lyrics', type: 'TEXT' }
     ];
 
     for (const col of columns) {
       try {
         await db.execute(`ALTER TABLE songs ADD COLUMN ${col.name} ${col.type}`);
-      } catch (e) { /* ignore if already exists */ }
+      } catch { /* ignore if already exists */ }
     }
 
     await db.execute(`
@@ -117,9 +119,51 @@ export const initDb = async () => {
     // Migration: Add user_id column to performances if it doesn't exist
     try {
       await db.execute("ALTER TABLE performances ADD COLUMN user_id INTEGER");
-    } catch (e) {
+    } catch {
       // Column might already exist
     }
+
+    // New tables for Locations and Tags
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS locations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        name TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS tags (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL, -- 'song' or 'performance'
+        UNIQUE(user_id, name, type),
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS song_tags (
+        song_id INTEGER,
+        tag_id INTEGER,
+        PRIMARY KEY (song_id, tag_id),
+        FOREIGN KEY (song_id) REFERENCES songs (id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS performance_tags (
+        performance_id INTEGER,
+        tag_id INTEGER,
+        PRIMARY KEY (performance_id, tag_id),
+        FOREIGN KEY (performance_id) REFERENCES performances (id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+      )
+    `);
+
   } catch (error) {
     console.error("Error initializing database:", error);
   }

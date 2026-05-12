@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { 
   Box, List, ListItem, ListItemText, ListItemAvatar, ListItemButton,
   Avatar, Typography, Paper, Divider, Button, Grid, Chip, IconButton,
   CircularProgress, Alert, Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Select, MenuItem, FormControl, InputLabel, Tab, Tabs, Card, CardContent,
+  Select, MenuItem, FormControl, InputLabel, Card, CardContent,
   Autocomplete
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -43,6 +43,7 @@ interface Song {
   release_year: number;
   personal_key: string;
   vocal_status: string;
+  lyrics?: string;
 }
 
 interface Performance {
@@ -51,6 +52,17 @@ interface Performance {
   date: string;
   location: string;
   notes: string;
+}
+
+interface Tag {
+  id: number;
+  name: string;
+  type: 'song' | 'performance';
+}
+
+interface Location {
+  id: number;
+  name: string;
 }
 
 interface Setlist {
@@ -70,6 +82,12 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const [error, setError] = useState<string | null>(null);
   const [performances, setPerformances] = useState<Performance[]>([]);
   
+  // Tags & Locations state
+  const [availableSongTags, setAvailableSongTags] = useState<Tag[]>([]);
+  const [availablePerfTags, setAvailablePerfTags] = useState<Tag[]>([]);
+  const [selectedSongTags, setSelectedSongTags] = useState<Tag[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [genreFilter, setGenreFilter] = useState('All');
@@ -80,6 +98,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const [perfDate, setPerfDate] = useState('');
   const [perfLocation, setPerfLocation] = useState('');
   const [perfNotes, setPerfNotes] = useState('');
+  const [selectedPerfTags, setSelectedPerfTags] = useState<number[]>([]);
   const [savingPerf, setSavingPerf] = useState(false);
 
   // Setlist State
@@ -96,7 +115,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const [topSongs, setTopSongs] = useState<{track_name: string, count: number}[]>([]);
   const [topVenues, setTopVenues] = useState<{location: string, count: number}[]>([]);
 
-  const fetchSongs = async () => {
+  const fetchSongs = useCallback(async () => {
     setLoading(true);
     try {
       const result = await db.execute({
@@ -110,9 +129,9 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser.id]);
 
-  const fetchSetlists = async () => {
+  const fetchSetlists = useCallback(async () => {
     try {
       const result = await db.execute({
         sql: "SELECT * FROM setlists WHERE user_id = ? ORDER BY created_at DESC",
@@ -122,9 +141,29 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [currentUser.id]);
 
-  const fetchAnalytics = async () => {
+  const fetchTagsAndLocations = useCallback(async () => {
+    try {
+      const tagsRes = await db.execute({
+        sql: "SELECT * FROM tags WHERE user_id = ? ORDER BY name ASC",
+        args: [currentUser.id]
+      });
+      const allTags = tagsRes.rows as unknown as Tag[];
+      setAvailableSongTags(allTags.filter(t => t.type === 'song'));
+      setAvailablePerfTags(allTags.filter(t => t.type === 'performance'));
+
+      const locRes = await db.execute({
+        sql: "SELECT * FROM locations WHERE user_id = ? ORDER BY name ASC",
+        args: [currentUser.id]
+      });
+      setLocations(locRes.rows as unknown as Location[]);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [currentUser.id]);
+
+  const fetchAnalytics = useCallback(async () => {
     try {
       const songsRes = await db.execute({
         sql: `SELECT s.track_name, COUNT(p.id) as count 
@@ -132,7 +171,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
               WHERE s.user_id = ? GROUP BY s.id ORDER BY count DESC LIMIT 5`,
         args: [currentUser.id]
       });
-      setTopSongs(songsRes.rows as any);
+      setTopSongs(songsRes.rows as unknown as {track_name: string, count: number}[]);
 
       const venuesRes = await db.execute({
         sql: `SELECT location, COUNT(id) as count 
@@ -140,19 +179,37 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
               GROUP BY location ORDER BY count DESC LIMIT 5`,
         args: [currentUser.id]
       });
-      setTopVenues(venuesRes.rows as any);
+      setTopVenues(venuesRes.rows as unknown as {location: string, count: number}[]);
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [currentUser.id]);
 
   useEffect(() => {
-    fetchSongs();
-    fetchSetlists();
-    fetchAnalytics();
-  }, [currentUser]);
+    const loadData = async () => {
+      await fetchSongs();
+      await fetchSetlists();
+      await fetchTagsAndLocations();
+      await fetchAnalytics();
+    };
+    loadData();
+  }, [fetchSongs, fetchSetlists, fetchTagsAndLocations, fetchAnalytics]);
 
-  const fetchPerformances = async (songId: number) => {
+  const fetchSongTags = useCallback(async (songId: number) => {
+    try {
+      const result = await db.execute({
+        sql: `SELECT t.* FROM tags t 
+              JOIN song_tags st ON t.id = st.tag_id 
+              WHERE st.song_id = ?`,
+        args: [songId]
+      });
+      setSelectedSongTags(result.rows as unknown as Tag[]);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  const fetchPerformances = useCallback(async (songId: number) => {
     try {
       const result = await db.execute({
         sql: "SELECT * FROM performances WHERE song_id = ? AND user_id = ? ORDER BY date DESC",
@@ -162,13 +219,14 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     } catch (err) {
       console.error('Error fetching performances:', err);
     }
-  };
+  }, [currentUser.id]);
 
   useEffect(() => {
     if (selectedSong) {
       fetchPerformances(selectedSong.id);
+      fetchSongTags(selectedSong.id);
     }
-  }, [selectedSong]);
+  }, [selectedSong, fetchPerformances, fetchSongTags]);
 
   const handleUpdateSongProperty = async (songId: number, field: string, value: string) => {
     try {
@@ -180,6 +238,32 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
       if (selectedSong?.id === songId) {
         setSelectedSong({ ...selectedSong, [field]: value });
       }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddSongTag = async (tagId: number) => {
+    if (!selectedSong) return;
+    try {
+      await db.execute({
+        sql: "INSERT OR IGNORE INTO song_tags (song_id, tag_id) VALUES (?, ?)",
+        args: [selectedSong.id, tagId]
+      });
+      fetchSongTags(selectedSong.id);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRemoveSongTag = async (tagId: number) => {
+    if (!selectedSong) return;
+    try {
+      await db.execute({
+        sql: "DELETE FROM song_tags WHERE song_id = ? AND tag_id = ?",
+        args: [selectedSong.id, tagId]
+      });
+      fetchSongTags(selectedSong.id);
     } catch (err) {
       console.error(err);
     }
@@ -232,6 +316,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     setPerfDate(now.toISOString().split('T')[0]);
     setPerfLocation('');
     setPerfNotes('');
+    setSelectedPerfTags([]);
     setPerfDialogOpen(true);
   };
 
@@ -239,10 +324,21 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     if (!selectedSong) return;
     setSavingPerf(true);
     try {
-      await db.execute({
-        sql: "INSERT INTO performances (song_id, user_id, date, location, notes) VALUES (?, ?, ?, ?, ?)",
+      const result = await db.execute({
+        sql: "INSERT INTO performances (song_id, user_id, date, location, notes) VALUES (?, ?, ?, ?, ?) RETURNING id",
         args: [selectedSong.id, currentUser.id, perfDate, perfLocation, perfNotes]
       });
+      
+      const perfId = (result.rows[0] as unknown as { id: number }).id;
+      
+      // Save performance tags
+      for (const tagId of selectedPerfTags) {
+        await db.execute({
+          sql: "INSERT INTO performance_tags (performance_id, tag_id) VALUES (?, ?)",
+          args: [perfId, tagId]
+        });
+      }
+
       setPerfDialogOpen(false);
       fetchPerformances(selectedSong.id);
       fetchAnalytics();
@@ -306,6 +402,15 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
           <Grid container spacing={4}>
             <Grid size={{ xs: 12, md: 4 }}>
               <Avatar variant="rounded" src={selectedSong.artwork_url.replace('100x100bb', '400x400bb')} sx={{ width: '100%', height: 'auto', aspectRatio: '1/1', boxShadow: 3 }} />
+              
+              {selectedSong.lyrics && (
+                <Box sx={{ mt: 4 }}>
+                  <Typography variant="h6" gutterBottom>Lyrics Sneak Peek</Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', fontStyle: 'italic', color: 'textSecondary' }}>
+                    {selectedSong.lyrics.length > 500 ? selectedSong.lyrics.substring(0, 500) + '...' : selectedSong.lyrics}
+                  </Typography>
+                </Box>
+              )}
             </Grid>
             <Grid size={{ xs: 12, md: 8 }}>
               <Typography variant="h3" gutterBottom sx={{ fontWeight: 'bold' }}>{selectedSong.track_name}</Typography>
@@ -316,6 +421,23 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                 <Chip label={selectedSong.release_year || 'Unknown Year'} variant="outlined" />
                 <Chip label={selectedSong.karafun_available ? "Karafun Available" : "Not on Karafun"} color={selectedSong.karafun_available ? "success" : "default"} variant="outlined" />
                 {selectedSong.explicit && <Chip label="Explicit" color="error" size="small" />}
+              </Box>
+
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" gutterBottom>SONG TAGS</Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
+                  {selectedSongTags.map(tag => (
+                    <Chip key={tag.id} label={tag.name} onDelete={() => handleRemoveSongTag(tag.id)} color="primary" size="small" />
+                  ))}
+                </Box>
+                <Autocomplete
+                  size="small"
+                  options={availableSongTags.filter(t => !selectedSongTags.find(st => st.id === t.id))}
+                  getOptionLabel={(option) => option.name}
+                  renderInput={(params) => <TextField {...params} label="Add Tag" sx={{ maxWidth: 200 }} />}
+                  onChange={(_, value) => value && handleAddSongTag(value.id)}
+                  value={null}
+                />
               </Box>
 
               <Divider sx={{ my: 2 }} />
@@ -393,7 +515,28 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
           <DialogContent>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
               <TextField label="Date" type="date" value={perfDate} onChange={(e) => setPerfDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth />
-              <TextField label="Location" placeholder="e.g. Blue Note, Home" value={perfLocation} onChange={(e) => setPerfLocation(e.target.value)} fullWidth />
+              
+              <FormControl fullWidth>
+                <Autocomplete
+                  freeSolo
+                  options={locations.map(l => l.name)}
+                  renderInput={(params) => <TextField {...params} label="Location" placeholder="e.g. Blue Note, Home" />}
+                  value={perfLocation}
+                  onChange={(_, value) => setPerfLocation(value || '')}
+                  onInputChange={(_, value) => setPerfLocation(value)}
+                />
+              </FormControl>
+
+              <FormControl fullWidth>
+                <Autocomplete
+                  multiple
+                  options={availablePerfTags}
+                  getOptionLabel={(option) => option.name}
+                  renderInput={(params) => <TextField {...params} label="Perf Tags" placeholder="Add tags..." />}
+                  onChange={(_, value) => setSelectedPerfTags(value.map(v => v.id))}
+                />
+              </FormControl>
+
               <TextField label="Notes" placeholder="How did it go?" multiline rows={3} value={perfNotes} onChange={(e) => setPerfNotes(e.target.value)} fullWidth />
             </Box>
           </DialogContent>
@@ -442,7 +585,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
           value={searchQuery} 
           onChange={(e) => setSearchQuery(e.target.value)} 
           sx={{ flexGrow: 1 }}
-          InputProps={{ startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} /> }}
+          slotProps={{ input: { startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} /> } }}
         />
         <FormControl size="small" sx={{ minWidth: 120 }}>
           <InputLabel>Genre</InputLabel>

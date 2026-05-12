@@ -10,12 +10,15 @@ import {
   CssBaseline,
   Button,
   AppBar,
-  Toolbar
+  Toolbar,
+  Divider
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SongLookup from './components/SongLookup';
 import SavedSongs from './components/SavedSongs';
 import CatalogImporter from './components/CatalogImporter';
+import TagManager from './components/TagManager';
+import LocationManager from './components/LocationManager';
 import Login from './components/Login';
 
 const theme = createTheme({
@@ -70,7 +73,7 @@ function App() {
     if (savedUser) {
       try {
         setCurrentUser(JSON.parse(savedUser));
-      } catch (e) {
+      } catch {
         localStorage.removeItem('karaoke_user');
       }
     }
@@ -130,6 +133,7 @@ function App() {
           <Tabs value={value} onChange={handleChange} centered textColor="primary" indicatorColor="primary">
             <Tab label="Song Lookup" />
             <Tab label="Song List" />
+            <Tab label="Tags" />
             <Tab label="Admin" />
           </Tabs>
         </Box>
@@ -140,12 +144,17 @@ function App() {
           <SavedSongs currentUser={currentUser} />
         </CustomTabPanel>
         <CustomTabPanel value={value} index={2}>
+          <TagManager currentUser={currentUser} />
+        </CustomTabPanel>
+        <CustomTabPanel value={value} index={3}>
           <Box sx={{ textAlign: 'center', mt: 4 }}>
             <Typography variant="h5" gutterBottom>Administrative Tools</Typography>
             <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
-              Manage the KaraFun catalog index and other system settings.
+              Manage the KaraFun catalog index, favorite locations, and other system settings.
             </Typography>
             <CatalogImporter />
+            <Divider sx={{ my: 4 }} />
+            <LocationManager currentUser={currentUser} />
           </Box>
         </CustomTabPanel>
       </Container>

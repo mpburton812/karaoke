@@ -74,6 +74,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
     setSelectedSong(song);
     setCheckingKarafun(true);
     setIsKarafunAvailable(null);
+    setLyrics(null);
     
     try {
       // 1. Try checking the local KaraFun catalog table first (Instant)
@@ -84,42 +85,48 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
 
       if (result.rows.length > 0) {
         setIsKarafunAvailable(true);
-        setCheckingKarafun(false);
-        return;
+      } else {
+        // 2. Fallback to scraping if not found in local DB (Slow)
+        const karafunSearchUrl = `https://www.karafun.com/search.html?query=${encodeURIComponent(song.trackName + ' ' + song.artistName)}`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(karafunSearchUrl)}`;
+        
+        const response = await axios.get(proxyUrl);
+        const html = response.data.contents;
+        const hasResults = html.includes('songList__item') || !html.includes('No results found');
+        setIsKarafunAvailable(hasResults);
       }
 
-      // 2. Fallback to scraping if not found in local DB (Slow)
-      const karafunSearchUrl = `https://www.karafun.com/search.html?query=${encodeURIComponent(song.trackName + ' ' + song.artistName)}`;
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(karafunSearchUrl)}`;
-      
-      const response = await axios.get(proxyUrl);
-      const html = response.data.contents;
-      const hasResults = html.includes('songList__item') || !html.includes('No results found');
-      setIsKarafunAvailable(hasResults);
+      // 3. Fetch lyrics (Bonus)
+      try {
+        const lyricsRes = await axios.get(`https://api.lyrics.ovh/v1/${encodeURIComponent(song.artistName)}/${encodeURIComponent(song.trackName)}`);
+        if (lyricsRes.data.lyrics) {
+          setLyrics(lyricsRes.data.lyrics);
+        }
+      } catch {
+        console.warn('Lyrics not found');
+      }
       
     } catch (err) {
-      console.error('Error checking Karafun:', err);
+      console.error('Error checking song details:', err);
       setIsKarafunAvailable(false);
     } finally {
       setCheckingKarafun(false);
     }
   };
 
+  const [lyrics, setLyrics] = useState<string | null>(null);
+
   const handleSave = async () => {
     if (!selectedSong) return;
     setSaving(true);
     try {
-      // For now, we'll use placeholder values for Tunebat-style stats
-      // until we implement the actual metadata fetcher.
-      // The requirement says: Key, BPM, Duration, Song qualities, etc.
-      
       await db.execute({
         sql: `INSERT INTO songs (
           user_id, itunes_id, track_name, artist_name, artwork_url, karafun_available,
           key, bpm, duration_ms, popularity, energy, danceability, happiness,
           acousticness, instrumentalness, liveness, speechiness, loudness,
-          release_date, explicit, album, genre, release_year
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          release_date, explicit, album, genre, release_year, lyrics
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           currentUser.id,
           selectedSong.trackId,
@@ -143,7 +150,8 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
           selectedSong.trackExplicitness === 'explicit' ? 1 : 0,
           selectedSong.collectionName,
           selectedSong.primaryGenreName,
-          new Date(selectedSong.releaseDate).getFullYear()
+          new Date(selectedSong.releaseDate).getFullYear(),
+          lyrics
         ]
       });
       
