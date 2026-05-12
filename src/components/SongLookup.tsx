@@ -76,24 +76,43 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
     setIsKarafunAvailable(null);
     setLyrics(null);
     
+    // Clean up title for better matching (remove "(Remastered)", "feat. ...", etc.)
+    const cleanTitle = song.trackName.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s*-.*$/g, '').trim();
+    const cleanArtist = song.artistName.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s*-.*$/g, '').trim();
+
     try {
-      // 1. Try checking the local KaraFun catalog table first (Instant)
+      // 1. Try checking the local KaraFun catalog table first (Fuzzy Match)
       const result = await db.execute({
-        sql: "SELECT id FROM karafun_catalog WHERE title LIKE ? AND artist LIKE ? LIMIT 1",
-        args: [`%${song.trackName}%`, `%${song.artistName}%`]
+        sql: `SELECT id FROM karafun_catalog 
+              WHERE (title LIKE ? OR ? LIKE '%' || title || '%') 
+              AND (artist LIKE ? OR ? LIKE '%' || artist || '%') 
+              LIMIT 1`,
+        args: [`%${cleanTitle}%`, cleanTitle, `%${cleanArtist}%`, cleanArtist]
       });
 
       if (result.rows.length > 0) {
         setIsKarafunAvailable(true);
       } else {
         // 2. Fallback to scraping if not found in local DB (Slow)
-        const karafunSearchUrl = `https://www.karafun.com/search.html?query=${encodeURIComponent(song.trackName + ' ' + song.artistName)}`;
+        const searchQuery = `${cleanTitle} ${cleanArtist}`;
+        const karafunSearchUrl = `https://www.karafun.com/search.html?query=${encodeURIComponent(searchQuery)}`;
         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(karafunSearchUrl)}`;
         
         const response = await axios.get(proxyUrl);
-        const html = response.data.contents;
-        const hasResults = html.includes('songList__item') || !html.includes('No results found');
-        setIsKarafunAvailable(hasResults);
+        const html = response.data.contents || '';
+        
+        // More robust check for results
+        const hasSongItems = html.includes('song-list__item') || 
+                            html.includes('songList__item') || 
+                            html.includes('search-result') ||
+                            html.includes('karaoke/');
+        
+        const hasNoResultsMessage = html.toLowerCase().includes('no results found') || 
+                                   html.toLowerCase().includes('no result found');
+        
+        // If we see song items or DON'T see the "no results" message (and got a real page)
+        const isAvailable = hasSongItems || (html.length > 1000 && !hasNoResultsMessage);
+        setIsKarafunAvailable(isAvailable);
       }
 
       // 3. Fetch lyrics (Bonus)
