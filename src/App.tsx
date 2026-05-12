@@ -19,7 +19,9 @@ import SavedSongs from './components/SavedSongs';
 import CatalogImporter from './components/CatalogImporter';
 import TagManager from './components/TagManager';
 import LocationManager from './components/LocationManager';
+import SetlistManager from './components/SetlistManager';
 import Login from './components/Login';
+import { db } from './db';
 
 const theme = createTheme({
   palette: {
@@ -91,6 +93,33 @@ function App() {
     setValue(0);
   };
 
+  const handleNukeData = async () => {
+    if (!currentUser) return;
+    const confirmed = window.confirm(
+      "CRITICAL WARNING: This will permanently delete ALL your songs, performances, setlists, tags, and locations. This action CANNOT be undone. Are you absolutely sure?"
+    );
+    
+    if (confirmed) {
+      try {
+        await db.batch([
+          { sql: "DELETE FROM performance_tags WHERE performance_id IN (SELECT id FROM performances WHERE user_id = ?)", args: [currentUser.id] },
+          { sql: "DELETE FROM song_tags WHERE song_id IN (SELECT id FROM songs WHERE user_id = ?)", args: [currentUser.id] },
+          { sql: "DELETE FROM setlist_songs WHERE setlist_id IN (SELECT id FROM setlists WHERE user_id = ?)", args: [currentUser.id] },
+          { sql: "DELETE FROM performances WHERE user_id = ?", args: [currentUser.id] },
+          { sql: "DELETE FROM songs WHERE user_id = ?", args: [currentUser.id] },
+          { sql: "DELETE FROM setlists WHERE user_id = ?", args: [currentUser.id] },
+          { sql: "DELETE FROM tags WHERE user_id = ?", args: [currentUser.id] },
+          { sql: "DELETE FROM locations WHERE user_id = ?", args: [currentUser.id] }
+        ]);
+        alert("Account wiped successfully.");
+        window.location.reload();
+      } catch (err) {
+        console.error("Nuke failed:", err);
+        alert("Failed to wipe data. Check console for details.");
+      }
+    }
+  };
+
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
   };
@@ -150,11 +179,32 @@ function App() {
           <Box sx={{ textAlign: 'center', mt: 4 }}>
             <Typography variant="h5" gutterBottom>Administrative Tools</Typography>
             <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
-              Manage the KaraFun catalog index, favorite locations, and other system settings.
+              Manage your catalog, setlists, and favorite locations.
             </Typography>
+            
             <CatalogImporter />
+            
+            <Divider sx={{ my: 4 }} />
+            <SetlistManager currentUser={currentUser} />
+            
             <Divider sx={{ my: 4 }} />
             <LocationManager currentUser={currentUser} />
+
+            <Divider sx={{ my: 6, borderColor: 'error.main' }} />
+            <Box sx={{ p: 3, border: '1px solid', borderColor: 'error.main', borderRadius: 2, bgcolor: 'rgba(211, 47, 47, 0.05)' }}>
+              <Typography variant="h6" color="error" gutterBottom>Danger Zone</Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Clearing your configuration will delete all personal data associated with your account.
+              </Typography>
+              <Button 
+                variant="outlined" 
+                color="error" 
+                onClick={handleNukeData}
+                sx={{ fontWeight: 'bold' }}
+              >
+                NUKE ALL CONFIGURATION
+              </Button>
+            </Box>
           </Box>
         </CustomTabPanel>
       </Container>

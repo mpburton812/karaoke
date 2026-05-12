@@ -472,11 +472,35 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
               </Grid>
 
               <Box sx={{ mt: 4 }}>
-                <Typography variant="body2" color="textSecondary">
-                  BPM: {selectedSong.bpm} | Energy: {(selectedSong.energy * 100).toFixed(0)}% | Danceability: {(selectedSong.danceability * 100).toFixed(0)}%<br />
-                  Album: {selectedSong.album}<br />
-                  Release Date: {new Date(selectedSong.release_date).toLocaleDateString()}
-                </Typography>
+                <Typography variant="h6" gutterBottom>Musical Qualities</Typography>
+                <Grid container spacing={1}>
+                  {[
+                    { label: 'Energy', value: selectedSong.energy },
+                    { label: 'Danceability', value: selectedSong.danceability },
+                    { label: 'Happiness', value: selectedSong.happiness },
+                    { label: 'Acousticness', value: selectedSong.acousticness },
+                    { label: 'Instrumentalness', value: selectedSong.instrumentalness },
+                    { label: 'Liveness', value: selectedSong.liveness },
+                    { label: 'Speechiness', value: selectedSong.speechiness }
+                  ].map((quality) => (
+                    <Grid size={{ xs: 6, sm: 4, md: 3 }} key={quality.label}>
+                      <Box sx={{ textAlign: 'center', p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                        <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>{quality.label}</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{(quality.value * 100).toFixed(0)}%</Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="body2" color="textSecondary">
+                    <strong>BPM:</strong> {selectedSong.bpm} | <strong>Key:</strong> {selectedSong.key}<br />
+                    <strong>Album:</strong> {selectedSong.album}<br />
+                    <strong>Duration:</strong> {Math.floor(selectedSong.duration_ms / 60000)}:{( (selectedSong.duration_ms % 60000) / 1000).toFixed(0).padStart(2, '0')}<br />
+                    <strong>Popularity:</strong> {selectedSong.popularity}/100 | <strong>Loudness:</strong> {selectedSong.loudness} dB<br />
+                    <strong>Release Date:</strong> {new Date(selectedSong.release_date).toLocaleDateString()}
+                  </Typography>
+                </Box>
               </Box>
             </Grid>
           </Grid>
