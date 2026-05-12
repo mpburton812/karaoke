@@ -45,16 +45,50 @@ export const initDb = async () => {
         release_date TEXT,
         explicit BOOLEAN,
         album TEXT,
+        genre TEXT,
+        release_year INTEGER,
+        personal_key TEXT DEFAULT 'Standard',
+        vocal_status TEXT DEFAULT 'Practicing',
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     `);
 
-    // Migration: Add user_id column to songs if it doesn't exist
-    try {
-      await db.execute("ALTER TABLE songs ADD COLUMN user_id INTEGER");
-    } catch (e) {
-      // Column might already exist
+    // Migrations for existing columns
+    const columns = [
+      { name: 'user_id', type: 'INTEGER' },
+      { name: 'genre', type: 'TEXT' },
+      { name: 'release_year', type: 'INTEGER' },
+      { name: 'personal_key', type: "TEXT DEFAULT 'Standard'" },
+      { name: 'vocal_status', type: "TEXT DEFAULT 'Practicing'" }
+    ];
+
+    for (const col of columns) {
+      try {
+        await db.execute(`ALTER TABLE songs ADD COLUMN ${col.name} ${col.type}`);
+      } catch (e) { /* ignore if already exists */ }
     }
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS setlists (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        name TEXT NOT NULL,
+        description TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS setlist_songs (
+        setlist_id INTEGER,
+        song_id INTEGER,
+        display_order INTEGER,
+        PRIMARY KEY (setlist_id, song_id),
+        FOREIGN KEY (setlist_id) REFERENCES setlists (id) ON DELETE CASCADE,
+        FOREIGN KEY (song_id) REFERENCES songs (id) ON DELETE CASCADE
+      )
+    `);
 
     await db.execute(`
       CREATE TABLE IF NOT EXISTS karafun_catalog (

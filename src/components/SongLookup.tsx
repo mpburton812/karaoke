@@ -33,6 +33,7 @@ interface iTunesSong {
   releaseDate: string;
   trackExplicitness: string;
   trackTimeMillis: number;
+  primaryGenreName: string;
 }
 
 interface SongLookupProps {
@@ -117,8 +118,8 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
           user_id, itunes_id, track_name, artist_name, artwork_url, karafun_available,
           key, bpm, duration_ms, popularity, energy, danceability, happiness,
           acousticness, instrumentalness, liveness, speechiness, loudness,
-          release_date, explicit, album
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          release_date, explicit, album, genre, release_year
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           currentUser.id,
           selectedSong.trackId,
@@ -140,7 +141,9 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
           -5.0,     // Placeholder
           selectedSong.releaseDate,
           selectedSong.trackExplicitness === 'explicit' ? 1 : 0,
-          selectedSong.collectionName
+          selectedSong.collectionName,
+          selectedSong.primaryGenreName,
+          new Date(selectedSong.releaseDate).getFullYear()
         ]
       });
       
