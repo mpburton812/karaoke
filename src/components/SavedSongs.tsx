@@ -660,17 +660,28 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                 <ListItem 
                   disablePadding
                   secondaryAction={
-                    <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <IconButton edge="end" aria-label="perform" sx={{ color: '#1DB954', mr: 1 }} onClick={(e) => { e.stopPropagation(); handleDirectPerform(song); }}><PlayArrowIcon /></IconButton>
                       <IconButton edge="end" aria-label="delete" color="error" onClick={(e) => { e.stopPropagation(); handleRemove(song.id); }}><DeleteIcon /></IconButton>
                     </Box>
                   }
                 >
-                  <ListItemButton onClick={() => setSelectedSong(song)}>
+                  <ListItemButton onClick={() => setSelectedSong(song)} sx={{ pr: 12 }}>
                     <ListItemAvatar><Avatar variant="rounded" src={song.artwork_url} /></ListItemAvatar>
                     <ListItemText 
-                      primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{song.track_name} {song.vocal_status === 'Mastered' && <StarIcon sx={{ color: '#FFD700', fontSize: 16 }} />}</Box>} 
-                      secondary={`${song.artist_name} • ${song.personal_key || 'Standard'}`} 
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
+                          <Typography variant="body1" noWrap sx={{ fontWeight: 'medium' }}>
+                            {song.track_name}
+                          </Typography>
+                          {song.vocal_status === 'Mastered' && <StarIcon sx={{ color: '#FFD700', fontSize: 16, flexShrink: 0 }} />}
+                        </Box>
+                      } 
+                      secondary={
+                        <Typography variant="body2" color="textSecondary" noWrap>
+                          {`${song.artist_name} • ${song.personal_key || 'Standard'}`}
+                        </Typography>
+                      } 
                     />
                   </ListItemButton>
                 </ListItem>

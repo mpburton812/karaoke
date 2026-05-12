@@ -153,7 +153,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
             return {
               bpm: null, // AcousticBrainz high-level doesn't have reliable BPM
               key: data.tonal_atonal?.all?.tonal > 0.5 ? (data.key_edma?.all?.key || "DNF") : "DNF",
-              energy: 1 - (data.mood_acoustic?.all?.acoustic || 0.5), 
+              energy: data.mood_acoustic?.all?.acoustic !== undefined ? 1 - data.mood_acoustic.all.acoustic : null, 
               danceability: data.danceability?.all?.danceable || null,
               happiness: data.mood_happy?.all?.happy || null,
               acousticness: data.mood_acoustic?.all?.acoustic || null,
@@ -209,7 +209,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
           qualities.key,
           qualities.bpm,
           selectedSong.trackTimeMillis,
-          selectedSong.trackExplicitness === 'explicit' ? 100 : 80, // iTunes proxy popularity
+          null, // Popularity (iTunes doesn't provide a reliable score)
           qualities.energy,
           qualities.danceability,
           qualities.happiness,
