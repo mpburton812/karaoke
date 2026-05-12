@@ -15,6 +15,10 @@ import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 import StarIcon from '@mui/icons-material/Star';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import YouTubeIcon from '@mui/icons-material/YouTube';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import HistoryIcon from '@mui/icons-material/History';
 import { db } from '../db';
 
 interface Song {
@@ -44,6 +48,7 @@ interface Song {
   personal_key: string;
   vocal_status: string;
   lyrics?: string;
+  last_practiced?: string;
 }
 
 interface Performance {
@@ -92,6 +97,10 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [genreFilter, setGenreFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+
+  // Suggestion State
+  const [suggestDialogOpen, setSuggestDialogOpen] = useState(false);
+  const [suggestedSong, setSuggestedSong] = useState<Song | null>(null);
 
   // Performance Dialog State
   const [perfDialogOpen, setPerfDialogOpen] = useState(false);
@@ -228,19 +237,33 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     }
   }, [selectedSong, fetchPerformances, fetchSongTags]);
 
-  const handleUpdateSongProperty = async (songId: number, field: string, value: string) => {
+  const handleUpdateSongProperty = async (songId: number, field: string, value: string | null) => {
     try {
       await db.execute({
         sql: `UPDATE songs SET ${field} = ? WHERE id = ?`,
         args: [value, songId]
       });
-      setSongs(songs.map(s => s.id === songId ? { ...s, [field]: value } : s));
+      setSongs(prevSongs => prevSongs.map(s => s.id === songId ? { ...s, [field]: value } : s));
       if (selectedSong?.id === songId) {
-        setSelectedSong({ ...selectedSong, [field]: value });
+        setSelectedSong({ ...selectedSong, [field]: value as string });
       }
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleMarkPracticed = async (songId: number) => {
+    const now = new Date().toISOString();
+    await handleUpdateSongProperty(songId, 'last_practiced', now);
+  };
+
+  const handleSmartSuggest = () => {
+    if (songs.length === 0) return;
+    const masters = songs.filter(s => s.vocal_status === 'Mastered');
+    const pool = masters.length > 0 ? masters : songs;
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    setSuggestedSong(pool[randomIndex]);
+    setSuggestDialogOpen(true);
   };
 
   const handleAddSongTag = async (tagId: number) => {
@@ -403,6 +426,43 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
             <Grid size={{ xs: 12, md: 4 }}>
               <Avatar variant="rounded" src={selectedSong.artwork_url.replace('100x100bb', '400x400bb')} sx={{ width: '100%', height: 'auto', aspectRatio: '1/1', boxShadow: 3 }} />
               
+              <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Button 
+                  variant="outlined" 
+                  color="error" 
+                  fullWidth 
+                  startIcon={<YouTubeIcon />}
+                  href={`https://www.youtube.com/results?search_query=${encodeURIComponent(selectedSong.track_name + ' ' + selectedSong.artist_name + ' karaoke')}`}
+                  target="_blank"
+                >
+                  PRACTICE ON YOUTUBE
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  sx={{ color: '#1DB954', borderColor: '#1DB954' }} 
+                  fullWidth 
+                  startIcon={<MusicNoteIcon />}
+                  href={`https://open.spotify.com/search/${encodeURIComponent(selectedSong.track_name + ' ' + selectedSong.artist_name)}`}
+                  target="_blank"
+                >
+                  LISTEN ON SPOTIFY
+                </Button>
+                <Button 
+                  variant="contained" 
+                  color="secondary" 
+                  fullWidth 
+                  startIcon={<HistoryIcon />}
+                  onClick={() => handleMarkPracticed(selectedSong.id)}
+                >
+                  MARK AS PRACTICED
+                </Button>
+                {selectedSong.last_practiced && (
+                  <Typography variant="caption" align="center" color="textSecondary" sx={{ mt: 1 }}>
+                    Last practiced: {new Date(selectedSong.last_practiced).toLocaleDateString()}
+                  </Typography>
+                )}
+              </Box>
+
               {selectedSong.lyrics && (
                 <Box sx={{ mt: 4 }}>
                   <Typography variant="h6" gutterBottom>Lyrics Sneak Peek</Typography>
@@ -499,7 +559,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                     <strong>BPM:</strong> {selectedSong.bpm || "DNF"} | <strong>Key:</strong> {selectedSong.key || "DNF"}<br />
                     <strong>Album:</strong> {selectedSong.album}<br />
                     <strong>Duration:</strong> {Math.floor(selectedSong.duration_ms / 60000)}:{( (selectedSong.duration_ms % 60000) / 1000).toFixed(0).padStart(2, '0')}<br />
-                    <strong>Popularity:</strong> {selectedSong.popularity}/100 | <strong>Loudness:</strong> {selectedSong.loudness !== null ? `${selectedSong.loudness} dB` : "DNF"}<br />
+                    <strong>Popularity:</strong> {selectedSong.popularity ? `${selectedSong.popularity}/100` : "DNF"} | <strong>Loudness:</strong> {selectedSong.loudness !== null ? `${selectedSong.loudness} dB` : "DNF"}<br />
                     <strong>Release Date:</strong> {new Date(selectedSong.release_date).toLocaleDateString()}
                   </Typography>
                 </Box>
@@ -613,6 +673,14 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
           sx={{ flexGrow: 1 }}
           slotProps={{ input: { startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} /> } }}
         />
+        <Button 
+          variant="contained" 
+          color="secondary" 
+          startIcon={<AutoAwesomeIcon />}
+          onClick={handleSmartSuggest}
+        >
+          SUGGEST
+        </Button>
         <FormControl size="small" sx={{ minWidth: 120 }}>
           <InputLabel>Genre</InputLabel>
           <Select value={genreFilter} label="Genre" onChange={(e) => setGenreFilter(e.target.value)}>
@@ -691,6 +759,31 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
           </List>
         </Paper>
       )}
+
+      {/* Smart Suggestion Dialog */}
+      <Dialog open={suggestDialogOpen} onClose={() => setSuggestDialogOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <AutoAwesomeIcon color="secondary" /> Smart Suggestion
+        </DialogTitle>
+        <DialogContent>
+          {suggestedSong && (
+            <Box sx={{ textAlign: 'center', py: 2 }}>
+              <Avatar variant="rounded" src={suggestedSong.artwork_url} sx={{ width: 120, height: 120, mx: 'auto', mb: 2 }} />
+              <Typography variant="h5" gutterBottom>{suggestedSong.track_name}</Typography>
+              <Typography variant="h6" color="textSecondary">{suggestedSong.artist_name}</Typography>
+              <Typography variant="body2" sx={{ mt: 2 }} color="primary">
+                Why? It's {suggestedSong.vocal_status === 'Mastered' ? 'one of your mastered hits!' : 'in your repertoire.'}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSuggestDialogOpen(false)}>Dismiss</Button>
+          <Button variant="contained" color="secondary" onClick={() => { setSelectedSong(suggestedSong); setSuggestDialogOpen(false); }}>
+            View Details
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

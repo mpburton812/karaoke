@@ -50,6 +50,7 @@ export const initDb = async () => {
         personal_key TEXT DEFAULT 'Standard',
         vocal_status TEXT DEFAULT 'Practicing',
         lyrics TEXT,
+        last_practiced TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     `);
@@ -61,7 +62,8 @@ export const initDb = async () => {
       { name: 'release_year', type: 'INTEGER' },
       { name: 'personal_key', type: "TEXT DEFAULT 'Standard'" },
       { name: 'vocal_status', type: "TEXT DEFAULT 'Practicing'" },
-      { name: 'lyrics', type: 'TEXT' }
+      { name: 'lyrics', type: 'TEXT' },
+      { name: 'last_practiced', type: 'TEXT' }
     ];
 
     for (const col of columns) {

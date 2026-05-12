@@ -16,6 +16,7 @@ import {
 import LogoutIcon from '@mui/icons-material/Logout';
 import SongLookup from './components/SongLookup';
 import SavedSongs from './components/SavedSongs';
+import SetlistTab from './components/SetlistTab';
 import TagManager from './components/TagManager';
 import LocationManager from './components/LocationManager';
 import SetlistManager from './components/SetlistManager';
@@ -153,15 +154,11 @@ function App() {
         </Toolbar>
       </AppBar>
       <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold' }}>
-            Karaoke Companion
-          </Typography>
-        </Box>
         <Box sx={{ width: '100%', borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={value} onChange={handleChange} centered textColor="primary" indicatorColor="primary">
             <Tab label="Song Lookup" />
             <Tab label="Song List" />
+            <Tab label="Setlists" />
             <Tab label="Tags" />
             <Tab label="Admin" />
           </Tabs>
@@ -173,9 +170,12 @@ function App() {
           <SavedSongs currentUser={currentUser} />
         </CustomTabPanel>
         <CustomTabPanel value={value} index={2}>
-          <TagManager currentUser={currentUser} />
+          <SetlistTab currentUser={currentUser} />
         </CustomTabPanel>
         <CustomTabPanel value={value} index={3}>
+          <TagManager currentUser={currentUser} />
+        </CustomTabPanel>
+        <CustomTabPanel value={value} index={4}>
           <Box sx={{ textAlign: 'center', mt: 4 }}>
             <Typography variant="h5" gutterBottom>Administrative Tools</Typography>
             <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
