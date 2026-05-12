@@ -16,10 +16,10 @@ import {
 import LogoutIcon from '@mui/icons-material/Logout';
 import SongLookup from './components/SongLookup';
 import SavedSongs from './components/SavedSongs';
-import CatalogImporter from './components/CatalogImporter';
 import TagManager from './components/TagManager';
 import LocationManager from './components/LocationManager';
 import SetlistManager from './components/SetlistManager';
+import DataPortability from './components/DataPortability';
 import Login from './components/Login';
 import { db } from './db';
 
@@ -179,10 +179,10 @@ function App() {
           <Box sx={{ textAlign: 'center', mt: 4 }}>
             <Typography variant="h5" gutterBottom>Administrative Tools</Typography>
             <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
-              Manage your catalog, setlists, and favorite locations.
+              Manage your repertoire, setlists, and data portability.
             </Typography>
             
-            <CatalogImporter />
+            <DataPortability currentUser={currentUser} />
             
             <Divider sx={{ my: 4 }} />
             <SetlistManager currentUser={currentUser} />
