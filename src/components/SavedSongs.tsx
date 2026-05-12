@@ -175,7 +175,7 @@ const SavedSongs = () => {
 
   return (
     <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-      <Typography variant="h5" gutterBottom align="center">Your Saved Songs</Typography>
+      <Typography variant="h5" gutterBottom align="center">Your Song List</Typography>
       {songs.length === 0 ? (
         <Typography align="center" color="textSecondary" sx={{ mt: 4 }}>No songs saved yet. Go to Song Lookup to find some!</Typography>
       ) : (

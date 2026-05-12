@@ -75,7 +75,7 @@ function App() {
         <Box sx={{ width: '100%', borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={value} onChange={handleChange} centered textColor="primary" indicatorColor="primary">
             <Tab label="Song Lookup" />
-            <Tab label="Saved Songs" />
+            <Tab label="Song List" />
           </Tabs>
         </Box>
         <CustomTabPanel value={value} index={0}>
