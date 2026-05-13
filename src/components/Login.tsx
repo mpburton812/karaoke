@@ -151,11 +151,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           )}
         </Box>
       </Paper>
-      <Box sx={{ mt: 4, width: '100%' }}>
+      <Box 
+        sx={{ 
+          position: 'fixed', 
+          bottom: 16, 
+          left: '50%', 
+          transform: 'translateX(-50%)', 
+          width: '50vw',
+          zIndex: -1 // Keep it behind any potential overlays but visible on the background
+        }}
+      >
         <img 
           src={logo} 
           alt="Logo" 
-          style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '8px' }} 
+          style={{ width: '100%', height: 'auto', display: 'block', opacity: 0.8 }} 
         />
       </Box>
     </Container>
