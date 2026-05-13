@@ -353,7 +353,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
                   color={selectedTagIds.includes(tag.id) ? "primary" : "default"}
                   variant={selectedTagIds.includes(tag.id) ? "filled" : "outlined"}
                   sx={{ 
-                    fontSize: getTagFontSize(tag.count),
+                    fontSize: '1rem',
                     height: 'auto',
                     padding: '4px 0',
                     '& .MuiChip-label': { px: 2 }
@@ -366,13 +366,15 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
                   key={`genre-${genre}`} 
                   label={genre} 
                   onClick={() => toggleGenreSelection(genre)}
-                  color={selectedGenres.includes(genre) ? "secondary" : "default"}
+                  color={selectedGenres.includes(genre) ? "info" : "default"}
                   variant={selectedGenres.includes(genre) ? "filled" : "outlined"}
                   sx={{ 
-                    fontSize: '1rem', // Genres are fixed size for now as we don't have counts easily without another query
+                    fontSize: '1rem',
                     height: 'auto',
                     padding: '4px 0',
                     fontStyle: 'italic',
+                    backgroundColor: selectedGenres.includes(genre) ? '#03a9f4' : 'transparent',
+                    color: selectedGenres.includes(genre) ? '#fff' : 'text.primary',
                     '& .MuiChip-label': { px: 2 }
                   }}
                 />

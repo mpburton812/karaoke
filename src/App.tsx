@@ -224,17 +224,28 @@ function App() {
         </Suspense>
       </Container>
       
-      <Box component="footer" sx={{ py: 3, px: 2, mt: 'auto', backgroundColor: 'transparent' }}>
+      <Box component="footer" sx={{ 
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        py: 1, 
+        px: 2, 
+        backgroundColor: 'background.default',
+        borderTop: 1,
+        borderColor: 'divider',
+        zIndex: 1100
+      }}>
         <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box sx={{ flexGrow: 1, textAlign: 'center' }}>
-              <Typography variant="body1" color="textSecondary" sx={{ fontWeight: 'bold', letterSpacing: 1 }}>
+              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 'bold', letterSpacing: 2, fontSize: '0.75rem' }}>
                 KARAOKE COMPANION
               </Typography>
             </Box>
             <Box sx={{ textAlign: 'right' }}>
-              <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem', opacity: 0.6 }}>
-                {(window as any).__BRANCH_NAME__ || 'unknown'} @ {(window as any).__COMMIT_HASH__ || 'unknown'}
+              <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.65rem', opacity: 0.7, fontFamily: 'monospace' }}>
+                {__BRANCH_NAME__} @ {__COMMIT_HASH__}
               </Typography>
             </Box>
           </Box>
