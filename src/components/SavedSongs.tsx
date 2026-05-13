@@ -101,6 +101,9 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [activeNotes, setActiveNotes] = useState('');
 
+  // Lyrics Dialog State
+  const [lyricsDialogOpen, setLyricsDialogOpen] = useState(false);
+
   const fetchSongs = useCallback(async () => {
     setLoading(true);
     try {
@@ -346,16 +349,18 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                 >
                   LISTEN ON SPOTIFY
                 </Button>
+                {selectedSong.lyrics && (
+                  <Button 
+                    variant="outlined" 
+                    color="primary" 
+                    fullWidth 
+                    startIcon={<NotesIcon />}
+                    onClick={() => setLyricsDialogOpen(true)}
+                  >
+                    LYRICS
+                  </Button>
+                )}
               </Box>
-
-              {selectedSong.lyrics && (
-                <Box sx={{ mt: 4 }}>
-                  <Typography variant="h6" gutterBottom>Lyrics Sneak Peek</Typography>
-                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', fontStyle: 'italic', color: 'textSecondary' }}>
-                    {selectedSong.lyrics.length > 500 ? selectedSong.lyrics.substring(0, 500) + '...' : selectedSong.lyrics}
-                  </Typography>
-                </Box>
-              )}
             </Grid>
             <Grid size={{ xs: 12, md: 8 }}>
               <Typography variant="h3" gutterBottom sx={{ fontWeight: 'bold' }}>{selectedSong.track_name}</Typography>
@@ -376,36 +381,16 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                   ))}
                 </Box>
                 
-                <Box sx={{ mt: 2, mb: 2 }}>
-                  <Typography variant="caption" gutterBottom sx={{ fontWeight: 'bold', color: 'text.secondary', display: 'block' }}>
-                    Quick-Add Tags:
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {availableTags.map(tag => {
-                      const isAssigned = selectedSongTags.find(st => st.id === tag.id);
-                      return (
-                        <Chip 
-                          key={`quick-song-${tag.id}`} 
-                          label={tag.name} 
-                          size="small"
-                          variant={isAssigned ? "filled" : "outlined"}
-                          color={isAssigned ? "primary" : "default"}
-                          onClick={() => isAssigned ? handleRemoveSongTag(tag.id) : handleAddSongTag(tag.id)}
-                          sx={{ cursor: 'pointer' }}
-                        />
-                      );
-                    })}
-                  </Box>
+                <Box sx={{ mt: 2 }}>
+                  <Autocomplete
+                    size="small"
+                    options={availableTags.filter(t => !selectedSongTags.find(st => st.id === t.id))}
+                    getOptionLabel={(option) => option.name}
+                    renderInput={(params) => <TextField {...params} label="Search Tags" sx={{ maxWidth: 200 }} />}
+                    onChange={(_, value) => value && handleAddSongTag(value.id)}
+                    value={null}
+                  />
                 </Box>
-
-                <Autocomplete
-                  size="small"
-                  options={availableTags.filter(t => !selectedSongTags.find(st => st.id === t.id))}
-                  getOptionLabel={(option) => option.name}
-                  renderInput={(params) => <TextField {...params} label="Search Tags" sx={{ maxWidth: 200 }} />}
-                  onChange={(_, value) => value && handleAddSongTag(value.id)}
-                  value={null}
-                />
               </Box>
 
               <Divider sx={{ my: 2 }} />
@@ -548,6 +533,21 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
           <DialogTitle>Performance Notes</DialogTitle>
           <DialogContent dividers><Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{activeNotes}</Typography></DialogContent>
           <DialogActions><Button onClick={() => setNotesDialogOpen(false)}>Close</Button></DialogActions>
+        </Dialog>
+
+        <Dialog open={lyricsDialogOpen} onClose={() => setLyricsDialogOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            Lyrics: {selectedSong.track_name}
+            <IconButton onClick={() => setLyricsDialogOpen(false)} size="small"><CloseIcon /></IconButton>
+          </DialogTitle>
+          <DialogContent dividers>
+            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', fontStyle: 'italic', textAlign: 'center', py: 2 }}>
+              {selectedSong.lyrics}
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setLyricsDialogOpen(false)}>Close</Button>
+          </DialogActions>
         </Dialog>
       </Box>
     );

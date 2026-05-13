@@ -201,28 +201,6 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
                     </Box>
 
                     <Box sx={{ mt: 2 }}>
-                      <Typography variant="caption" gutterBottom sx={{ fontWeight: 'bold', display: 'block' }}>
-                        Quick-Add Tags:
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {availableTags.map(tag => {
-                          const isAssigned = (locationTagsMap[loc.id] || []).find(lt => lt.id === tag.id);
-                          return (
-                            <Chip 
-                              key={`quick-${loc.id}-${tag.id}`} 
-                              label={tag.name} 
-                              size="small"
-                              variant={isAssigned ? "filled" : "outlined"}
-                              color={isAssigned ? "primary" : "default"}
-                              onClick={() => isAssigned ? handleRemoveTag(loc.id, tag.id) : handleAddTag(loc.id, tag.id)}
-                              sx={{ cursor: 'pointer' }}
-                            />
-                          );
-                        })}
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ mt: 2 }}>
                       <Autocomplete
                         size="small"
                         options={availableTags.filter(t => !(locationTagsMap[loc.id] || []).find(lt => lt.id === t.id))}
