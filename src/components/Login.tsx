@@ -29,7 +29,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError(null);
     try {
       const result = await db.execute({
-        sql: "SELECT id, username FROM users WHERE username = ?",
+        sql: "SELECT id, username FROM users WHERE LOWER(username) = LOWER(?)",
         args: [username]
       });
 
@@ -52,9 +52,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(true);
     setError(null);
     try {
-      // Check if exists
+      // Check if exists (case-insensitive)
       const check = await db.execute({
-        sql: "SELECT id FROM users WHERE username = ?",
+        sql: "SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
         args: [username]
       });
 

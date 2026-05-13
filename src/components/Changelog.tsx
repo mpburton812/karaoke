@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-13', description: 'Feature: Implement case-insensitive usernames for login and account creation' },
   { date: '2026-05-13', description: 'Feature: Implement dynamic theme selection (Light, Dark, and Trans modes)' },
   { date: '2026-05-13', description: 'Feature: Implement new STATS tab with performance dashboards' },
   { date: '2026-05-13', description: 'Feature: Add detailed performance statistics for Favorite Locations' },
