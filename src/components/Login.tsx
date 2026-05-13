@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import { db } from '../db';
 import logo from '../assets/logo.png';
+import background from '../assets/background_2.jpg';
 
 interface LoginProps {
   onLogin: (user: { id: number; username: string }) => void;
@@ -76,7 +77,22 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <Container maxWidth="xs">
+    <>
+      <Box 
+        sx={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          width: '100vw', 
+          height: '100vh', 
+          backgroundImage: `url(${background})`,
+          backgroundSize: 'auto 100%',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          zIndex: -2
+        }} 
+      />
+      <Container maxWidth="xs">
       <Paper elevation={3} sx={{ p: 4, mt: 8, textAlign: 'center' }}>
         <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
           Karaoke Companion
@@ -168,6 +184,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         />
       </Box>
     </Container>
+    </>
   );
 };
 
