@@ -77,96 +77,100 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <>
-      <Box 
-        sx={{ 
-          position: 'fixed', 
-          top: 0, 
-          left: 0, 
-          width: '100vw', 
-          height: '100vh', 
-          backgroundImage: `url(${background})`,
-          backgroundSize: 'auto 100%',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          zIndex: -2
-        }} 
-      />
-      <Container maxWidth="xs">
-      <Paper elevation={3} sx={{ p: 4, mt: 8, textAlign: 'center' }}>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
-          Karaoke Companion
-        </Typography>
-        <Typography variant="subtitle1" gutterBottom sx={{ mb: 3 }}>
-          {isCreating ? "Create a new account" : "Log in to your account"}
-        </Typography>
+    <Box 
+      sx={{ 
+        minHeight: '100vh',
+        width: '100vw',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        backgroundImage: `url(${background})`,
+        backgroundSize: 'auto 100%',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        zIndex: 0
+      }}
+    >
+      <Container maxWidth="xs" sx={{ position: 'relative', zIndex: 2, mt: 8 }}>
+        <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
+          <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
+            Karaoke Companion
+          </Typography>
+          <Typography variant="subtitle1" gutterBottom sx={{ mb: 3 }}>
+            {isCreating ? "Create a new account" : "Log in to your account"}
+          </Typography>
 
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <TextField
-            fullWidth
-            label="Username"
-            variant="outlined"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            disabled={loading}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                if (isCreating) {
-                  handleCreateAccount();
-                } else {
-                  handleLogin();
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              fullWidth
+              label="Username"
+              variant="outlined"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              disabled={loading}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  if (isCreating) {
+                    handleCreateAccount();
+                  } else {
+                    handleLogin();
+                  }
                 }
-              }
-            }}
-          />
+              }}
+            />
 
-          {isCreating ? (
-            <>
-              <Button 
-                variant="contained" 
-                color="primary" 
-                size="large"
-                onClick={handleCreateAccount}
-                disabled={loading || !username}
-              >
-                {loading ? <CircularProgress size={24} /> : "CREATE ACCOUNT"}
-              </Button>
-              <Button 
-                variant="text" 
-                onClick={() => { setIsCreating(false); setError(null); }}
-                disabled={loading}
-              >
-                Back to Login
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button 
-                variant="contained" 
-                color="primary" 
-                size="large"
-                onClick={handleLogin}
-                disabled={loading || !username}
-              >
-                {loading ? <CircularProgress size={24} /> : "LOGIN"}
-              </Button>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Don't have an account?{" "}
+            {isCreating ? (
+              <>
+                <Button 
+                  variant="contained" 
+                  color="primary" 
+                  size="large"
+                  onClick={handleCreateAccount}
+                  disabled={loading || !username}
+                >
+                  {loading ? <CircularProgress size={24} /> : "CREATE ACCOUNT"}
+                </Button>
                 <Button 
                   variant="text" 
-                  size="small" 
-                  onClick={() => { setIsCreating(true); setError(null); }}
+                  onClick={() => { setIsCreating(false); setError(null); }}
                   disabled={loading}
                 >
-                  CREATE ACCOUNT
+                  Back to Login
                 </Button>
-              </Typography>
-            </>
-          )}
-        </Box>
-      </Paper>
+              </>
+            ) : (
+              <>
+                <Button 
+                  variant="contained" 
+                  color="primary" 
+                  size="large"
+                  onClick={handleLogin}
+                  disabled={loading || !username}
+                >
+                  {loading ? <CircularProgress size={24} /> : "LOGIN"}
+                </Button>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  Don't have an account?{" "}
+                  <Button 
+                    variant="text" 
+                    size="small" 
+                    onClick={() => { setIsCreating(true); setError(null); }}
+                    disabled={loading}
+                  >
+                    CREATE ACCOUNT
+                  </Button>
+                </Typography>
+              </>
+            )}
+          </Box>
+        </Paper>
+      </Container>
+      
       <Box 
         sx={{ 
           position: 'fixed', 
@@ -174,7 +178,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           left: '50%', 
           transform: 'translateX(-50%)', 
           width: '50vw',
-          zIndex: -1 // Keep it behind any potential overlays but visible on the background
+          zIndex: 1 // Above background (0) but below Container (2)
         }}
       >
         <img 
@@ -183,8 +187,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           style={{ width: '100%', height: 'auto', display: 'block', opacity: 0.8 }} 
         />
       </Box>
-    </Container>
-    </>
+    </Box>
   );
 };
 
