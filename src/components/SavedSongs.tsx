@@ -61,7 +61,6 @@ interface Performance {
 interface Tag {
   id: number;
   name: string;
-  type: 'song' | 'performance';
 }
 
 interface Location {
@@ -81,8 +80,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const [performances, setPerformances] = useState<Performance[]>([]);
   
   // Tags & Locations state
-  const [availableSongTags, setAvailableSongTags] = useState<Tag[]>([]);
-  const [availablePerfTags, setAvailablePerfTags] = useState<Tag[]>([]);
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedSongTags, setSelectedSongTags] = useState<Tag[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
 
@@ -130,9 +128,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
         sql: "SELECT * FROM tags WHERE user_id = ? ORDER BY name ASC",
         args: [currentUser.id]
       });
-      const allTags = tagsRes.rows as unknown as Tag[];
-      setAvailableSongTags(allTags.filter(t => t.type === 'song'));
-      setAvailablePerfTags(allTags.filter(t => t.type === 'performance'));
+      setAvailableTags(tagsRes.rows as unknown as Tag[]);
 
       const locRes = await db.execute({
         sql: "SELECT * FROM locations WHERE user_id = ? ORDER BY name ASC",
@@ -393,7 +389,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                 </Box>
                 <Autocomplete
                   size="small"
-                  options={availableSongTags.filter(t => !selectedSongTags.find(st => st.id === t.id))}
+                  options={availableTags.filter(t => !selectedSongTags.find(st => st.id === t.id))}
                   getOptionLabel={(option) => option.name}
                   renderInput={(params) => <TextField {...params} label="Add Tag" sx={{ maxWidth: 200 }} />}
                   onChange={(_, value) => value && handleAddSongTag(value.id)}
@@ -521,9 +517,9 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
               <FormControl fullWidth>
                 <Autocomplete
                   multiple
-                  options={availablePerfTags}
+                  options={availableTags}
                   getOptionLabel={(option) => option.name}
-                  renderInput={(params) => <TextField {...params} label="Perf Tags" placeholder="Add tags..." />}
+                  renderInput={(params) => <TextField {...params} label="Tags" placeholder="Add tags..." />}
                   onChange={(_, value) => setSelectedPerfTags(value.map(v => v.id))}
                 />
               </FormControl>

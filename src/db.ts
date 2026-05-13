@@ -154,11 +154,15 @@ export const initDb = async () => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         name TEXT NOT NULL,
-        type TEXT NOT NULL, -- 'song' or 'performance'
-        UNIQUE(user_id, name, type),
+        UNIQUE(user_id, name),
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     `);
+
+    // Migration for existing tags table if type column exists
+    try {
+      await db.execute("ALTER TABLE tags DROP COLUMN type");
+    } catch { /* ignore if already dropped or never existed */ }
 
     await db.execute(`
       CREATE TABLE IF NOT EXISTS song_tags (
@@ -176,6 +180,16 @@ export const initDb = async () => {
         tag_id INTEGER,
         PRIMARY KEY (performance_id, tag_id),
         FOREIGN KEY (performance_id) REFERENCES performances (id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS location_tags (
+        location_id INTEGER,
+        tag_id INTEGER,
+        PRIMARY KEY (location_id, tag_id),
+        FOREIGN KEY (location_id) REFERENCES locations (id) ON DELETE CASCADE,
         FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
       )
     `);
