@@ -18,6 +18,7 @@ import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import SongLookup from './SongLookup';
 import { db } from '../db';
+import { fetchLyrics } from '../utils/lyricsService';
 
 interface Song {
   id: number;
@@ -104,6 +105,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
 
   // Lyrics Dialog State
   const [lyricsDialogOpen, setLyricsDialogOpen] = useState(false);
+  const [loadingLyrics, setLoadingLyrics] = useState(false);
 
   const fetchSongs = useCallback(async () => {
     setLoading(true);
@@ -304,6 +306,25 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     handleOpenPerfDialog();
   };
 
+  const handleFetchLyrics = async () => {
+    if (!selectedSong) return;
+    setLoadingLyrics(true);
+    try {
+      const lyrics = await fetchLyrics(selectedSong.artist_name, selectedSong.track_name);
+      if (lyrics) {
+        await handleUpdateSongProperty(selectedSong.id, 'lyrics', lyrics);
+        alert('Lyrics fetched successfully!');
+      } else {
+        alert('Could not find lyrics for this song.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to fetch lyrics.');
+    } finally {
+      setLoadingLyrics(false);
+    }
+  };
+
   const filteredSongs = songs.filter(song => {
     const matchesSearch = song.track_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          song.artist_name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -354,7 +375,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                 >
                   LISTEN ON SPOTIFY
                 </Button>
-                {selectedSong.lyrics && (
+                {selectedSong.lyrics ? (
                   <Button 
                     variant="outlined" 
                     color="primary" 
@@ -363,6 +384,17 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                     onClick={() => setLyricsDialogOpen(true)}
                   >
                     LYRICS
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="outlined" 
+                    color="info" 
+                    fullWidth 
+                    startIcon={loadingLyrics ? <CircularProgress size={20} /> : <NotesIcon />}
+                    onClick={handleFetchLyrics}
+                    disabled={loadingLyrics}
+                  >
+                    FETCH LYRICS
                   </Button>
                 )}
               </Box>
@@ -564,7 +596,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
       {/* Search & Add New Songs */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" gutterBottom align="center">Add New Songs</Typography>
+        <Typography variant="h5" gutterBottom align="center">Add New Songs from Internet</Typography>
         <SongLookup currentUser={currentUser} onSongAdded={fetchSongs} />
       </Box>
 

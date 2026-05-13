@@ -363,7 +363,9 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
 
             <Divider sx={{ mb: 3 }} />
 
-            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Tags & Genres (Cloud)</Typography>
+            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>
+              <Box component="span" sx={{ color: 'success.main' }}>Tags</Box> and <Box component="span" sx={{ color: 'info.main' }}>Genres</Box>
+            </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 3, alignItems: 'center' }}>
               {/* Combine Tags and Genres into the cloud if they want, but separate sections are often cleaner. 
                   The user asked to "optionally genres from songs in the list". 

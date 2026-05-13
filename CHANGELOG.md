@@ -1,9 +1,13 @@
 # Changelog
 
 ## [2026-05-13]
+- Feature: Add 'FETCH LYRICS' for existing songs missing lyrics in Repertoire
+- Refactor: Centralize lyrics fetching and text cleaning into shared 'lyricsService'
+- UI: Stylize Tag/Genre cloud header and rename 'Add New Songs' to 'Add New Songs from Internet'
 - Tags: Implement visual TAG CLOUD with multi-tag selection and song count scaling
-- Update History: Synchronize Admin Changelog with repository documentation
-- Optimize: Implement manual chunking and React.lazy code splitting to reduce bundle size
+- Feature: Implement 1-5 star Performance Rating and remove Setlists
+- Admin: Synchronize repository CHANGELOG with Admin Update History
+- Optimize: Implement manual chunking and React.lazy code splitting
 - UI: Responsive tabs, mic icon for performance, song layout fixes, and cleanup
 
 ## [2026-05-12]

@@ -25,6 +25,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import axios from 'axios';
 import { db } from '../db';
+import { fetchLyrics, cleanText } from '../utils/lyricsService';
 
 interface iTunesSong {
   trackId: number;
@@ -107,8 +108,8 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
     setLyrics(null);
     
     // Clean up title for better matching
-    const cleanTitle = song.trackName.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s*-.*$/g, '').trim();
-    const cleanArtist = song.artistName.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s*-.*$/g, '').trim();
+    const cleanTitle = cleanText(song.trackName);
+    const cleanArtist = cleanText(song.artistName);
 
     try {
       // 1. KaraFun check
@@ -138,15 +139,11 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
       }
 
       // 2. Lyrics check
-      try {
-        const lyricsRes = await axios.get(`https://api.lyrics.ovh/v1/${encodeURIComponent(song.artistName)}/${encodeURIComponent(song.trackName)}`);
-        if (lyricsRes.data.lyrics) {
-          setLyrics(lyricsRes.data.lyrics);
-          setLookupStatus(prev => ({ ...prev, lyrics: 'success' }));
-        } else {
-          setLookupStatus(prev => ({ ...prev, lyrics: 'error' }));
-        }
-      } catch {
+      const lyricsText = await fetchLyrics(song.artistName, song.trackName);
+      if (lyricsText) {
+        setLyrics(lyricsText);
+        setLookupStatus(prev => ({ ...prev, lyrics: 'success' }));
+      } else {
         setLookupStatus(prev => ({ ...prev, lyrics: 'error' }));
       }
       
