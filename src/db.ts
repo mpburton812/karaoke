@@ -95,6 +95,13 @@ export const initDb = async () => {
     `);
 
     await db.execute(`
+      CREATE TABLE IF NOT EXISTS metadata (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )
+    `);
+
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS karafun_catalog (
         id INTEGER PRIMARY KEY,
         title TEXT,

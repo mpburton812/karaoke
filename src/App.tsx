@@ -23,6 +23,7 @@ const SavedSongs = lazy(() => import('./components/SavedSongs'));
 const TagManager = lazy(() => import('./components/TagManager'));
 const LocationManager = lazy(() => import('./components/LocationManager'));
 const DataPortability = lazy(() => import('./components/DataPortability'));
+const SystemStatus = lazy(() => import('./components/SystemStatus'));
 const Login = lazy(() => import('./components/Login'));
 const Changelog = lazy(() => import('./components/Changelog'));
 
@@ -194,6 +195,8 @@ function App() {
                 Manage your repertoire and data portability.
               </Typography>
               
+              <SystemStatus />
+              <Divider sx={{ my: 4 }} />
               <DataPortability currentUser={currentUser} />
               
               <Divider sx={{ my: 4 }} />

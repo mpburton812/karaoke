@@ -19,7 +19,8 @@ const db = createClient({
 async function updateCatalog() {
   console.log('Fetching KaraFun catalog...');
   try {
-    const response = await axios.get('https://www.karafun.com/karaoke-song-list.csv');
+    // New dynamic-ish URL for the entire catalog
+    const response = await axios.get('https://www.karafun.com/cl/3107312/bc24526ef023397ecac1814014ca8f14/');
     const records = parse(response.data, {
       columns: true,
       skip_empty_lines: true,
@@ -41,7 +42,7 @@ async function updateCatalog() {
           parseInt(r.Id), 
           r.Title, 
           r.Artist, 
-          parseInt(r.Duration), 
+          parseInt(r.Year) || 0, // Store Year in the duration column for now
           r.Styles
         ]
       }));
@@ -51,6 +52,12 @@ async function updateCatalog() {
         console.log(`Progress: ${i + chunk.length} / ${records.length}`);
       }
     }
+
+    // Update metadata
+    await db.execute({
+      sql: "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
+      args: ["karafun_last_updated", new Date().toISOString()]
+    });
 
     console.log('Catalog update complete!');
   } catch (error) {
