@@ -95,7 +95,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       }}
     >
       <Container maxWidth="xs" sx={{ position: 'relative', zIndex: 2, mt: 8 }}>
-        <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
+        <Paper elevation={3} sx={{ p: 4, textAlign: 'center', opacity: 0.8 }}>
           <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
             Karaoke Companion
           </Typography>
