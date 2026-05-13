@@ -17,7 +17,6 @@ import StarIcon from '@mui/icons-material/Star';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import HistoryIcon from '@mui/icons-material/History';
 import { db } from '../db';
 
 interface Song {
@@ -221,11 +220,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     }
   };
 
-  const handleMarkPracticed = async (songId: number) => {
-    const now = new Date().toISOString();
-    await handleUpdateSongProperty(songId, 'last_practiced', now);
-  };
-
   const handleSmartSuggest = () => {
     if (songs.length === 0) return;
     const masters = songs.filter(s => s.vocal_status === 'Mastered');
@@ -399,20 +393,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                 >
                   LISTEN ON SPOTIFY
                 </Button>
-                <Button 
-                  variant="contained" 
-                  color="secondary" 
-                  fullWidth 
-                  startIcon={<HistoryIcon />}
-                  onClick={() => handleMarkPracticed(selectedSong.id)}
-                >
-                  MARK AS PRACTICED
-                </Button>
-                {selectedSong.last_practiced && (
-                  <Typography variant="caption" align="center" color="textSecondary" sx={{ mt: 1 }}>
-                    Last practiced: {new Date(selectedSong.last_practiced).toLocaleDateString()}
-                  </Typography>
-                )}
               </Box>
 
               {selectedSong.lyrics && (
@@ -458,16 +438,16 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl fullWidth>
                     <InputLabel>Personal Key</InputLabel>
-                    <Select value={selectedSong.personal_key || 'Standard'} label="Personal Key" onChange={(e) => handleUpdateSongProperty(selectedSong.id, 'personal_key', e.target.value)}>
-                      {['Standard', '-5', '-4', '-3', '-2', '-1', '+1', '+2', '+3', '+4', '+5'].map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+                    <Select value={selectedSong.personal_key || '0'} label="Personal Key" onChange={(e) => handleUpdateSongProperty(selectedSong.id, 'personal_key', e.target.value)}>
+                      {['-3', '-2', '-1', '0', '1', '2', '3'].map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
                     </Select>
                   </FormControl>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl fullWidth>
-                    <InputLabel>Vocal Status</InputLabel>
-                    <Select value={selectedSong.vocal_status || 'Practicing'} label="Vocal Status" onChange={(e) => handleUpdateSongProperty(selectedSong.id, 'vocal_status', e.target.value)}>
-                      {['Mastered', 'Practicing', 'Project'].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                    <InputLabel>Status</InputLabel>
+                    <Select value={selectedSong.vocal_status || 'Practicing'} label="Status" onChange={(e) => handleUpdateSongProperty(selectedSong.id, 'vocal_status', e.target.value)}>
+                      {['Mastered', 'Proficient', 'Practicing'].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
                     </Select>
                   </FormControl>
                 </Grid>
@@ -622,7 +602,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
         <FormControl size="small" sx={{ minWidth: 120 }}>
           <InputLabel>Status</InputLabel>
           <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
-            {['All', 'Mastered', 'Practicing', 'Project'].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+            {['All', 'Mastered', 'Proficient', 'Practicing'].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
           </Select>
         </FormControl>
       </Paper>

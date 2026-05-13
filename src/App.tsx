@@ -26,6 +26,7 @@ const LocationManager = lazy(() => import('./components/LocationManager'));
 const SetlistManager = lazy(() => import('./components/SetlistManager'));
 const DataPortability = lazy(() => import('./components/DataPortability'));
 const Login = lazy(() => import('./components/Login'));
+const Changelog = lazy(() => import('./components/Changelog'));
 
 const theme = createTheme({
   palette: {
@@ -207,8 +208,10 @@ function App() {
               <Divider sx={{ my: 4 }} />
               <LocationManager currentUser={currentUser} />
 
-              <Divider sx={{ my: 6, borderColor: 'error.main' }} />
-              <Box sx={{ p: 3, border: '1px solid', borderColor: 'error.main', borderRadius: 2, bgcolor: 'rgba(211, 47, 47, 0.05)' }}>
+              <Divider sx={{ my: 4 }} />
+              <Changelog />
+
+              <Divider sx={{ my: 6, borderColor: 'error.main' }} />              <Box sx={{ p: 3, border: '1px solid', borderColor: 'error.main', borderRadius: 2, bgcolor: 'rgba(211, 47, 47, 0.05)' }}>
                 <Typography variant="h6" color="error" gutterBottom>Danger Zone</Typography>
                 <Typography variant="body2" sx={{ mb: 2 }}>
                   Clearing your configuration will delete all personal data associated with your account.
