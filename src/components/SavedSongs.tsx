@@ -381,17 +381,40 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
               </Box>
 
               <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" gutterBottom>SONG TAGS</Typography>
+                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>SONG TAGS</Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
                   {selectedSongTags.map(tag => (
                     <Chip key={tag.id} label={tag.name} onDelete={() => handleRemoveSongTag(tag.id)} color="primary" size="small" />
                   ))}
                 </Box>
+                
+                <Box sx={{ mt: 2, mb: 2 }}>
+                  <Typography variant="caption" display="block" gutterBottom sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                    Quick-Add Tags:
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {availableTags.map(tag => {
+                      const isAssigned = selectedSongTags.find(st => st.id === tag.id);
+                      return (
+                        <Chip 
+                          key={`quick-song-${tag.id}`} 
+                          label={tag.name} 
+                          size="small"
+                          variant={isAssigned ? "filled" : "outlined"}
+                          color={isAssigned ? "primary" : "default"}
+                          onClick={() => isAssigned ? handleRemoveSongTag(tag.id) : handleAddSongTag(tag.id)}
+                          sx={{ cursor: 'pointer' }}
+                        />
+                      );
+                    })}
+                  </Box>
+                </Box>
+
                 <Autocomplete
                   size="small"
                   options={availableTags.filter(t => !selectedSongTags.find(st => st.id === t.id))}
                   getOptionLabel={(option) => option.name}
-                  renderInput={(params) => <TextField {...params} label="Add Tag" sx={{ maxWidth: 200 }} />}
+                  renderInput={(params) => <TextField {...params} label="Search Tags" sx={{ maxWidth: 200 }} />}
                   onChange={(_, value) => value && handleAddSongTag(value.id)}
                   value={null}
                 />
@@ -554,14 +577,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
           sx={{ flexGrow: 1 }}
           slotProps={{ input: { startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} /> } }}
         />
-        <Button 
-          variant="contained" 
-          color="secondary" 
-          startIcon={<AutoAwesomeIcon />}
-          onClick={handleSmartSuggest}
-        >
-          SUGGEST
-        </Button>
         <FormControl size="small" sx={{ minWidth: 120 }}>
           <InputLabel>Genre</InputLabel>
           <Select value={genreFilter} label="Genre" onChange={(e) => setGenreFilter(e.target.value)}>

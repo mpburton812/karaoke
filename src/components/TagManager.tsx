@@ -60,6 +60,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<number | string>('');
+  const [filterLogic, setFilterLogic] = useState<'OR' | 'AND'>('OR');
   const [filteredSongs, setFilteredSongs] = useState<Song[]>([]);
   const [searching, setSearching] = useState(false);
 
@@ -138,10 +139,20 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
       }
 
       if (selectedTagIds.length > 0) {
-        // Switch to OR for exploratory Cloud feel
-        sql += ` JOIN song_tags st ON s.id = st.song_id`;
-        conditions.push(`st.tag_id IN (${selectedTagIds.map(() => '?').join(',')})`);
-        args.push(...selectedTagIds);
+        if (filterLogic === 'OR') {
+          // ANY of the tags
+          sql += ` JOIN song_tags st ON s.id = st.song_id`;
+          conditions.push(`st.tag_id IN (${selectedTagIds.map(() => '?').join(',')})`);
+          args.push(...selectedTagIds);
+        } else {
+          // ALL of the tags
+          // We need a song to have EVERY tag_id in selectedTagIds
+          for (let i = 0; i < selectedTagIds.length; i++) {
+            sql += ` JOIN song_tags st${i} ON s.id = st${i}.song_id`;
+            conditions.push(`st${i}.tag_id = ?`);
+            args.push(selectedTagIds[i]);
+          }
+        }
       }
 
       sql += ` WHERE ` + conditions.join(' AND ');
@@ -154,7 +165,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
     } finally {
       setSearching(false);
     }
-  }, [selectedTagIds, selectedGenres, currentUser.id]);
+  }, [selectedTagIds, selectedGenres, currentUser.id, filterLogic]);
 
   useEffect(() => {
     fetchFilteredSongs();
@@ -229,6 +240,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
     setSelectedTagIds([]);
     setSelectedGenres([]);
     setSelectedVenueId('');
+    setFilterLogic('OR');
   };
 
   if (loading) {
@@ -299,12 +311,34 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
           <Paper sx={{ p: 3, mb: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>TAG CLOUD</Typography>
-              <Button size="small" onClick={clearFilters}>Clear Filters</Button>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+                  <Button 
+                    size="small" 
+                    variant={filterLogic === 'OR' ? 'contained' : 'text'} 
+                    onClick={() => setFilterLogic('OR')}
+                    sx={{ minWidth: 40, borderRadius: 0 }}
+                  >
+                    +
+                  </Button>
+                  <Button 
+                    size="small" 
+                    variant={filterLogic === 'AND' ? 'contained' : 'text'} 
+                    onClick={() => setFilterLogic('AND')}
+                    sx={{ minWidth: 40, borderRadius: 0 }}
+                  >
+                    -
+                  </Button>
+                </Box>
+                <Button size="small" onClick={clearFilters}>Clear</Button>
+              </Box>
             </Box>
             
             <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-              Select tags, genres, or a venue to explore your repertoire. 
-              {selectedTagIds.length > 0 || selectedGenres.length > 0 ? ` Showing songs matching your criteria.` : ` Select options below to start.`}
+              {filterLogic === 'OR' 
+                ? 'Select any tags (+) to broad search.' 
+                : 'Select specific tags (-) to narrow search (matches ALL).'}
+              {selectedTagIds.length > 0 || selectedGenres.length > 0 ? ` Showing matches.` : ` Select options below.`}
             </Typography>
 
             {/* Venue Shortcut */}
