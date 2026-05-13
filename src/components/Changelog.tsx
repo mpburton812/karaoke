@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-13', description: 'Feature: Implement new STATS tab with performance dashboards' },
   { date: '2026-05-13', description: 'Feature: Add detailed performance statistics for Favorite Locations' },
   { date: '2026-05-13', description: "Feature: Add 'FETCH LYRICS' for repertoire songs and refactor to shared service" },
   { date: '2026-05-13', description: "UI: Stylize Tag/Genre cloud header and rename 'Add New Songs' section" },

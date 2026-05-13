@@ -25,6 +25,7 @@ const DataPortability = lazy(() => import('./components/DataPortability'));
 const SystemStatus = lazy(() => import('./components/SystemStatus'));
 const Login = lazy(() => import('./components/Login'));
 const Changelog = lazy(() => import('./components/Changelog'));
+const Stats = lazy(() => import('./components/Stats'));
 
 const theme = createTheme({
   palette: {
@@ -169,6 +170,7 @@ function App() {
             <Tab label="Songs" />
             <Tab label="Places" />
             <Tab label="Tags" />
+            <Tab label="Stats" />
             <Tab label="Admin" />
           </Tabs>
         </Box>
@@ -183,6 +185,9 @@ function App() {
             <TagManager currentUser={currentUser} />
           </CustomTabPanel>
           <CustomTabPanel value={value} index={3}>
+            <Stats currentUser={currentUser} />
+          </CustomTabPanel>
+          <CustomTabPanel value={value} index={4}>
             <Box sx={{ textAlign: 'center', mt: 4 }}>
               <Typography variant="h5" gutterBottom>Administrative Tools</Typography>
               <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
