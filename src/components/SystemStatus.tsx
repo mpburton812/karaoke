@@ -18,7 +18,7 @@ import { db } from '../db';
 
 const SystemStatus = () => {
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
-  const [renderConnected, setRenderConnected] = useState<boolean | null>(null);
+  const [externalConnected, setExternalConnected] = useState<boolean | null>(null);
   const [karafunCount, setKarafunCount] = useState<number>(0);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,12 +37,13 @@ const SystemStatus = () => {
       setKarafunCount(Number(countRes.rows[0].count));
       setLastUpdated(metaRes.rows[0]?.value as string || 'Never');
 
-      // 2. Check "Render" Connectivity (Pinging render.com as a proxy for external connectivity/platform health)
+      // 2. Check External Connectivity (Pinging a reliable API as a proxy for internet health)
       try {
-        await axios.get('https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.render.com'), { timeout: 5000 });
-        setRenderConnected(true);
+        // Using a reliable, public, CORS-enabled API to check internet access
+        await axios.get('https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.google.com'), { timeout: 5000 });
+        setExternalConnected(true);
       } catch {
-        setRenderConnected(false);
+        setExternalConnected(false);
       }
     } catch (err) {
       console.error("Status check failed:", err);
@@ -146,12 +147,12 @@ const SystemStatus = () => {
         </Grid>
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Render Health</Typography>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Network Health</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-            {renderConnected === null ? <CircularProgress size={20} /> : (
-              renderConnected ? <CheckCircleIcon color="success" /> : <ErrorIcon color="error" />
+            {externalConnected === null ? <CircularProgress size={20} /> : (
+              externalConnected ? <CheckCircleIcon color="success" /> : <ErrorIcon color="error" />
             )}
-            <Typography sx={{ ml: 1 }}>{renderConnected ? 'Reachable' : 'Unreachable'}</Typography>
+            <Typography sx={{ ml: 1 }}>{externalConnected ? 'Online' : 'Restricted'}</Typography>
           </Box>
         </Grid>
 
