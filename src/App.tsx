@@ -167,23 +167,19 @@ function App() {
               }
             }}
           >
-            <Tab label="Song Lookup" />
-            <Tab label="Song List" />
+            <Tab label="Songs" />
             <Tab label="Tags" />
             <Tab label="Admin" />
           </Tabs>
         </Box>
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>}>
           <CustomTabPanel value={value} index={0}>
-            <SongLookup currentUser={currentUser} />
-          </CustomTabPanel>
-          <CustomTabPanel value={value} index={1}>
             <SavedSongs currentUser={currentUser} />
           </CustomTabPanel>
-          <CustomTabPanel value={value} index={2}>
+          <CustomTabPanel value={value} index={1}>
             <TagManager currentUser={currentUser} />
           </CustomTabPanel>
-          <CustomTabPanel value={value} index={3}>
+          <CustomTabPanel value={value} index={2}>
             <Box sx={{ textAlign: 'center', mt: 4 }}>
               <Typography variant="h5" gutterBottom>Administrative Tools</Typography>
               <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>

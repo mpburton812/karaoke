@@ -16,6 +16,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import StarIcon from '@mui/icons-material/Star';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import YouTubeIcon from '@mui/icons-material/YouTube';
+import SongLookup from './SongLookup';
 import { db } from '../db';
 
 interface Song {
@@ -561,32 +562,42 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
 
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
+      {/* Search & Add New Songs */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" gutterBottom align="center">Add New Songs</Typography>
+        <SongLookup currentUser={currentUser} onSongAdded={fetchSongs} />
+      </Box>
+
+      <Divider sx={{ my: 4 }} />
+
       {/* Repertoire Search & Filter */}
-      <Paper sx={{ p: 2, mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-        <TextField 
-          size="small" 
-          placeholder="Search repertoire..." 
-          value={searchQuery} 
-          onChange={(e) => setSearchQuery(e.target.value)} 
-          sx={{ flexGrow: 1 }}
-          slotProps={{ input: { startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} /> } }}
-        />
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Genre</InputLabel>
-          <Select value={genreFilter} label="Genre" onChange={(e) => setGenreFilter(e.target.value)}>
-            {genres.map(g => <MenuItem key={g} value={g}>{g}</MenuItem>)}
-          </Select>
-        </FormControl>
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Status</InputLabel>
-          <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
-            {['All', 'Mastered', 'Proficient', 'Practicing'].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-          </Select>
-        </FormControl>
-      </Paper>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h5" gutterBottom align="center">Your Repertoire</Typography>
+        <Paper sx={{ p: 2, mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+          <TextField 
+            size="small" 
+            placeholder="Search repertoire..." 
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)} 
+            sx={{ flexGrow: 1 }}
+            slotProps={{ input: { startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} /> } }}
+          />
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <InputLabel>Genre</InputLabel>
+            <Select value={genreFilter} label="Genre" onChange={(e) => setGenreFilter(e.target.value)}>
+              {genres.map(g => <MenuItem key={g} value={g}>{g}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <InputLabel>Status</InputLabel>
+            <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
+              {['All', 'Mastered', 'Proficient', 'Practicing'].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+            </Select>
+          </FormControl>
+        </Paper>
+      </Box>
 
       {/* Song List */}
-      <Typography variant="h5" gutterBottom align="center">Your Repertoire</Typography>
       {filteredSongs.length === 0 ? (
         <Typography align="center" color="textSecondary" sx={{ mt: 4 }}>No songs found matching your criteria.</Typography>
       ) : (

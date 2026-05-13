@@ -40,6 +40,7 @@ interface iTunesSong {
 
 interface SongLookupProps {
   currentUser: { id: number; username: string };
+  onSongAdded?: () => void;
 }
 
 type LookupState = 'idle' | 'loading' | 'success' | 'error';
@@ -57,7 +58,7 @@ interface MusicalQualities {
   loudness: number | null;
 }
 
-const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
+const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<iTunesSong[]>([]);
   const [loading, setLoading] = useState(false);
@@ -249,6 +250,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
       });
       
       setSnackbar({ open: true, message: 'Song saved successfully!', severity: 'success' });
+      if (onSongAdded) onSongAdded();
       setTimeout(() => {
         setSelectedSong(null);
         setResults([]);
