@@ -4,16 +4,15 @@ import {
   Avatar, Typography, Paper, Divider, Button, Grid, Chip, IconButton,
   CircularProgress, Alert, Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Select, MenuItem, FormControl, InputLabel, Card, CardContent,
+  Select, MenuItem, FormControl, InputLabel,
   Autocomplete
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import MicIcon from '@mui/icons-material/Mic';
 import NotesIcon from '@mui/icons-material/Notes';
 import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
-import AddIcon from '@mui/icons-material/Add';
 import StarIcon from '@mui/icons-material/Star';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import YouTubeIcon from '@mui/icons-material/YouTube';
@@ -112,17 +111,10 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
 
   // Setlist State
   const [setlists, setSetlists] = useState<Setlist[]>([]);
-  const [activeSetlist, setActiveSetlist] = useState<number | null>(null);
-  const [newSetlistName, setNewSetlistName] = useState('');
-  const [isCreatingSetlist, setIsCreatingSetlist] = useState(false);
 
   // Notes Dialog State
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [activeNotes, setActiveNotes] = useState('');
-
-  // Analytics State
-  const [topSongs, setTopSongs] = useState<{track_name: string, count: number}[]>([]);
-  const [topVenues, setTopVenues] = useState<{location: string, count: number}[]>([]);
 
   const fetchSongs = useCallback(async () => {
     setLoading(true);
@@ -172,37 +164,14 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     }
   }, [currentUser.id]);
 
-  const fetchAnalytics = useCallback(async () => {
-    try {
-      const songsRes = await db.execute({
-        sql: `SELECT s.track_name, COUNT(p.id) as count 
-              FROM songs s JOIN performances p ON s.id = p.song_id 
-              WHERE s.user_id = ? GROUP BY s.id ORDER BY count DESC LIMIT 5`,
-        args: [currentUser.id]
-      });
-      setTopSongs(songsRes.rows as unknown as {track_name: string, count: number}[]);
-
-      const venuesRes = await db.execute({
-        sql: `SELECT location, COUNT(id) as count 
-              FROM performances WHERE user_id = ? AND location != '' 
-              GROUP BY location ORDER BY count DESC LIMIT 5`,
-        args: [currentUser.id]
-      });
-      setTopVenues(venuesRes.rows as unknown as {location: string, count: number}[]);
-    } catch (err) {
-      console.error(err);
-    }
-  }, [currentUser.id]);
-
   useEffect(() => {
     const loadData = async () => {
       await fetchSongs();
       await fetchSetlists();
       await fetchTagsAndLocations();
-      await fetchAnalytics();
     };
     loadData();
-  }, [fetchSongs, fetchSetlists, fetchTagsAndLocations, fetchAnalytics]);
+  }, [fetchSongs, fetchSetlists, fetchTagsAndLocations]);
 
   const fetchSongTags = useCallback(async (songId: number) => {
     try {
@@ -292,21 +261,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     }
   };
 
-  const handleCreateSetlist = async () => {
-    if (!newSetlistName) return;
-    try {
-      await db.execute({
-        sql: "INSERT INTO setlists (user_id, name) VALUES (?, ?)",
-        args: [currentUser.id, newSetlistName]
-      });
-      setNewSetlistName('');
-      setIsCreatingSetlist(false);
-      fetchSetlists();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleAddToSetlist = async (songId: number, setlistId: number) => {
     try {
       await db.execute({
@@ -364,7 +318,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
 
       setPerfDialogOpen(false);
       fetchPerformances(selectedSong.id);
-      fetchAnalytics();
     } catch (err) {
       console.error('Error saving performance:', err);
       alert('Failed to save performance.');
@@ -381,7 +334,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
         args: [perfId]
       });
       setPerformances(performances.filter(p => p.id !== perfId));
-      fetchAnalytics();
     } catch (err) {
       console.error('Error deleting performance:', err);
     }
@@ -416,7 +368,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Button startIcon={<ArrowBackIcon />} onClick={() => setSelectedSong(null)}>RETURN TO LIST</Button>
           <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button variant="contained" color="primary" startIcon={<PlayArrowIcon />} onClick={handleOpenPerfDialog}>PERFORM</Button>
+            <Button variant="contained" color="primary" startIcon={<MicIcon />} onClick={handleOpenPerfDialog}>PERFORM</Button>
             <Button variant="contained" color="error" startIcon={<DeleteIcon />} onClick={() => handleRemove(selectedSong.id)}>REMOVE FROM LIST</Button>
           </Box>
         </Box>
@@ -643,26 +595,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
 
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
-      {/* Analytics Section */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card variant="outlined">
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><StarIcon color="primary" /> Top Hits</Typography>
-              {topSongs.length > 0 ? topSongs.map(s => <Typography key={s.track_name} variant="body2">{s.track_name} ({s.count} times)</Typography>) : <Typography variant="caption">No performances yet.</Typography>}
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card variant="outlined">
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><SearchIcon color="primary" /> Favorite Venues</Typography>
-              {topVenues.length > 0 ? topVenues.map(v => <Typography key={v.location} variant="body2">{v.location} ({v.count} times)</Typography>) : <Typography variant="caption">No venues recorded.</Typography>}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
       {/* Repertoire Search & Filter */}
       <Paper sx={{ p: 2, mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
         <TextField 
@@ -695,27 +627,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
         </FormControl>
       </Paper>
 
-      {/* Setlists Section */}
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">Setlists</Typography>
-          <Button startIcon={<AddIcon />} size="small" onClick={() => setIsCreatingSetlist(true)}>New Setlist</Button>
-        </Box>
-        {isCreatingSetlist && (
-          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-            <TextField size="small" placeholder="Setlist Name" value={newSetlistName} onChange={(e) => setNewSetlistName(e.target.value)} />
-            <Button variant="contained" onClick={handleCreateSetlist}>Create</Button>
-            <Button onClick={() => setIsCreatingSetlist(false)}>Cancel</Button>
-          </Box>
-        )}
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Chip label="All Songs" onClick={() => setActiveSetlist(null)} color={activeSetlist === null ? "primary" : "default"} />
-          {setlists.map(sl => (
-            <Chip key={sl.id} label={sl.name} onClick={() => setActiveSetlist(sl.id)} color={activeSetlist === sl.id ? "primary" : "default"} />
-          ))}
-        </Box>
-      </Box>
-
       {/* Song List */}
       <Typography variant="h5" gutterBottom align="center">Your Repertoire</Typography>
       {filteredSongs.length === 0 ? (
@@ -729,14 +640,28 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                   disablePadding
                   secondaryAction={
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <IconButton edge="end" aria-label="perform" sx={{ color: '#1DB954', mr: 1 }} onClick={(e) => { e.stopPropagation(); handleDirectPerform(song); }}><PlayArrowIcon /></IconButton>
+                      <IconButton edge="end" aria-label="perform" sx={{ color: '#1DB954', mr: 1 }} onClick={(e) => { e.stopPropagation(); handleDirectPerform(song); }}><MicIcon /></IconButton>
                       <IconButton edge="end" aria-label="delete" color="error" onClick={(e) => { e.stopPropagation(); handleRemove(song.id); }}><DeleteIcon /></IconButton>
                     </Box>
                   }
                 >
-                  <ListItemButton onClick={() => setSelectedSong(song)} sx={{ pr: 12 }}>
+                  <ListItemButton onClick={() => setSelectedSong(song)} sx={{ pr: 14 }}>
                     <ListItemAvatar><Avatar variant="rounded" src={song.artwork_url} /></ListItemAvatar>
                     <ListItemText 
+                      sx={{ 
+                        '& .MuiListItemText-primary': { 
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis', 
+                          whiteSpace: 'nowrap',
+                          pr: 2
+                        },
+                        '& .MuiListItemText-secondary': {
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis', 
+                          whiteSpace: 'nowrap',
+                          pr: 2
+                        }
+                      }}
                       primary={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
                           <Typography variant="body1" noWrap sx={{ fontWeight: 'medium' }}>

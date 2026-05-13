@@ -155,7 +155,18 @@ function App() {
       </AppBar>
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Box sx={{ width: '100%', borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={value} onChange={handleChange} centered textColor="primary" indicatorColor="primary">
+          <Tabs 
+            value={value} 
+            onChange={handleChange} 
+            centered 
+            textColor="primary" 
+            indicatorColor="primary"
+            sx={{
+              '& .MuiTabs-flexContainer': {
+                flexWrap: 'wrap',
+              }
+            }}
+          >
             <Tab label="Song Lookup" />
             <Tab label="Song List" />
             <Tab label="Setlists" />
