@@ -18,7 +18,6 @@ import { db } from '../db';
 
 const SystemStatus = () => {
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
-  const [externalConnected, setExternalConnected] = useState<boolean | null>(null);
   const [karafunCount, setKarafunCount] = useState<number>(0);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,15 +35,6 @@ const SystemStatus = () => {
       setDbConnected(true);
       setKarafunCount(Number(countRes.rows[0].count));
       setLastUpdated(metaRes.rows[0]?.value as string || 'Never');
-
-      // 2. Check External Connectivity (Pinging a reliable API as a proxy for internet health)
-      try {
-        // Using a reliable, public, CORS-enabled API to check internet access
-        await axios.get('https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.google.com'), { timeout: 5000 });
-        setExternalConnected(true);
-      } catch {
-        setExternalConnected(false);
-      }
     } catch (err) {
       console.error("Status check failed:", err);
       setDbConnected(false);
@@ -136,8 +126,8 @@ const SystemStatus = () => {
       <Divider sx={{ mb: 3 }} />
 
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Database</Typography>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Cloud DB</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
             {dbConnected === null ? <CircularProgress size={20} /> : (
               dbConnected ? <CheckCircleIcon color="success" /> : <ErrorIcon color="error" />
@@ -146,17 +136,7 @@ const SystemStatus = () => {
           </Box>
         </Grid>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Network Health</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-            {externalConnected === null ? <CircularProgress size={20} /> : (
-              externalConnected ? <CheckCircleIcon color="success" /> : <ErrorIcon color="error" />
-            )}
-            <Typography sx={{ ml: 1 }}>{externalConnected ? 'Online' : 'Restricted'}</Typography>
-          </Box>
-        </Grid>
-
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>KaraFun Records</Typography>
           <Typography variant="h6" sx={{ mt: 0.5 }}>
             {karafunCount.toLocaleString()}
@@ -164,8 +144,8 @@ const SystemStatus = () => {
           </Typography>
         </Grid>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Last Catalog Update</Typography>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Last Karafun Catalog Update</Typography>
           <Typography variant="body1" sx={{ mt: 0.5, fontWeight: 'medium' }}>
             {lastUpdated === 'Never' ? lastUpdated : new Date(lastUpdated!).toLocaleDateString() + ' ' + new Date(lastUpdated!).toLocaleTimeString()}
           </Typography>

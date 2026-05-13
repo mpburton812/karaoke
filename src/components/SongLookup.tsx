@@ -229,6 +229,8 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
       
       setSnackbar({ open: true, message: 'Song saved successfully!', severity: 'success' });
       setSelectedSong(null);
+      setResults([]); // Clear the search results
+      setQuery(''); // Clear the search query
     } catch (err) {
       console.error('Error saving song:', err);
       setSnackbar({ open: true, message: 'Failed to save song.', severity: 'error' });
