@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -29,7 +29,6 @@ const SystemStatus = () => {
     setLoading(true);
     try {
       // 1. Check DB Connectivity & Get Metadata
-      const dbStart = Date.now();
       const [countRes, metaRes] = await Promise.all([
         db.execute("SELECT COUNT(*) as count FROM karafun_catalog"),
         db.execute("SELECT value FROM metadata WHERE key = 'karafun_last_updated'")
@@ -81,7 +80,7 @@ const SystemStatus = () => {
 
       for (let i = 0; i < lines.length; i += batchSize) {
         const batch = lines.slice(i, i + batchSize);
-        const statements = batch.map(line => {
+        const statements = batch.map((line: string) => {
           const parts = line.split(';');
           if (parts.length < 3) return null;
           
@@ -95,7 +94,7 @@ const SystemStatus = () => {
               parts[7]?.replace(/^"|"$/g, '') || ''  // Styles
             ]
           };
-        }).filter(s => s !== null) as any[];
+        }).filter((s: any) => s !== null);
 
         await db.batch(statements);
         setSyncProgress(Math.round(((i + batch.length) / total) * 100));
@@ -136,8 +135,8 @@ const SystemStatus = () => {
       <Divider sx={{ mb: 3 }} />
 
       <Grid container spacing={3}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Typography variant="caption" color="textSecondary" display="block">Database</Typography>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Database</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
             {dbConnected === null ? <CircularProgress size={20} /> : (
               dbConnected ? <CheckCircleIcon color="success" /> : <ErrorIcon color="error" />
@@ -146,8 +145,8 @@ const SystemStatus = () => {
           </Box>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Typography variant="caption" color="textSecondary" display="block">Render Health</Typography>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Render Health</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
             {renderConnected === null ? <CircularProgress size={20} /> : (
               renderConnected ? <CheckCircleIcon color="success" /> : <ErrorIcon color="error" />
@@ -156,16 +155,16 @@ const SystemStatus = () => {
           </Box>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Typography variant="caption" color="textSecondary" display="block">KaraFun Records</Typography>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>KaraFun Records</Typography>
           <Typography variant="h6" sx={{ mt: 0.5 }}>
             {karafunCount.toLocaleString()}
             {karafunCount === 0 && <Chip label="Empty" size="small" color="error" sx={{ ml: 1 }} />}
           </Typography>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Typography variant="caption" color="textSecondary" display="block">Last Catalog Update</Typography>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Last Catalog Update</Typography>
           <Typography variant="body1" sx={{ mt: 0.5, fontWeight: 'medium' }}>
             {lastUpdated === 'Never' ? lastUpdated : new Date(lastUpdated!).toLocaleDateString() + ' ' + new Date(lastUpdated!).toLocaleTimeString()}
           </Typography>
