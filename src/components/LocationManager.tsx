@@ -119,14 +119,18 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
   };
 
   const handleAddTag = async (locationId: number, tagId: number) => {
+    console.log(`Adding tag ${tagId} to location ${locationId}`);
     try {
       await db.execute({
         sql: "INSERT OR IGNORE INTO location_tags (location_id, tag_id) VALUES (?, ?)",
         args: [locationId, tagId]
       });
-      fetchLocationTags(locationId);
+      console.log('Successfully inserted/ignored tag');
+      await fetchLocationTags(locationId);
+      console.log('Refetched location tags');
     } catch (err) {
-      console.error(err);
+      console.error('Error in handleAddTag:', err);
+      alert('Failed to add tag. Check console for details.');
     }
   };
 

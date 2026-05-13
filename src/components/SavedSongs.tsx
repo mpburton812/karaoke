@@ -198,14 +198,18 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
 
   const handleAddSongTag = async (tagId: number) => {
     if (!selectedSong) return;
+    console.log(`Adding tag ${tagId} to song ${selectedSong.id}`);
     try {
       await db.execute({
         sql: "INSERT OR IGNORE INTO song_tags (song_id, tag_id) VALUES (?, ?)",
         args: [selectedSong.id, tagId]
       });
-      fetchSongTags(selectedSong.id);
+      console.log('Successfully inserted/ignored song tag');
+      await fetchSongTags(selectedSong.id);
+      console.log('Refetched song tags');
     } catch (err) {
-      console.error(err);
+      console.error('Error in handleAddSongTag:', err);
+      alert('Failed to add tag. Check console for details.');
     }
   };
 
