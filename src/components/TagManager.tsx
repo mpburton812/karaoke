@@ -171,11 +171,12 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
       setNewTagName('');
       fetchData();
     } catch (err: unknown) {
+      console.error('Error adding tag:', err);
       if (err instanceof Error && err.message?.includes('UNIQUE constraint failed')) {
         setError('This tag already exists.');
       } else {
-        console.error('Error adding tag:', err);
-        setError('Failed to add tag.');
+        const errorMsg = err instanceof Error ? err.message : 'Failed to add tag.';
+        setError(`Failed to add tag: ${errorMsg}`);
       }
     }
   };
