@@ -406,7 +406,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
               <Box sx={{ mt: 2, mb: 3, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 <Chip label={selectedSong.genre || 'Unknown Genre'} color="secondary" variant="outlined" />
                 <Chip label={selectedSong.release_year || 'Unknown Year'} variant="outlined" />
-                <Chip label={selectedSong.karafun_available ? "Karafun Available" : "Not on Karafun"} color={selectedSong.karafun_available ? "success" : "default"} variant="outlined" />
+                <Chip label={selectedSong.karafun_available ? "KaraFun Available" : "Not on KaraFun"} color={selectedSong.karafun_available ? "success" : "default"} variant="outlined" />
                 {selectedSong.explicit && <Chip label="Explicit" color="error" size="small" />}
               </Box>
 

@@ -12,7 +12,8 @@ import {
   Divider,
   Alert,
   Autocomplete,
-  Chip
+  Chip,
+  Grid
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -28,6 +29,13 @@ interface Tag {
   name: string;
 }
 
+interface LocationStats {
+  daysSung: number;
+  totalSongs: number;
+  avgSongsPerDay: number;
+  topSongs: { track_name: string; count: number }[];
+}
+
 interface LocationManagerProps {
   currentUser: { id: number; username: string };
 }
@@ -38,6 +46,46 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
   const [error, setError] = useState<string | null>(null);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [locationTagsMap, setLocationTagsMap] = useState<Record<number, Tag[]>>({});
+  const [locationStatsMap, setLocationStatsMap] = useState<Record<number, LocationStats>>({});
+
+  const fetchLocationStats = useCallback(async (location: Location) => {
+    try {
+      // Fetch days and total songs
+      const basicStatsRes = await db.execute({
+        sql: `SELECT COUNT(DISTINCT date) as days, COUNT(*) as total 
+              FROM performances 
+              WHERE user_id = ? AND location = ?`,
+        args: [currentUser.id, location.name]
+      });
+      
+      const days = Number(basicStatsRes.rows[0].days) || 0;
+      const total = Number(basicStatsRes.rows[0].total) || 0;
+      const avg = days > 0 ? parseFloat((total / days).toFixed(1)) : 0;
+
+      // Fetch top 3 songs
+      const topSongsRes = await db.execute({
+        sql: `SELECT s.track_name, COUNT(*) as count 
+              FROM performances p 
+              JOIN songs s ON p.song_id = s.id 
+              WHERE p.user_id = ? AND p.location = ? 
+              GROUP BY p.song_id 
+              ORDER BY count DESC 
+              LIMIT 3`,
+        args: [currentUser.id, location.name]
+      });
+
+      const stats: LocationStats = {
+        daysSung: days,
+        totalSongs: total,
+        avgSongsPerDay: avg,
+        topSongs: topSongsRes.rows as unknown as { track_name: string; count: number }[]
+      };
+
+      setLocationStatsMap(prev => ({ ...prev, [location.id]: stats }));
+    } catch (err) {
+      console.error(`Error fetching stats for ${location.name}:`, err);
+    }
+  }, [currentUser.id]);
 
   const fetchLocationTags = useCallback(async (locationId: number) => {
     try {
@@ -62,14 +110,15 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
       const fetchedLocations = result.rows as unknown as Location[];
       setLocations(fetchedLocations);
       
-      // Fetch tags for each location
+      // Fetch tags and stats for each location
       for (const loc of fetchedLocations) {
         fetchLocationTags(loc.id);
+        fetchLocationStats(loc);
       }
     } catch (err) {
       console.error('Error fetching locations:', err);
     }
-  }, [currentUser.id, fetchLocationTags]);
+  }, [currentUser.id, fetchLocationTags, fetchLocationStats]);
 
   const fetchAvailableTags = useCallback(async () => {
     try {
@@ -216,6 +265,42 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
                         clearOnBlur
                       />
                     </Box>
+
+                    {locationStatsMap[loc.id] && (
+                      <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                        <Grid container spacing={2}>
+                          <Grid size={{ xs: 4 }}>
+                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Days Sung</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{locationStatsMap[loc.id].daysSung}</Typography>
+                          </Grid>
+                          <Grid size={{ xs: 4 }}>
+                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Total Songs</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{locationStatsMap[loc.id].totalSongs}</Typography>
+                          </Grid>
+                          <Grid size={{ xs: 4 }}>
+                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Avg Songs/Day</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{locationStatsMap[loc.id].avgSongsPerDay}</Typography>
+                          </Grid>
+                        </Grid>
+                        
+                        {locationStatsMap[loc.id].topSongs.length > 0 && (
+                          <Box sx={{ mt: 2 }}>
+                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 0.5 }}>Top Songs</Typography>
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                              {locationStatsMap[loc.id].topSongs.map((song, i) => (
+                                <Chip 
+                                  key={i} 
+                                  label={`${song.track_name} (${song.count})`} 
+                                  size="small" 
+                                  variant="outlined" 
+                                  sx={{ fontSize: '0.7rem', height: 20 }}
+                                />
+                              ))}
+                            </Box>
+                          </Box>
+                        )}
+                      </Box>
+                    )}
                   </Box>
                 </ListItem>
                 {index < locations.length - 1 && <Divider />}

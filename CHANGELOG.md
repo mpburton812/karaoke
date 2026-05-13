@@ -1,6 +1,7 @@
 # Changelog
 
 ## [2026-05-13]
+- Feature: Add detailed performance statistics for Favorite Locations (Days Sung, Total Songs, Avg Songs/Day, Top 3 Songs)
 - Feature: Add 'FETCH LYRICS' for existing songs missing lyrics in Repertoire
 - Refactor: Centralize lyrics fetching and text cleaning into shared 'lyricsService'
 - UI: Stylize Tag/Genre cloud header and rename 'Add New Songs' to 'Add New Songs from Internet'

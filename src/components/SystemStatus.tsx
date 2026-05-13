@@ -146,7 +146,7 @@ const SystemStatus = () => {
         </Grid>
 
         <Grid size={{ xs: 12, sm: 4 }}>
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Last Karafun Catalog Update</Typography>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Last KaraFun Catalog Update</Typography>
           <Typography variant="body1" sx={{ mt: 0.5, fontWeight: 'medium' }}>
             {lastUpdated === 'Never' ? lastUpdated : new Date(lastUpdated!).toLocaleDateString() + ' ' + new Date(lastUpdated!).toLocaleTimeString()}
           </Typography>
@@ -163,7 +163,7 @@ const SystemStatus = () => {
           fullWidth
           sx={{ maxWidth: 300 }}
         >
-          {syncing ? `Syncing (${syncProgress}%)` : 'Push KaraFun Download'}
+          {syncing ? `Syncing (${syncProgress}%)` : 'Sync KaraFun Catalog'}
         </Button>
         <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }}>
           Automatically fetches the latest library from KaraFun.com
