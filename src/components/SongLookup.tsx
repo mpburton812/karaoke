@@ -21,6 +21,8 @@ import {
   Snackbar
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 import axios from 'axios';
 import { db } from '../db';
 
@@ -40,15 +42,24 @@ interface SongLookupProps {
   currentUser: { id: number; username: string };
 }
 
+type LookupState = 'idle' | 'loading' | 'success' | 'error';
+
 const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<iTunesSong[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSong, setSelectedSong] = useState<iTunesSong | null>(null);
-  const [checkingKarafun, setCheckingKarafun] = useState(false);
   const [isKarafunAvailable, setIsKarafunAvailable] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [lookupStatus, setLookupStatus] = useState({
+    karafun: 'idle' as LookupState,
+    lyrics: 'idle' as LookupState,
+    musicbrainz: 'idle' as LookupState,
+    acousticbrainz: 'idle' as LookupState
+  });
+
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -72,16 +83,21 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
 
   const handleSelectSong = async (song: iTunesSong) => {
     setSelectedSong(song);
-    setCheckingKarafun(true);
+    setLookupStatus({
+      karafun: 'loading',
+      lyrics: 'loading',
+      musicbrainz: 'idle',
+      acousticbrainz: 'idle'
+    });
     setIsKarafunAvailable(null);
     setLyrics(null);
     
-    // Clean up title for better matching (remove "(Remastered)", "feat. ...", etc.)
+    // Clean up title for better matching
     const cleanTitle = song.trackName.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s*-.*$/g, '').trim();
     const cleanArtist = song.artistName.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s*-.*$/g, '').trim();
 
     try {
-      // 1. Try checking the local KaraFun catalog table first (Fuzzy Match)
+      // 1. KaraFun check
       const result = await db.execute({
         sql: `SELECT id FROM karafun_catalog 
               WHERE (title LIKE ? OR ? LIKE '%' || title || '%') 
@@ -92,66 +108,65 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
 
       if (result.rows.length > 0) {
         setIsKarafunAvailable(true);
+        setLookupStatus(prev => ({ ...prev, karafun: 'success' }));
       } else {
-        // 2. Fallback to scraping if not found in local DB (Slow)
         const searchQuery = `${cleanTitle} ${cleanArtist}`;
         const karafunSearchUrl = `https://www.karafun.com/search.html?query=${encodeURIComponent(searchQuery)}`;
         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(karafunSearchUrl)}`;
         
         const response = await axios.get(proxyUrl);
         const html = response.data.contents || '';
+        const hasSongItems = html.includes('song-list__item') || html.includes('karaoke/');
+        const isAvailable = hasSongItems || (html.length > 1000 && !html.toLowerCase().includes('no results found'));
         
-        // More robust check for results
-        const hasSongItems = html.includes('song-list__item') || 
-                            html.includes('songList__item') || 
-                            html.includes('search-result') ||
-                            html.includes('karaoke/');
-        
-        const hasNoResultsMessage = html.toLowerCase().includes('no results found') || 
-                                   html.toLowerCase().includes('no result found');
-        
-        // If we see song items or DON'T see the "no results" message (and got a real page)
-        const isAvailable = hasSongItems || (html.length > 1000 && !hasNoResultsMessage);
         setIsKarafunAvailable(isAvailable);
+        setLookupStatus(prev => ({ ...prev, karafun: isAvailable ? 'success' : 'error' }));
       }
 
-      // 3. Fetch lyrics (Bonus)
+      // 2. Lyrics check
       try {
         const lyricsRes = await axios.get(`https://api.lyrics.ovh/v1/${encodeURIComponent(song.artistName)}/${encodeURIComponent(song.trackName)}`);
         if (lyricsRes.data.lyrics) {
           setLyrics(lyricsRes.data.lyrics);
+          setLookupStatus(prev => ({ ...prev, lyrics: 'success' }));
+        } else {
+          setLookupStatus(prev => ({ ...prev, lyrics: 'error' }));
         }
       } catch {
-        console.warn('Lyrics not found');
+        setLookupStatus(prev => ({ ...prev, lyrics: 'error' }));
       }
       
     } catch (err) {
       console.error('Error checking song details:', err);
       setIsKarafunAvailable(false);
-    } finally {
-      setCheckingKarafun(false);
+      setLookupStatus(prev => ({ ...prev, karafun: 'error', lyrics: 'error' }));
     }
   };
 
   const [lyrics, setLyrics] = useState<string | null>(null);
 
   const fetchMusicalQualities = async (song: iTunesSong) => {
+    let qualities = {
+      bpm: null, key: "DNF", energy: null, danceability: null, happiness: null,
+      acousticness: null, instrumentalness: null, liveness: null, speechiness: null, loudness: null
+    };
+
     try {
-      // 1. Search MusicBrainz for the recording to get an MBID
+      setLookupStatus(prev => ({ ...prev, musicbrainz: 'loading' }));
       const mbSearchUrl = `https://musicbrainz.org/ws/2/recording/?query=recording:${encodeURIComponent(song.trackName)} AND artist:${encodeURIComponent(song.artistName)}&fmt=json`;
       const mbRes = await axios.get(mbSearchUrl);
       const mbid = mbRes.data.recordings?.[0]?.id;
 
       if (mbid) {
-        // 2. Fetch high-level qualities from AcousticBrainz
+        setLookupStatus(prev => ({ ...prev, musicbrainz: 'success', acousticbrainz: 'loading' }));
         try {
           const abUrl = `https://acousticbrainz.org/api/v1/${mbid}/high-level`;
           const abRes = await axios.get(abUrl);
           const data = abRes.data.highlevel;
           
           if (data) {
-            return {
-              bpm: null, // AcousticBrainz high-level doesn't have reliable BPM
+            qualities = {
+              bpm: null,
               key: data.tonal_atonal?.all?.tonal > 0.5 ? (data.key_edma?.all?.key || "DNF") : "DNF",
               energy: data.mood_acoustic?.all?.acoustic !== undefined ? 1 - data.mood_acoustic.all.acoustic : null, 
               danceability: data.danceability?.all?.danceable || null,
@@ -162,28 +177,21 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
               speechiness: data.voice_instrumental?.all?.voice || null,
               loudness: null
             };
+            setLookupStatus(prev => ({ ...prev, acousticbrainz: 'success' }));
+          } else {
+            setLookupStatus(prev => ({ ...prev, acousticbrainz: 'error' }));
           }
-        } catch (e) {
-          console.warn('AcousticBrainz lookup failed', e);
+        } catch {
+          setLookupStatus(prev => ({ ...prev, acousticbrainz: 'error' }));
         }
+      } else {
+        setLookupStatus(prev => ({ ...prev, musicbrainz: 'error', acousticbrainz: 'error' }));
       }
-    } catch (e) {
-      console.warn('MusicBrainz lookup failed', e);
+    } catch {
+      setLookupStatus(prev => ({ ...prev, musicbrainz: 'error', acousticbrainz: 'error' }));
     }
 
-    // Default to DNF if no data is found
-    return {
-      bpm: null,
-      key: "DNF",
-      energy: null,
-      danceability: null,
-      happiness: null,
-      acousticness: null,
-      instrumentalness: null,
-      liveness: null,
-      speechiness: null,
-      loudness: null
-    };
+    return qualities;
   };
 
   const handleSave = async () => {
@@ -209,7 +217,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
           qualities.key,
           qualities.bpm,
           selectedSong.trackTimeMillis,
-          null, // Popularity (iTunes doesn't provide a reliable score)
+          null, 
           qualities.energy,
           qualities.danceability,
           qualities.happiness,
@@ -228,15 +236,24 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
       });
       
       setSnackbar({ open: true, message: 'Song saved successfully!', severity: 'success' });
-      setSelectedSong(null);
-      setResults([]); // Clear the search results
-      setQuery(''); // Clear the search query
+      setTimeout(() => {
+        setSelectedSong(null);
+        setResults([]);
+        setQuery('');
+      }, 1000); // Give user a moment to see the success checkmarks
     } catch (err) {
       console.error('Error saving song:', err);
       setSnackbar({ open: true, message: 'Failed to save song.', severity: 'error' });
     } finally {
       setSaving(false);
     }
+  };
+
+  const StatusIcon = ({ status }: { status: LookupState }) => {
+    if (status === 'loading') return <CircularProgress size={16} sx={{ ml: 1 }} />;
+    if (status === 'success') return <CheckCircleIcon sx={{ fontSize: 18, ml: 1, color: 'success.main' }} />;
+    if (status === 'error') return <CancelIcon sx={{ fontSize: 18, ml: 1, color: 'error.main' }} />;
+    return null;
   };
 
   return (
@@ -287,7 +304,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
       </Paper>
 
       {/* Detail Dialog */}
-      <Dialog open={!!selectedSong} onClose={() => setSelectedSong(null)} fullWidth maxWidth="sm">
+      <Dialog open={!!selectedSong} onClose={() => !saving && setSelectedSong(null)} fullWidth maxWidth="xs">
         <DialogTitle>Song Details</DialogTitle>
         <DialogContent dividers>
           {selectedSong && (
@@ -295,42 +312,43 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
               <Avatar 
                 variant="rounded" 
                 src={selectedSong.artworkUrl100.replace('100x100bb', '400x400bb')} 
-                sx={{ width: 200, height: 200, mx: 'auto', mb: 2 }}
+                sx={{ width: 160, height: 160, mx: 'auto', mb: 2 }}
               />
-              <Typography variant="h5" gutterBottom>{selectedSong.trackName}</Typography>
-              <Typography variant="h6" color="textSecondary" gutterBottom>{selectedSong.artistName}</Typography>
+              <Typography variant="h6" gutterBottom>{selectedSong.trackName}</Typography>
+              <Typography variant="body1" color="textSecondary" gutterBottom>{selectedSong.artistName}</Typography>
               
-              <Box sx={{ mt: 3, mb: 2 }}>
-                {checkingKarafun ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                    <CircularProgress size={20} />
-                    <Typography>Checking Karafun availability...</Typography>
-                  </Box>
-                ) : (
-                  <Alert severity={isKarafunAvailable ? "success" : "warning"}>
-                    {isKarafunAvailable 
-                      ? "This song is available on Karafun!" 
-                      : "This song was not found on Karafun."}
-                  </Alert>
-                )}
+              <Box sx={{ mt: 3, mb: 2, p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="subtitle2" gutterBottom align="left" color="primary">Data Sources</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {[
+                    { key: 'karafun', label: 'KaraFun Catalog' },
+                    { key: 'lyrics', label: 'Lyrics Database' },
+                    { key: 'musicbrainz', label: 'MusicBrainz (MBID)' },
+                    { key: 'acousticbrainz', label: 'AcousticBrainz (Features)' }
+                  ].map((source) => (
+                    <Box key={source.key} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2">{source.label}</Typography>
+                      <StatusIcon status={lookupStatus[source.key as keyof typeof lookupStatus]} />
+                    </Box>
+                  ))}
+                </Box>
               </Box>
 
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 1 }}>
                 Album: {selectedSong.collectionName}<br />
-                Release Date: {new Date(selectedSong.releaseDate).toLocaleDateString()}<br />
                 Duration: {Math.floor(selectedSong.trackTimeMillis / 60000)}:{( (selectedSong.trackTimeMillis % 60000) / 1000).toFixed(0).padStart(2, '0')}
               </Typography>
             </Box>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSelectedSong(null)} color="inherit">Go Back</Button>
+          <Button onClick={() => setSelectedSong(null)} color="inherit" disabled={saving}>Cancel</Button>
           <Button 
             onClick={handleSave} 
             variant="contained" 
-            disabled={saving || checkingKarafun}
+            disabled={saving}
           >
-            {saving ? <CircularProgress size={24} /> : 'Save Song'}
+            {saving ? <CircularProgress size={24} color="inherit" /> : 'Save Song'}
           </Button>
         </DialogActions>
       </Dialog>
