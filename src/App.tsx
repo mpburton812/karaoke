@@ -167,6 +167,7 @@ function App() {
             }}
           >
             <Tab label="Songs" />
+            <Tab label="Places" />
             <Tab label="Tags" />
             <Tab label="Admin" />
           </Tabs>
@@ -176,9 +177,12 @@ function App() {
             <SavedSongs currentUser={currentUser} />
           </CustomTabPanel>
           <CustomTabPanel value={value} index={1}>
-            <TagManager currentUser={currentUser} />
+            <LocationManager currentUser={currentUser} />
           </CustomTabPanel>
           <CustomTabPanel value={value} index={2}>
+            <TagManager currentUser={currentUser} />
+          </CustomTabPanel>
+          <CustomTabPanel value={value} index={3}>
             <Box sx={{ textAlign: 'center', mt: 4 }}>
               <Typography variant="h5" gutterBottom>Administrative Tools</Typography>
               <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
@@ -189,9 +193,6 @@ function App() {
               <Divider sx={{ my: 4 }} />
               <DataPortability currentUser={currentUser} />
               
-              <Divider sx={{ my: 4 }} />
-              <LocationManager currentUser={currentUser} />
-
               <Divider sx={{ my: 4 }} />
               <Changelog />
 
