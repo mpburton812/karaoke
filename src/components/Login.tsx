@@ -10,6 +10,7 @@ import {
   CircularProgress
 } from '@mui/material';
 import { db } from '../db';
+import logo from '../assets/logo.png';
 
 interface LoginProps {
   onLogin: (user: { id: number; username: string }) => void;
@@ -150,6 +151,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           )}
         </Box>
       </Paper>
+      <Box sx={{ mt: 4, width: '100%' }}>
+        <img 
+          src={logo} 
+          alt="Logo" 
+          style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '8px' }} 
+        />
+      </Box>
     </Container>
   );
 };
