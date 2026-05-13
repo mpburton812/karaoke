@@ -18,7 +18,6 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import { db } from './db';
 
 // Lazy load tab components
-const SongLookup = lazy(() => import('./components/SongLookup'));
 const SavedSongs = lazy(() => import('./components/SavedSongs'));
 const TagManager = lazy(() => import('./components/TagManager'));
 const LocationManager = lazy(() => import('./components/LocationManager'));
