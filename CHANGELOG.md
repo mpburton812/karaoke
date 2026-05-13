@@ -1,6 +1,8 @@
 # Changelog
 
 ## [2026-05-13]
+- Tags: Implement visual TAG CLOUD with multi-tag selection and song count scaling
+- Update History: Synchronize Admin Changelog with repository documentation
 - Optimize: Implement manual chunking and React.lazy code splitting to reduce bundle size
 - UI: Responsive tabs, mic icon for performance, song layout fixes, and cleanup
 

@@ -44,6 +44,19 @@ interface SongLookupProps {
 
 type LookupState = 'idle' | 'loading' | 'success' | 'error';
 
+interface MusicalQualities {
+  bpm: number | null;
+  key: string;
+  energy: number | null;
+  danceability: number | null;
+  happiness: number | null;
+  acousticness: number | null;
+  instrumentalness: number | null;
+  liveness: number | null;
+  speechiness: number | null;
+  loudness: number | null;
+}
+
 const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<iTunesSong[]>([]);
@@ -145,8 +158,8 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser }) => {
 
   const [lyrics, setLyrics] = useState<string | null>(null);
 
-  const fetchMusicalQualities = async (song: iTunesSong) => {
-    let qualities = {
+  const fetchMusicalQualities = async (song: iTunesSong): Promise<MusicalQualities> => {
+    let qualities: MusicalQualities = {
       bpm: null, key: "DNF", energy: null, danceability: null, happiness: null,
       acousticness: null, instrumentalness: null, liveness: null, speechiness: null, loudness: null
     };

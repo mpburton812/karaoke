@@ -5,10 +5,11 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-13', description: 'Tags: Add TAG CLOUD for multi-tag repertoire exploration' },
   { date: '2026-05-13', description: 'Remove Setlists; Add 1-5 star Performance Rating' },
   { date: '2026-05-13', description: 'Optimize: Implement manual chunking and React.lazy code splitting' },
   { date: '2026-05-13', description: 'UI: Responsive tabs, mic icon for performance, song layout fixes, and cleanup' },
-  { date: '2026-05-12', description: 'Practice Mode, and Smart Suggest features' },
+  { date: '2026-05-12', description: 'Implement Setlist Tab (later removed), Practice Mode, and Smart Suggest features' },
   { date: '2026-05-12', description: 'Finalize strict data policy and fix repertoire list layout' },
   { date: '2026-05-12', description: 'Implement strict data policy: mark missing musical qualities as DNF' },
   { date: '2026-05-12', description: 'Eliminate hardcoded placeholders and refine musical quality variety' },
