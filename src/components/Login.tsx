@@ -7,7 +7,8 @@ import {
   Paper, 
   Container,
   Alert,
-  CircularProgress
+  CircularProgress,
+  alpha
 } from '@mui/material';
 import { db } from '../db';
 import logo from '../assets/logo.png';
@@ -95,7 +96,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       }}
     >
       <Container maxWidth="xs" sx={{ position: 'relative', zIndex: 2, mt: 8 }}>
-        <Paper elevation={3} sx={{ p: 4, textAlign: 'center', opacity: 0.8 }}>
+        <Paper 
+          elevation={3} 
+          sx={{ 
+            p: 4, 
+            textAlign: 'center', 
+            backgroundColor: (theme) => alpha(theme.palette.background.paper, 0.8),
+            backdropFilter: 'blur(4px)' // Adding a slight blur for better readability
+          }}
+        >
           <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
             Karaoke Companion
           </Typography>
