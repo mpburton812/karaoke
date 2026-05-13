@@ -5,7 +5,6 @@ import {
   Paper, 
   Grid, 
   CircularProgress, 
-  Divider,
   Avatar,
   Chip,
   Rating,
@@ -254,7 +253,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
               {venues.map((v, i) => (
                 <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }} key={i}>
                   <Box sx={{ p: 2, textAlign: 'center', border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', noWrap: true }}>{v.location}</Typography>
+                    <Typography variant="subtitle1" noWrap sx={{ fontWeight: 'bold' }}>{v.location}</Typography>
                     <Typography variant="h5" color="primary" sx={{ my: 1, fontWeight: 'bold' }}>{v.count}</Typography>
                     <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>PERFORMANCES</Typography>
                     <Rating value={v.avgRating} readOnly size="small" />
