@@ -20,10 +20,8 @@ import { db } from './db';
 // Lazy load tab components
 const SongLookup = lazy(() => import('./components/SongLookup'));
 const SavedSongs = lazy(() => import('./components/SavedSongs'));
-const SetlistTab = lazy(() => import('./components/SetlistTab'));
 const TagManager = lazy(() => import('./components/TagManager'));
 const LocationManager = lazy(() => import('./components/LocationManager'));
-const SetlistManager = lazy(() => import('./components/SetlistManager'));
 const DataPortability = lazy(() => import('./components/DataPortability'));
 const Login = lazy(() => import('./components/Login'));
 const Changelog = lazy(() => import('./components/Changelog'));
@@ -175,7 +173,6 @@ function App() {
           >
             <Tab label="Song Lookup" />
             <Tab label="Song List" />
-            <Tab label="Setlists" />
             <Tab label="Tags" />
             <Tab label="Admin" />
           </Tabs>
@@ -188,22 +185,16 @@ function App() {
             <SavedSongs currentUser={currentUser} />
           </CustomTabPanel>
           <CustomTabPanel value={value} index={2}>
-            <SetlistTab currentUser={currentUser} />
-          </CustomTabPanel>
-          <CustomTabPanel value={value} index={3}>
             <TagManager currentUser={currentUser} />
           </CustomTabPanel>
-          <CustomTabPanel value={value} index={4}>
+          <CustomTabPanel value={value} index={3}>
             <Box sx={{ textAlign: 'center', mt: 4 }}>
               <Typography variant="h5" gutterBottom>Administrative Tools</Typography>
               <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
-                Manage your repertoire, setlists, and data portability.
+                Manage your repertoire and data portability.
               </Typography>
               
               <DataPortability currentUser={currentUser} />
-              
-              <Divider sx={{ my: 4 }} />
-              <SetlistManager currentUser={currentUser} />
               
               <Divider sx={{ my: 4 }} />
               <LocationManager currentUser={currentUser} />

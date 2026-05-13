@@ -109,7 +109,6 @@ const DataPortability: React.FC<DataPortabilityProps> = ({ currentUser, onDataCh
 
   const tables = [
     { name: 'songs', label: 'Songs' },
-    { name: 'setlists', label: 'Setlists' },
     { name: 'locations', label: 'Locations' },
     { name: 'tags', label: 'Tags' }
   ];

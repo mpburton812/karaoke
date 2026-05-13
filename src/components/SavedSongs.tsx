@@ -5,7 +5,7 @@ import {
   CircularProgress, Alert, Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Select, MenuItem, FormControl, InputLabel,
-  Autocomplete
+  Autocomplete, Rating
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -55,6 +55,7 @@ interface Performance {
   date: string;
   location: string;
   notes: string;
+  rating: number;
 }
 
 interface Tag {
@@ -66,12 +67,6 @@ interface Tag {
 interface Location {
   id: number;
   name: string;
-}
-
-interface Setlist {
-  id: number;
-  name: string;
-  description: string;
 }
 
 interface SavedSongsProps {
@@ -105,11 +100,9 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const [perfDate, setPerfDate] = useState('');
   const [perfLocation, setPerfLocation] = useState('');
   const [perfNotes, setPerfNotes] = useState('');
+  const [perfRating, setPerfRating] = useState<number | null>(3);
   const [selectedPerfTags, setSelectedPerfTags] = useState<number[]>([]);
   const [savingPerf, setSavingPerf] = useState(false);
-
-  // Setlist State
-  const [setlists, setSetlists] = useState<Setlist[]>([]);
 
   // Notes Dialog State
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
@@ -128,18 +121,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
       setError('Failed to load saved songs.');
     } finally {
       setLoading(false);
-    }
-  }, [currentUser.id]);
-
-  const fetchSetlists = useCallback(async () => {
-    try {
-      const result = await db.execute({
-        sql: "SELECT * FROM setlists WHERE user_id = ? ORDER BY created_at DESC",
-        args: [currentUser.id]
-      });
-      setSetlists(result.rows as unknown as Setlist[]);
-    } catch (err) {
-      console.error(err);
     }
   }, [currentUser.id]);
 
@@ -166,11 +147,10 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   useEffect(() => {
     const loadData = async () => {
       await fetchSongs();
-      await fetchSetlists();
       await fetchTagsAndLocations();
     };
     loadData();
-  }, [fetchSongs, fetchSetlists, fetchTagsAndLocations]);
+  }, [fetchSongs, fetchTagsAndLocations]);
 
   const fetchSongTags = useCallback(async (songId: number) => {
     try {
@@ -255,18 +235,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     }
   };
 
-  const handleAddToSetlist = async (songId: number, setlistId: number) => {
-    try {
-      await db.execute({
-        sql: "INSERT OR IGNORE INTO setlist_songs (setlist_id, song_id) VALUES (?, ?)",
-        args: [setlistId, songId]
-      });
-      alert('Added to setlist!');
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleRemove = async (id: number) => {
     if (!window.confirm('Are you sure you want to remove this song?')) return;
     try {
@@ -287,6 +255,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     setPerfDate(now.toISOString().split('T')[0]);
     setPerfLocation('');
     setPerfNotes('');
+    setPerfRating(3);
     setSelectedPerfTags([]);
     setPerfDialogOpen(true);
   };
@@ -296,8 +265,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     setSavingPerf(true);
     try {
       const result = await db.execute({
-        sql: "INSERT INTO performances (song_id, user_id, date, location, notes) VALUES (?, ?, ?, ?, ?) RETURNING id",
-        args: [selectedSong.id, currentUser.id, perfDate, perfLocation, perfNotes]
+        sql: "INSERT INTO performances (song_id, user_id, date, location, notes, rating) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
+        args: [selectedSong.id, currentUser.id, perfDate, perfLocation, perfNotes, perfRating]
       });
       
       const perfId = (result.rows[0] as unknown as { id: number }).id;
@@ -451,16 +420,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid size={{ xs: 12 }}>
-                  <FormControl fullWidth>
-                    <Autocomplete
-                      options={setlists}
-                      getOptionLabel={(option) => option.name}
-                      renderInput={(params) => <TextField {...params} label="Add to Setlist" />}
-                      onChange={(_, value) => value && handleAddToSetlist(selectedSong.id, value.id)}
-                    />
-                  </FormControl>
-                </Grid>
               </Grid>
 
               <Box sx={{ mt: 4 }}>
@@ -509,6 +468,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                   <TableRow>
                     <TableCell>Date</TableCell>
                     <TableCell>Location</TableCell>
+                    <TableCell align="center">Performance</TableCell>
                     <TableCell align="center">Notes</TableCell>
                     <TableCell align="center">Delete</TableCell>
                   </TableRow>
@@ -518,6 +478,9 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                     <TableRow key={perf.id}>
                       <TableCell>{new Date(perf.date).toLocaleDateString()}</TableCell>
                       <TableCell>{perf.location || '-'}</TableCell>
+                      <TableCell align="center">
+                        <Rating value={perf.rating || 0} readOnly size="small" />
+                      </TableCell>
                       <TableCell align="center">{perf.notes ? <IconButton onClick={() => handleShowNotes(perf.notes)}><NotesIcon /></IconButton> : '-'}</TableCell>
                       <TableCell align="center"><IconButton color="error" onClick={() => handleDeletePerformance(perf.id)}><CloseIcon /></IconButton></TableCell>
                     </TableRow>
@@ -544,6 +507,16 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                   onInputChange={(_, value) => setPerfLocation(value)}
                 />
               </FormControl>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 1 }}>
+                <Typography component="legend">Performance</Typography>
+                <Rating
+                  value={perfRating}
+                  onChange={(_, newValue) => {
+                    setPerfRating(newValue);
+                  }}
+                />
+              </Box>
 
               <FormControl fullWidth>
                 <Autocomplete

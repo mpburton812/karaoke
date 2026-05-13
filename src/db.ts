@@ -125,6 +125,13 @@ export const initDb = async () => {
       // Column might already exist
     }
 
+    // Migration: Add rating column to performances if it doesn't exist
+    try {
+      await db.execute("ALTER TABLE performances ADD COLUMN rating INTEGER");
+    } catch {
+      // Column might already exist
+    }
+
     // New tables for Locations and Tags
     await db.execute(`
       CREATE TABLE IF NOT EXISTS locations (
