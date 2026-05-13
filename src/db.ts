@@ -159,6 +159,34 @@ export const initDb = async () => {
       )
     `);
 
+    const songTagsSchema = `
+      CREATE TABLE song_tags (
+        song_id INTEGER,
+        tag_id INTEGER,
+        PRIMARY KEY (song_id, tag_id),
+        FOREIGN KEY (song_id) REFERENCES songs (id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+      )
+    `;
+    const perfTagsSchema = `
+      CREATE TABLE performance_tags (
+        performance_id INTEGER,
+        tag_id INTEGER,
+        PRIMARY KEY (performance_id, tag_id),
+        FOREIGN KEY (performance_id) REFERENCES performances (id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+      )
+    `;
+    const locTagsSchema = `
+      CREATE TABLE location_tags (
+        location_id INTEGER,
+        tag_id INTEGER,
+        PRIMARY KEY (location_id, tag_id),
+        FOREIGN KEY (location_id) REFERENCES locations (id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+      )
+    `;
+
     // Migration: Handle obsolete 'type' column and its NOT NULL constraint
     try {
       const tableInfo = await db.execute("PRAGMA table_info(tags)");
@@ -170,6 +198,7 @@ export const initDb = async () => {
       if (hasType && typeColumn && typeColumn.notnull === 1) {
         console.log("Fixing tags table schema: migrating away from NOT NULL 'type' column");
         // The safest way in SQLite to remove a NOT NULL constraint is to recreate the table
+        // We MUST also recreate junction tables because they will point to 'tags_old' after rename
         await db.batch([
           "ALTER TABLE tags RENAME TO tags_old",
           `CREATE TABLE tags (
@@ -180,6 +209,18 @@ export const initDb = async () => {
             FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
           )`,
           "INSERT INTO tags (id, user_id, name) SELECT id, user_id, name FROM tags_old",
+          "ALTER TABLE song_tags RENAME TO song_tags_old",
+          songTagsSchema,
+          "INSERT INTO song_tags SELECT * FROM song_tags_old",
+          "ALTER TABLE location_tags RENAME TO location_tags_old",
+          locTagsSchema,
+          "INSERT INTO location_tags SELECT * FROM location_tags_old",
+          "ALTER TABLE performance_tags RENAME TO performance_tags_old",
+          perfTagsSchema,
+          "INSERT INTO performance_tags SELECT * FROM performance_tags_old",
+          "DROP TABLE song_tags_old",
+          "DROP TABLE location_tags_old",
+          "DROP TABLE performance_tags_old",
           "DROP TABLE tags_old"
         ]);
       } else if (hasType) {
@@ -191,6 +232,31 @@ export const initDb = async () => {
     } catch (error) {
       console.error("Migration error for tags table:", error);
     }
+
+    // Repair broken tags associations for users who already ran the incomplete migration
+    const repairJunction = async (tableName: string, schema: string) => {
+      try {
+        const tableCheck = await db.execute(`SELECT sql FROM sqlite_master WHERE name = ?`, [tableName]);
+        if (tableCheck.rows.length > 0) {
+          const sql = tableCheck.rows[0].sql as string;
+          if (sql.includes('tags_old')) {
+            console.log(`Repairing ${tableName} (was pointing to tags_old)`);
+            await db.batch([
+              `ALTER TABLE ${tableName} RENAME TO ${tableName}_broken`,
+              schema,
+              `INSERT INTO ${tableName} SELECT * FROM ${tableName}_broken`,
+              `DROP TABLE ${tableName}_broken`
+            ]);
+          }
+        }
+      } catch (err) {
+        console.error(`Error repairing ${tableName}:`, err);
+      }
+    };
+
+    await repairJunction('song_tags', songTagsSchema.replace('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'));
+    await repairJunction('location_tags', locTagsSchema.replace('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'));
+    await repairJunction('performance_tags', perfTagsSchema.replace('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'));
 
     await db.execute(`
       CREATE TABLE IF NOT EXISTS song_tags (
