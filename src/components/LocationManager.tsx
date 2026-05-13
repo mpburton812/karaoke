@@ -208,6 +208,8 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
                         renderInput={(params) => <TextField {...params} label="Search Tags" sx={{ maxWidth: 200 }} />}
                         onChange={(_, value) => value && handleAddTag(loc.id, value.id)}
                         value={null}
+                        blurOnSelect
+                        clearOnBlur
                       />
                     </Box>
                   </Box>

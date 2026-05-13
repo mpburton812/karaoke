@@ -389,6 +389,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                     renderInput={(params) => <TextField {...params} label="Search Tags" sx={{ maxWidth: 200 }} />}
                     onChange={(_, value) => value && handleAddSongTag(value.id)}
                     value={null}
+                    blurOnSelect
+                    clearOnBlur
                   />
                 </Box>
               </Box>
