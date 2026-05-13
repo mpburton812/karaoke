@@ -159,10 +159,38 @@ export const initDb = async () => {
       )
     `);
 
-    // Migration for existing tags table if type column exists
+    // Migration: Handle obsolete 'type' column and its NOT NULL constraint
     try {
-      await db.execute("ALTER TABLE tags DROP COLUMN type");
-    } catch { /* ignore if already dropped or never existed */ }
+      const tableInfo = await db.execute("PRAGMA table_info(tags)");
+      const columns = tableInfo.rows;
+      const hasType = columns.some(c => c.name === 'type');
+      const typeColumn = columns.find(c => c.name === 'type');
+      
+      // If 'type' exists and is NOT NULL, we need to fix it
+      if (hasType && typeColumn && typeColumn.notnull === 1) {
+        console.log("Fixing tags table schema: migrating away from NOT NULL 'type' column");
+        // The safest way in SQLite to remove a NOT NULL constraint is to recreate the table
+        await db.batch([
+          "ALTER TABLE tags RENAME TO tags_old",
+          `CREATE TABLE tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            name TEXT NOT NULL,
+            UNIQUE(user_id, name),
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+          )`,
+          "INSERT INTO tags (id, user_id, name) SELECT id, user_id, name FROM tags_old",
+          "DROP TABLE tags_old"
+        ]);
+      } else if (hasType) {
+        // If it exists but is nullable, we can just leave it or try to drop it
+        try {
+          await db.execute("ALTER TABLE tags DROP COLUMN type");
+        } catch { /* ignore if DROP COLUMN not supported */ }
+      }
+    } catch (error) {
+      console.error("Migration error for tags table:", error);
+    }
 
     await db.execute(`
       CREATE TABLE IF NOT EXISTS song_tags (
