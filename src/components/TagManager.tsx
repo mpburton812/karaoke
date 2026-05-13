@@ -221,18 +221,15 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
 
   const handleVenueChange = (venueId: number | string) => {
     setSelectedVenueId(venueId);
-    if (venueId === '') return;
+    if (venueId === '') {
+      setSelectedTagIds([]);
+      return;
+    }
 
     const venue = locations.find(l => l.id === venueId);
-    if (venue && venue.tagIds.length > 0) {
-      // When a venue is selected, we add its tags to the selection
-      setSelectedTagIds(prev => {
-        const newIds = [...prev];
-        venue.tagIds.forEach(id => {
-          if (!newIds.includes(id)) newIds.push(id);
-        });
-        return newIds;
-      });
+    if (venue) {
+      // When a venue is selected, we REPLACE current selection with its tags
+      setSelectedTagIds(venue.tagIds || []);
     }
   };
 
