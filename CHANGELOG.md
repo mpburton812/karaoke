@@ -1,6 +1,7 @@
 # Changelog
 
 ## [2026-05-13]
+- Feature: Implement dynamic theme selection (Light, Dark, and Trans Pride modes)
 - Feature: Implement new STATS tab with performance dashboards (Top Tracks, Artist Trends, Genre DNA, Venue Power Rankings)
 - Feature: Add detailed performance statistics for Favorite Locations (Days Sung, Total Songs, Avg Songs/Day, Top 3 Songs)
 - Feature: Add 'FETCH LYRICS' for existing songs missing lyrics in Repertoire

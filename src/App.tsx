@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, Suspense, lazy, useMemo } from 'react';
 import { 
   Container, 
   Box, 
@@ -12,9 +12,13 @@ import {
   AppBar,
   Toolbar,
   Divider,
-  CircularProgress
+  CircularProgress,
+  ButtonGroup
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import TransgenderIcon from '@mui/icons-material/Transgender';
 import { db } from './db';
 
 // Lazy load tab components
@@ -27,50 +31,86 @@ const Login = lazy(() => import('./components/Login'));
 const Changelog = lazy(() => import('./components/Changelog'));
 const Stats = lazy(() => import('./components/Stats'));
 
-const theme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: '#1DB954', // Spotify-ish green for a modern look
-    },
-    background: {
-      default: '#121212',
-      paper: '#1e1e1e',
-    },
-  },
-  typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-  },
-});
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function CustomTabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
+type ThemeMode = 'light' | 'dark' | 'trans';
 
 function App() {
   const [value, setValue] = useState(0);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    return (localStorage.getItem('theme_mode') as ThemeMode) || 'dark';
+  });
+
+  const theme = useMemo(() => {
+    if (themeMode === 'trans') {
+      return createTheme({
+        palette: {
+          mode: 'light',
+          primary: {
+            main: '#5BCEFA', // Trans Light Blue
+          },
+          secondary: {
+            main: '#F5A9B8', // Trans Pink
+          },
+          background: {
+            default: '#FFFFFF',
+            paper: '#F5A9B822', // Very faint pink
+          },
+          text: {
+            primary: '#5BCEFA',
+            secondary: '#F5A9B8',
+          }
+        },
+        typography: {
+          fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+        },
+        components: {
+          MuiAppBar: {
+            styleOverrides: {
+              root: {
+                background: 'linear-gradient(45deg, #5BCEFA 30%, #F5A9B8 90%)',
+                color: '#FFFFFF'
+              }
+            }
+          },
+          MuiButton: {
+            styleOverrides: {
+              containedPrimary: {
+                color: '#FFFFFF'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    return createTheme({
+      palette: {
+        mode: themeMode,
+        primary: {
+          main: '#1DB954', // Spotify-ish green
+        },
+        ...(themeMode === 'dark' ? {
+          background: {
+            default: '#121212',
+            paper: '#1e1e1e',
+          }
+        } : {
+          background: {
+            default: '#f5f5f5',
+            paper: '#ffffff',
+          }
+        })
+      },
+      typography: {
+        fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+      },
+    });
+  }, [themeMode]);
+
+  const handleThemeChange = (mode: ThemeMode) => {
+    setThemeMode(mode);
+    localStorage.setItem('theme_mode', mode);
+  };
+
   const [currentUser, setCurrentUser] = useState<{ id: number; username: string } | null>(() => {
     const savedUser = localStorage.getItem('karaoke_user');
     if (savedUser) {
@@ -139,7 +179,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AppBar position="static" color="transparent" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+      <AppBar position="static" color={themeMode === 'trans' ? 'primary' : 'transparent'} elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
             {currentUser.username}
@@ -193,6 +233,37 @@ function App() {
               <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
                 Manage your repertoire and data portability.
               </Typography>
+
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>THEME SELECTION</Typography>
+                <ButtonGroup variant="outlined" size="large">
+                  <Button 
+                    startIcon={<LightModeIcon />} 
+                    onClick={() => handleThemeChange('light')}
+                    variant={themeMode === 'light' ? 'contained' : 'outlined'}
+                  >
+                    LIGHT
+                  </Button>
+                  <Button 
+                    startIcon={<DarkModeIcon />} 
+                    onClick={() => handleThemeChange('dark')}
+                    variant={themeMode === 'dark' ? 'contained' : 'outlined'}
+                  >
+                    DARK
+                  </Button>
+                  <Button 
+                    startIcon={<TransgenderIcon />} 
+                    onClick={() => handleThemeChange('trans')}
+                    variant={themeMode === 'trans' ? 'contained' : 'outlined'}
+                    sx={themeMode === 'trans' ? {
+                      background: 'linear-gradient(45deg, #5BCEFA 30%, #F5A9B8 90%)',
+                      borderColor: 'transparent'
+                    } : {}}
+                  >
+                    TRANS
+                  </Button>
+                </ButtonGroup>
+              </Box>
               
               <SystemStatus />
               <Divider sx={{ my: 4 }} />
@@ -201,7 +272,8 @@ function App() {
               <Divider sx={{ my: 4 }} />
               <Changelog />
 
-              <Divider sx={{ my: 6, borderColor: 'error.main' }} />              <Box sx={{ p: 3, border: '1px solid', borderColor: 'error.main', borderRadius: 2, bgcolor: 'rgba(211, 47, 47, 0.05)' }}>
+              <Divider sx={{ my: 6, borderColor: 'error.main' }} />
+              <Box sx={{ p: 3, border: '1px solid', borderColor: 'error.main', borderRadius: 2, bgcolor: 'rgba(211, 47, 47, 0.05)' }}>
                 <Typography variant="h6" color="error" gutterBottom>Danger Zone</Typography>
                 <Typography variant="body2" sx={{ mb: 2 }}>
                   Clearing your configuration will delete all personal data associated with your account.
