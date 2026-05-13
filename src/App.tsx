@@ -223,6 +223,23 @@ function App() {
           </CustomTabPanel>
         </Suspense>
       </Container>
+      
+      <Box component="footer" sx={{ py: 3, px: 2, mt: 'auto', backgroundColor: 'transparent' }}>
+        <Container maxWidth="lg">
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <Box sx={{ flexGrow: 1, textAlign: 'center' }}>
+              <Typography variant="body1" color="textSecondary" sx={{ fontWeight: 'bold', letterSpacing: 1 }}>
+                KARAOKE COMPANION
+              </Typography>
+            </Box>
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem', opacity: 0.6 }}>
+                {(window as any).__BRANCH_NAME__ || 'unknown'} @ {(window as any).__COMMIT_HASH__ || 'unknown'}
+              </Typography>
+            </Box>
+          </Box>
+        </Container>
+      </Box>
     </ThemeProvider>
   );
 }
