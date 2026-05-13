@@ -60,7 +60,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<number | string>('');
-  const [filterLogic, setFilterLogic] = useState<'OR' | 'AND'>('OR');
+  const [filterLogic, setFilterLogic] = useState<'OR' | 'AND'>('AND');
   const [filteredSongs, setFilteredSongs] = useState<Song[]>([]);
   const [searching, setSearching] = useState(false);
 
@@ -237,7 +237,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
     setSelectedTagIds([]);
     setSelectedGenres([]);
     setSelectedVenueId('');
-    setFilterLogic('OR');
+    setFilterLogic('AND');
   };
 
   if (loading) {
