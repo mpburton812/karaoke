@@ -199,7 +199,7 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
                     </Box>
 
                     <Box sx={{ mt: 2 }}>
-                      <Typography variant="caption" display="block" gutterBottom sx={{ fontWeight: 'bold' }}>
+                      <Typography variant="caption" gutterBottom sx={{ fontWeight: 'bold', display: 'block' }}>
                         Quick-Add Tags:
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>

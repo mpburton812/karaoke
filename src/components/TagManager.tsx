@@ -231,14 +231,6 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
     setSelectedVenueId('');
   };
 
-  const getTagFontSize = (count: number = 0) => {
-    const minSize = 0.8;
-    const maxSize = 1.5;
-    const maxCount = Math.max(...tags.map(t => t.count || 0), 1);
-    const size = minSize + (count / maxCount) * (maxSize - minSize);
-    return `${size}rem`;
-  };
-
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
