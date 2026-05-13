@@ -33,6 +33,32 @@ const Stats = lazy(() => import('./components/Stats'));
 
 type ThemeMode = 'light' | 'dark' | 'trans';
 
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function CustomTabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`simple-tabpanel-${index}`}
+      aria-labelledby={`simple-tab-${index}`}
+      {...other}
+    >
+      {value === index && (
+        <Box sx={{ p: 3 }}>
+          {children}
+        </Box>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const [value, setValue] = useState(0);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
@@ -73,9 +99,11 @@ function App() {
           },
           MuiButton: {
             styleOverrides: {
-              containedPrimary: {
-                color: '#FFFFFF'
-              }
+              root: ({ ownerState }) => ({
+                ...(ownerState.variant === 'contained' && ownerState.color === 'primary' && {
+                  color: '#FFFFFF',
+                }),
+              }),
             }
           }
         }
