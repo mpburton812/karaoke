@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Typography, 
@@ -24,7 +24,7 @@ const SystemStatus = () => {
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
 
-  const checkStatus = async () => {
+  const checkStatus = useCallback(async () => {
     setLoading(true);
     try {
       // 1. Check DB Connectivity & Get Metadata
@@ -41,11 +41,12 @@ const SystemStatus = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    checkStatus();
-  }, []);
+    // Use a promise to defer execution and avoid synchronous setState in effect
+    Promise.resolve().then(() => checkStatus());
+  }, [checkStatus]);
 
   const handleSyncNow = async () => {
     if (!window.confirm("This will download the entire KaraFun catalog (~5MB) and update your database. Continue?")) return;
@@ -71,7 +72,7 @@ const SystemStatus = () => {
 
       for (let i = 0; i < lines.length; i += batchSize) {
         const batch = lines.slice(i, i + batchSize);
-        const statements = batch.map((line: string) => {
+        const statements = batch.map((line: string): { sql: string; args: (string | number)[] } | null => {
           const parts = line.split(';');
           if (parts.length < 3) return null;
           
@@ -85,7 +86,7 @@ const SystemStatus = () => {
               parts[7]?.replace(/^"|"$/g, '') || ''  // Styles
             ]
           };
-        }).filter((s: any) => s !== null);
+        }).filter((s: { sql: string; args: (string | number)[] } | null): s is { sql: string; args: (string | number)[] } => s !== null);
 
         await db.batch(statements);
         setSyncProgress(Math.round(((i + batch.length) / total) * 100));

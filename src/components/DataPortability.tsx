@@ -12,6 +12,7 @@ import {
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadIcon from '@mui/icons-material/Upload';
 import Papa from 'papaparse';
+import type { InValue } from '@libsql/client';
 import { db } from '../db';
 
 interface DataPortabilityProps {
@@ -57,8 +58,9 @@ const DataPortability: React.FC<DataPortabilityProps> = ({ currentUser, onDataCh
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.csv';
-    input.onchange = async (e: any) => {
-      const file = e.target.files[0];
+    input.onchange = async (event: Event) => {
+      const target = event.target as HTMLInputElement;
+      const file = target.files?.[0];
       if (!file) return;
 
       setLoading(true);
@@ -70,7 +72,7 @@ const DataPortability: React.FC<DataPortabilityProps> = ({ currentUser, onDataCh
         skipEmptyLines: true,
         complete: async (results) => {
           try {
-            const data = results.data as any[];
+            const data = results.data as Record<string, InValue>[];
             if (data.length === 0) {
               setMessage({ text: 'CSV is empty.', type: 'error' });
               setLoading(false);
@@ -82,7 +84,7 @@ const DataPortability: React.FC<DataPortabilityProps> = ({ currentUser, onDataCh
             const placeholders = columns.map(() => '?').join(', ');
             const sql = `INSERT OR IGNORE INTO ${table} (user_id, ${columns.join(', ')}) VALUES (?, ${placeholders})`;
 
-            const statements = data.map(row => ({
+            const statements: { sql: string; args: InValue[] }[] = data.map(row => ({
               sql,
               args: [currentUser.id, ...columns.map(col => row[col])]
             }));

@@ -116,7 +116,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
   }, [currentUser.id]);
 
   useEffect(() => {
-    fetchData();
+    Promise.resolve().then(() => fetchData());
   }, [fetchData]);
 
   const fetchFilteredSongs = useCallback(async () => {
@@ -168,7 +168,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
   }, [selectedTagIds, selectedGenres, currentUser.id, filterLogic]);
 
   useEffect(() => {
-    fetchFilteredSongs();
+    Promise.resolve().then(() => fetchFilteredSongs());
   }, [fetchFilteredSongs]);
 
   const handleAddTag = async () => {

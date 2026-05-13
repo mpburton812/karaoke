@@ -16,7 +16,6 @@ import SearchIcon from '@mui/icons-material/Search';
 import StarIcon from '@mui/icons-material/Star';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import YouTubeIcon from '@mui/icons-material/YouTube';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { db } from '../db';
 
 interface Song {
@@ -88,10 +87,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [genreFilter, setGenreFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
-
-  // Suggestion State
-  const [suggestDialogOpen, setSuggestDialogOpen] = useState(false);
-  const [suggestedSong, setSuggestedSong] = useState<Song | null>(null);
 
   // Performance Dialog State
   const [perfDialogOpen, setPerfDialogOpen] = useState(false);
@@ -176,8 +171,10 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
 
   useEffect(() => {
     if (selectedSong) {
-      fetchPerformances(selectedSong.id);
-      fetchSongTags(selectedSong.id);
+      Promise.resolve().then(() => {
+        fetchPerformances(selectedSong.id);
+        fetchSongTags(selectedSong.id);
+      });
     }
   }, [selectedSong, fetchPerformances, fetchSongTags]);
 
@@ -194,15 +191,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     } catch (err) {
       console.error(err);
     }
-  };
-
-  const handleSmartSuggest = () => {
-    if (songs.length === 0) return;
-    const masters = songs.filter(s => s.vocal_status === 'Mastered');
-    const pool = masters.length > 0 ? masters : songs;
-    const randomIndex = Math.floor(Math.random() * pool.length);
-    setSuggestedSong(pool[randomIndex]);
-    setSuggestDialogOpen(true);
   };
 
   const handleAddSongTag = async (tagId: number) => {
@@ -389,7 +377,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                 </Box>
                 
                 <Box sx={{ mt: 2, mb: 2 }}>
-                  <Typography variant="caption" display="block" gutterBottom sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                  <Typography variant="caption" gutterBottom sx={{ fontWeight: 'bold', color: 'text.secondary', display: 'block' }}>
                     Quick-Add Tags:
                   </Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -648,31 +636,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
           </List>
         </Paper>
       )}
-
-      {/* Smart Suggestion Dialog */}
-      <Dialog open={suggestDialogOpen} onClose={() => setSuggestDialogOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <AutoAwesomeIcon color="secondary" /> Smart Suggestion
-        </DialogTitle>
-        <DialogContent>
-          {suggestedSong && (
-            <Box sx={{ textAlign: 'center', py: 2 }}>
-              <Avatar variant="rounded" src={suggestedSong.artwork_url} sx={{ width: 120, height: 120, mx: 'auto', mb: 2 }} />
-              <Typography variant="h5" gutterBottom>{suggestedSong.track_name}</Typography>
-              <Typography variant="h6" color="textSecondary">{suggestedSong.artist_name}</Typography>
-              <Typography variant="body2" sx={{ mt: 2 }} color="primary">
-                Why? It's {suggestedSong.vocal_status === 'Mastered' ? 'one of your mastered hits!' : 'in your repertoire.'}
-              </Typography>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSuggestDialogOpen(false)}>Dismiss</Button>
-          <Button variant="contained" color="secondary" onClick={() => { setSelectedSong(suggestedSong); setSuggestDialogOpen(false); }}>
-            View Details
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

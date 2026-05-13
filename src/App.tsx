@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { 
   Container, 
   Box, 
@@ -71,20 +71,17 @@ function CustomTabPanel(props: TabPanelProps) {
 
 function App() {
   const [value, setValue] = useState(0);
-  const [currentUser, setCurrentUser] = useState<{ id: number; username: string } | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-
-  useEffect(() => {
+  const [currentUser, setCurrentUser] = useState<{ id: number; username: string } | null>(() => {
     const savedUser = localStorage.getItem('karaoke_user');
     if (savedUser) {
       try {
-        setCurrentUser(JSON.parse(savedUser));
+        return JSON.parse(savedUser);
       } catch {
         localStorage.removeItem('karaoke_user');
       }
     }
-    setAuthChecked(true);
-  }, []);
+    return null;
+  });
 
   const handleLogin = (user: { id: number; username: string }) => {
     setCurrentUser(user);
@@ -127,8 +124,6 @@ function App() {
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
   };
-
-  if (!authChecked) return null;
 
   if (!currentUser) {
     return (

@@ -39,6 +39,20 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [locationTagsMap, setLocationTagsMap] = useState<Record<number, Tag[]>>({});
 
+  const fetchLocationTags = useCallback(async (locationId: number) => {
+    try {
+      const result = await db.execute({
+        sql: `SELECT t.* FROM tags t 
+              JOIN location_tags lt ON t.id = lt.tag_id 
+              WHERE lt.location_id = ?`,
+        args: [locationId]
+      });
+      setLocationTagsMap(prev => ({ ...prev, [locationId]: result.rows as unknown as Tag[] }));
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
   const fetchLocations = useCallback(async () => {
     try {
       const result = await db.execute({
@@ -55,7 +69,7 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
     } catch (err) {
       console.error('Error fetching locations:', err);
     }
-  }, [currentUser.id]);
+  }, [currentUser.id, fetchLocationTags]);
 
   const fetchAvailableTags = useCallback(async () => {
     try {
@@ -69,23 +83,11 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
     }
   }, [currentUser.id]);
 
-  const fetchLocationTags = async (locationId: number) => {
-    try {
-      const result = await db.execute({
-        sql: `SELECT t.* FROM tags t 
-              JOIN location_tags lt ON t.id = lt.tag_id 
-              WHERE lt.location_id = ?`,
-        args: [locationId]
-      });
-      setLocationTagsMap(prev => ({ ...prev, [locationId]: result.rows as unknown as Tag[] }));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   useEffect(() => {
-    fetchLocations();
-    fetchAvailableTags();
+    Promise.resolve().then(() => {
+      fetchLocations();
+      fetchAvailableTags();
+    });
   }, [fetchLocations, fetchAvailableTags]);
 
   const handleAddLocation = async () => {

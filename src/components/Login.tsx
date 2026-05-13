@@ -96,7 +96,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             disabled={loading}
             onKeyPress={(e) => {
               if (e.key === 'Enter') {
-                isCreating ? handleCreateAccount() : handleLogin();
+                if (isCreating) {
+                  handleCreateAccount();
+                } else {
+                  handleLogin();
+                }
               }
             }}
           />
