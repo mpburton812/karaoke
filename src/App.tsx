@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { 
   Container, 
   Box, 
@@ -11,18 +11,21 @@ import {
   Button,
   AppBar,
   Toolbar,
-  Divider
+  Divider,
+  CircularProgress
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
-import SongLookup from './components/SongLookup';
-import SavedSongs from './components/SavedSongs';
-import SetlistTab from './components/SetlistTab';
-import TagManager from './components/TagManager';
-import LocationManager from './components/LocationManager';
-import SetlistManager from './components/SetlistManager';
-import DataPortability from './components/DataPortability';
-import Login from './components/Login';
 import { db } from './db';
+
+// Lazy load tab components
+const SongLookup = lazy(() => import('./components/SongLookup'));
+const SavedSongs = lazy(() => import('./components/SavedSongs'));
+const SetlistTab = lazy(() => import('./components/SetlistTab'));
+const TagManager = lazy(() => import('./components/TagManager'));
+const LocationManager = lazy(() => import('./components/LocationManager'));
+const SetlistManager = lazy(() => import('./components/SetlistManager'));
+const DataPortability = lazy(() => import('./components/DataPortability'));
+const Login = lazy(() => import('./components/Login'));
 
 const theme = createTheme({
   palette: {
@@ -131,7 +134,9 @@ function App() {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <Login onLogin={handleLogin} />
+        <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>}>
+          <Login onLogin={handleLogin} />
+        </Suspense>
       </ThemeProvider>
     );
   }
@@ -174,50 +179,52 @@ function App() {
             <Tab label="Admin" />
           </Tabs>
         </Box>
-        <CustomTabPanel value={value} index={0}>
-          <SongLookup currentUser={currentUser} />
-        </CustomTabPanel>
-        <CustomTabPanel value={value} index={1}>
-          <SavedSongs currentUser={currentUser} />
-        </CustomTabPanel>
-        <CustomTabPanel value={value} index={2}>
-          <SetlistTab currentUser={currentUser} />
-        </CustomTabPanel>
-        <CustomTabPanel value={value} index={3}>
-          <TagManager currentUser={currentUser} />
-        </CustomTabPanel>
-        <CustomTabPanel value={value} index={4}>
-          <Box sx={{ textAlign: 'center', mt: 4 }}>
-            <Typography variant="h5" gutterBottom>Administrative Tools</Typography>
-            <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
-              Manage your repertoire, setlists, and data portability.
-            </Typography>
-            
-            <DataPortability currentUser={currentUser} />
-            
-            <Divider sx={{ my: 4 }} />
-            <SetlistManager currentUser={currentUser} />
-            
-            <Divider sx={{ my: 4 }} />
-            <LocationManager currentUser={currentUser} />
-
-            <Divider sx={{ my: 6, borderColor: 'error.main' }} />
-            <Box sx={{ p: 3, border: '1px solid', borderColor: 'error.main', borderRadius: 2, bgcolor: 'rgba(211, 47, 47, 0.05)' }}>
-              <Typography variant="h6" color="error" gutterBottom>Danger Zone</Typography>
-              <Typography variant="body2" sx={{ mb: 2 }}>
-                Clearing your configuration will delete all personal data associated with your account.
+        <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>}>
+          <CustomTabPanel value={value} index={0}>
+            <SongLookup currentUser={currentUser} />
+          </CustomTabPanel>
+          <CustomTabPanel value={value} index={1}>
+            <SavedSongs currentUser={currentUser} />
+          </CustomTabPanel>
+          <CustomTabPanel value={value} index={2}>
+            <SetlistTab currentUser={currentUser} />
+          </CustomTabPanel>
+          <CustomTabPanel value={value} index={3}>
+            <TagManager currentUser={currentUser} />
+          </CustomTabPanel>
+          <CustomTabPanel value={value} index={4}>
+            <Box sx={{ textAlign: 'center', mt: 4 }}>
+              <Typography variant="h5" gutterBottom>Administrative Tools</Typography>
+              <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
+                Manage your repertoire, setlists, and data portability.
               </Typography>
-              <Button 
-                variant="outlined" 
-                color="error" 
-                onClick={handleNukeData}
-                sx={{ fontWeight: 'bold' }}
-              >
-                NUKE ALL CONFIGURATION
-              </Button>
+              
+              <DataPortability currentUser={currentUser} />
+              
+              <Divider sx={{ my: 4 }} />
+              <SetlistManager currentUser={currentUser} />
+              
+              <Divider sx={{ my: 4 }} />
+              <LocationManager currentUser={currentUser} />
+
+              <Divider sx={{ my: 6, borderColor: 'error.main' }} />
+              <Box sx={{ p: 3, border: '1px solid', borderColor: 'error.main', borderRadius: 2, bgcolor: 'rgba(211, 47, 47, 0.05)' }}>
+                <Typography variant="h6" color="error" gutterBottom>Danger Zone</Typography>
+                <Typography variant="body2" sx={{ mb: 2 }}>
+                  Clearing your configuration will delete all personal data associated with your account.
+                </Typography>
+                <Button 
+                  variant="outlined" 
+                  color="error" 
+                  onClick={handleNukeData}
+                  sx={{ fontWeight: 'bold' }}
+                >
+                  NUKE ALL CONFIGURATION
+                </Button>
+              </Box>
             </Box>
-          </Box>
-        </CustomTabPanel>
+          </CustomTabPanel>
+        </Suspense>
       </Container>
     </ThemeProvider>
   );
