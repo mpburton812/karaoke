@@ -325,27 +325,18 @@ function App() {
         bottom: 0,
         left: 0,
         right: 0,
-        py: 1, 
+        py: 0.5, 
         px: 2, 
         backgroundColor: 'background.default',
         borderTop: 1,
         borderColor: 'divider',
-        zIndex: 1100
+        zIndex: 1100,
+        display: 'flex',
+        justifyContent: 'flex-end'
       }}>
-        <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box sx={{ flexGrow: 1, textAlign: 'center' }}>
-              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 'bold', letterSpacing: 2, fontSize: '0.75rem' }}>
-                KARAOKE COMPANION
-              </Typography>
-            </Box>
-            <Box sx={{ textAlign: 'right' }}>
-              <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.65rem', opacity: 0.7, fontFamily: 'monospace' }}>
-                {__BRANCH_NAME__} @ {__COMMIT_HASH__}
-              </Typography>
-            </Box>
-          </Box>
-        </Container>
+        <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.65rem', opacity: 0.7, fontFamily: 'monospace' }}>
+          {__COMMIT_HASH__}
+        </Typography>
       </Box>
     </ThemeProvider>
   );
