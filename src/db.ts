@@ -1,5 +1,6 @@
 import type { InValue, ResultSet } from "@libsql/client";
 import { normalizeResultSet } from "./lib/normalizeResultSet";
+import { expireSession, shouldExpireSession } from "./api/session";
 
 export type { InValue, ResultSet };
 export { normalizeResultSet };
@@ -37,6 +38,9 @@ async function apiFetch<T>(
   if (!res.ok) {
     const message =
       typeof body.error === "string" ? body.error : `Request failed (${res.status})`;
+    if (auth && shouldExpireSession(res.status, message)) {
+      expireSession();
+    }
     throw new Error(message);
   }
 
@@ -73,23 +77,65 @@ export const db = {
   },
 };
 
+export interface WaitForApiOptions {
+  maxAttempts?: number;
+  intervalMs?: number;
+  onProgress?: (attempt: number, maxAttempts: number) => void;
+  signal?: AbortSignal;
+}
+
+const DEFAULT_WAIT = import.meta.env.PROD
+  ? { maxAttempts: 90, intervalMs: 1000 }
+  : { maxAttempts: 30, intervalMs: 500 };
+
+function wait(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(new DOMException("Aborted", "AbortError"));
+      },
+      { once: true }
+    );
+  });
+}
+
 /** Wait until the API is reachable (schema init runs on the server). */
-export async function waitForApi(maxAttempts = 30): Promise<void> {
+export async function waitForApi(options: WaitForApiOptions = {}): Promise<void> {
+  const maxAttempts = options.maxAttempts ?? DEFAULT_WAIT.maxAttempts;
+  const intervalMs = options.intervalMs ?? DEFAULT_WAIT.intervalMs;
   let lastError: Error | null = null;
+
   for (let i = 0; i < maxAttempts; i++) {
+    if (options.signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+    options.onProgress?.(i + 1, maxAttempts);
+
     try {
-      const res = await fetch(apiUrl("/api/health"));
+      const res = await fetch(apiUrl("/api/health"), { signal: options.signal });
       if (res.ok) {
         const data = (await res.json()) as { ok?: boolean; turso?: boolean };
         if (data.ok && data.turso) return;
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
       lastError = err instanceof Error ? err : new Error(String(err));
     }
-    await new Promise((r) => setTimeout(r, 500));
+
+    if (i < maxAttempts - 1) {
+      await wait(intervalMs, options.signal);
+    }
   }
+
   const hint = import.meta.env.PROD
-    ? "Check Render env vars (TURSO_*, JWT_SECRET) and that this is a Web Service running npm start, not a static site only."
+    ? "The server did not respond in time. On free Render, the first visit after idle can take up to a minute — try Retry."
     : "Run npm run dev (starts Vite and the API) and check .env.";
   throw lastError ?? new Error(`API server unavailable. ${hint}`);
 }

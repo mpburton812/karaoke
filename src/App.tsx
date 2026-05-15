@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy, useMemo } from 'react';
+import React, { useState, Suspense, lazy, useMemo, useEffect } from 'react';
 import { 
   Container, 
   Box, 
@@ -21,6 +21,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import TransgenderIcon from '@mui/icons-material/Transgender';
 import { db } from './db';
 import { clearSession } from './api/auth';
+import { setSessionExpiredHandler } from './api/session';
 
 // Lazy load tab components
 const SavedSongs = lazy(() => import('./components/SavedSongs'));
@@ -142,6 +143,8 @@ function App() {
     localStorage.setItem('theme_mode', mode);
   };
 
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+
   const [currentUser, setCurrentUser] = useState<{ id: number; username: string } | null>(() => {
     const savedUser = localStorage.getItem('karaoke_user');
     const token = localStorage.getItem('karaoke_token');
@@ -157,13 +160,24 @@ function App() {
     return null;
   });
 
+  useEffect(() => {
+    setSessionExpiredHandler((message) => {
+      setCurrentUser(null);
+      setSessionNotice(message);
+      setValue(0);
+    });
+    return () => setSessionExpiredHandler(null);
+  }, []);
+
   const handleLogin = (user: { id: number; username: string }) => {
+    setSessionNotice(null);
     setCurrentUser(user);
     localStorage.setItem('karaoke_user', JSON.stringify(user));
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setSessionNotice(null);
     clearSession();
     setValue(0);
   };
@@ -204,7 +218,7 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>}>
-          <Login onLogin={handleLogin} />
+          <Login onLogin={handleLogin} sessionNotice={sessionNotice} />
         </Suspense>
       </ThemeProvider>
     );

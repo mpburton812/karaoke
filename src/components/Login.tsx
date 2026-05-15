@@ -16,9 +16,10 @@ import background from '../assets/background_2.jpg';
 
 interface LoginProps {
   onLogin: (user: { id: number; username: string }) => void;
+  sessionNotice?: string | null;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, sessionNotice }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -85,6 +86,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             {isCreating ? "Create a new account" : "Log in to your account"}
           </Typography>
 
+          {sessionNotice && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              {sessionNotice}
+            </Alert>
+          )}
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

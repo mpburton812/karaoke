@@ -1,3 +1,5 @@
+import { expireSession, shouldExpireSession } from "./session";
+
 const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 function apiUrl(path: string): string {
@@ -75,7 +77,11 @@ export async function changePassword(
   });
   const body = await res.json();
   if (!res.ok) {
-    throw new Error(body.error || "Password change failed.");
+    const message = body.error || "Password change failed.";
+    if (shouldExpireSession(res.status, message)) {
+      expireSession();
+    }
+    throw new Error(message);
   }
   return body;
 }
