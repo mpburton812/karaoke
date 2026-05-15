@@ -1,0 +1,22 @@
+# Karaoke Companion — single Node web service (API + production frontend).
+# Apply via Render Dashboard → Blueprints, or connect this repo to a Web Service.
+#
+# Required secrets (Dashboard → Environment): TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, JWT_SECRET
+
+services:
+  - type: web
+    name: karaoke-companion
+    runtime: node
+    plan: free
+    branch: dev
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: JWT_SECRET
+        sync: false

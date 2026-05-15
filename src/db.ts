@@ -88,10 +88,8 @@ export async function waitForApi(maxAttempts = 30): Promise<void> {
     }
     await new Promise((r) => setTimeout(r, 500));
   }
-  throw (
-    lastError ??
-    new Error(
-      "API server unavailable. Run npm run dev (starts Vite and the API) and check .env."
-    )
-  );
+  const hint = import.meta.env.PROD
+    ? "Check Render env vars (TURSO_*, JWT_SECRET) and that this is a Web Service running npm start, not a static site only."
+    : "Run npm run dev (starts Vite and the API) and check .env.";
+  throw lastError ?? new Error(`API server unavailable. ${hint}`);
 }

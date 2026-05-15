@@ -13,6 +13,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:watch": "vitest",
     "preview": "vite preview",
+    "start": "tsx server/index.ts",
     "start:server": "tsx server/index.ts"
   },
   "dependencies": {

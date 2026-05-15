@@ -99,38 +99,44 @@ If secrets are missing in CI, integration tests skip automatically.
 
 ## Deployment
 
-You need **two** pieces: the API server and the static frontend.
+### Render (recommended — one URL for app + API)
 
-### 1. Deploy the API
+The live site must be a **Web Service**, not a **Static Site**. A static deploy only serves `dist/` files; `/api/*` returns 404 and the app shows “API server unavailable”.
 
-Run `server/` on any Node host (Render, Railway, Fly.io, VPS, etc.).
+1. Use the repo’s [`render.yaml`](render.yaml) or create a **Web Service** from GitHub (`dev` branch).
+2. **Build command:** `npm install && npm run build`
+3. **Start command:** `npm start` (runs the API and serves `dist/` when `NODE_ENV=production`)
+4. **Environment variables** (required):
 
-**Start command:**
+   | Variable | Description |
+   |----------|-------------|
+   | `TURSO_DATABASE_URL` | Turso libSQL URL |
+   | `TURSO_AUTH_TOKEN` | Turso token |
+   | `JWT_SECRET` | Session signing secret |
+   | `NODE_ENV` | `production` (set in `render.yaml`) |
+
+5. Leave **`VITE_API_URL` empty** — the browser calls `/api` on the same host.
+6. After deploy, open `https://your-service.onrender.com/api/health` — expect `{"ok":true,"turso":true}`.
+
+If you already have a Static Site named `karaoke-companion`, delete it or switch to a Web Service with the settings above (same custom domain can be reattached).
+
+### Split deploy (API + static frontend on different hosts)
+
+**API** — any Node host:
 
 ```bash
 npm run start:server
 ```
 
-**Required environment variables:**
+Env: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `JWT_SECRET`, `PORT`.
 
-- `TURSO_DATABASE_URL`
-- `TURSO_AUTH_TOKEN`
-- `JWT_SECRET`
-- `PORT` (often set by the platform, e.g. `10000`)
-
-The API runs `initDb()` on startup (schema migrations).
-
-### 2. Deploy the frontend
-
-Build with your public API URL:
+**Frontend** — build with the public API URL:
 
 ```bash
 VITE_API_URL=https://your-api.example.com npm run build
 ```
 
-Serve the `dist/` folder (Netlify, Vercel, Render static site, S3, etc.).
-
-CORS is enabled on the API for browser requests. For production, consider restricting origins in `server/app.ts`.
+Serve `dist/` (Netlify, Vercel, Render static site, etc.). CORS is enabled on the API; consider restricting origins in `server/app.ts` for production.
 
 ### 3. Android APK (optional)
 

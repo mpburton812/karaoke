@@ -2,8 +2,11 @@ import "dotenv/config";
 import { createApp } from "./app.js";
 import { tursoConfigured } from "./db.js";
 import { initDb } from "./initDb.js";
+import { attachStaticFrontend } from "./static.js";
 
 const PORT = Number(process.env.PORT) || 3001;
+const serveStatic =
+  process.env.SERVE_STATIC === "true" || process.env.NODE_ENV === "production";
 
 async function start() {
   if (!tursoConfigured) {
@@ -15,8 +18,13 @@ async function start() {
   console.log("Database initialized.");
 
   const app = createApp();
-  app.listen(PORT, () => {
-    console.log(`API server listening on http://localhost:${PORT}`);
+  if (serveStatic) {
+    attachStaticFrontend(app);
+    console.log("Serving production frontend from dist/");
+  }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`API server listening on port ${PORT}`);
   });
 }
 
