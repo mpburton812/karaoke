@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-05-15]
+- Admin: Add force reload to fetch the latest app code (clears PWA cache)
+- Admin: Add change-password form on Admin tab
+- Security: Move Turso to Express API with JWT and password login
+- Security: Enforce user_id on deletes/updates and unique songs per user
+- Fix: Resolve white screen after login (API row normalization)
+- Reliability: Add React error boundary for graceful crash recovery
+- Tests: Add Vitest unit tests and optional Turso integration CI
+- Docs: Add README for dev setup, deploy, and secrets
+- Mobile: Align Capacitor app id and name with Karaoke Companion
+
 ## [2026-05-13]
 - Feature: Implement case-insensitive usernames for login and account creation
 - Feature: Implement dynamic theme selection (Light, Dark, and Trans Pride modes)

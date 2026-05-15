@@ -5,6 +5,15 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-15', description: 'Admin: Add force reload to fetch the latest app code (clears PWA cache)' },
+  { date: '2026-05-15', description: 'Admin: Add change-password form on Admin tab' },
+  { date: '2026-05-15', description: 'Security: Move Turso to Express API with JWT and password login' },
+  { date: '2026-05-15', description: 'Security: Enforce user_id on deletes/updates and unique songs per user' },
+  { date: '2026-05-15', description: 'Fix: Resolve white screen after login (API row normalization)' },
+  { date: '2026-05-15', description: 'Reliability: Add React error boundary for graceful crash recovery' },
+  { date: '2026-05-15', description: 'Tests: Add Vitest unit tests and optional Turso integration CI' },
+  { date: '2026-05-15', description: 'Docs: Add README for dev setup, deploy, and secrets' },
+  { date: '2026-05-15', description: 'Mobile: Align Capacitor app id and name with Karaoke Companion' },
   { date: '2026-05-13', description: 'Feature: Implement case-insensitive usernames for login and account creation' },
   { date: '2026-05-13', description: 'Feature: Implement dynamic theme selection (Light, Dark, and Trans modes)' },
   { date: '2026-05-13', description: 'Feature: Implement new STATS tab with performance dashboards' },

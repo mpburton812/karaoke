@@ -32,6 +32,7 @@ const Login = lazy(() => import('./components/Login'));
 const Changelog = lazy(() => import('./components/Changelog'));
 const Stats = lazy(() => import('./components/Stats'));
 const ChangePassword = lazy(() => import('./components/ChangePassword'));
+const AdminAppReload = lazy(() => import('./components/AdminAppReload'));
 
 type ThemeMode = 'light' | 'dark' | 'trans';
 
@@ -301,6 +302,8 @@ function App() {
               <Box sx={{ mb: 4 }}>
                 <ChangePassword />
               </Box>
+
+              <AdminAppReload />
               
               <SystemStatus />
               <Divider sx={{ my: 4 }} />
