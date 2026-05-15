@@ -184,11 +184,17 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     }
   }, [selectedSong, fetchPerformances, fetchSongTags]);
 
+  const ALLOWED_SONG_FIELDS = ['personal_key', 'vocal_status', 'lyrics'] as const;
+
   const handleUpdateSongProperty = async (songId: number, field: string, value: string | null) => {
+    if (!ALLOWED_SONG_FIELDS.includes(field as typeof ALLOWED_SONG_FIELDS[number])) {
+      console.error('Blocked update for disallowed field:', field);
+      return;
+    }
     try {
       await db.execute({
-        sql: `UPDATE songs SET ${field} = ? WHERE id = ?`,
-        args: [value, songId]
+        sql: `UPDATE songs SET ${field} = ? WHERE id = ? AND user_id = ?`,
+        args: [value, songId, currentUser.id]
       });
       setSongs(prevSongs => prevSongs.map(s => s.id === songId ? { ...s, [field]: value } : s));
       if (selectedSong?.id === songId) {
@@ -233,8 +239,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     if (!window.confirm('Are you sure you want to remove this song?')) return;
     try {
       await db.execute({
-        sql: "DELETE FROM songs WHERE id = ?",
-        args: [id]
+        sql: "DELETE FROM songs WHERE id = ? AND user_id = ?",
+        args: [id, currentUser.id]
       });
       setSongs(songs.filter(s => s.id !== id));
       setSelectedSong(null);
@@ -287,8 +293,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     if (!window.confirm('Delete this performance record?')) return;
     try {
       await db.execute({
-        sql: "DELETE FROM performances WHERE id = ?",
-        args: [perfId]
+        sql: "DELETE FROM performances WHERE id = ? AND user_id = ?",
+        args: [perfId, currentUser.id]
       });
       setPerformances(performances.filter(p => p.id !== perfId));
     } catch (err) {
@@ -326,8 +332,10 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   };
 
   const filteredSongs = songs.filter(song => {
-    const matchesSearch = song.track_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         song.artist_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const title = (song.track_name ?? '').toLowerCase();
+    const artist = (song.artist_name ?? '').toLowerCase();
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = title.includes(q) || artist.includes(q);
     const matchesGenre = genreFilter === 'All' || song.genre === genreFilter;
     const matchesStatus = statusFilter === 'All' || song.vocal_status === statusFilter;
     return matchesSearch && matchesGenre && matchesStatus;
@@ -352,7 +360,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
         <Paper elevation={3} sx={{ p: 4, borderRadius: 4, mb: 4 }}>
           <Grid container spacing={4}>
             <Grid size={{ xs: 12, md: 4 }}>
-              <Avatar variant="rounded" src={selectedSong.artwork_url.replace('100x100bb', '400x400bb')} sx={{ width: '100%', height: 'auto', aspectRatio: '1/1', boxShadow: 3 }} />
+              <Avatar variant="rounded" src={(selectedSong.artwork_url ?? '').replace('100x100bb', '400x400bb')} sx={{ width: '100%', height: 'auto', aspectRatio: '1/1', boxShadow: 3 }} />
               
               <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <Button 

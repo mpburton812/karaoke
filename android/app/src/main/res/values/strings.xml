@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Gemini Karaoke</string>
-    <string name="title_activity_main">Gemini Karaoke</string>
-    <string name="package_name">com.geminikaraoke.app</string>
-    <string name="custom_url_scheme">com.geminikaraoke.app</string>
+    <string name="app_name">Karaoke Companion</string>
+    <string name="title_activity_main">Karaoke Companion</string>
+    <string name="package_name">com.karaokecompanion.app</string>
+    <string name="custom_url_scheme">com.karaokecompanion.app</string>
 </resources>

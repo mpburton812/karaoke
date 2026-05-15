@@ -10,7 +10,7 @@ import {
   CircularProgress,
   alpha
 } from '@mui/material';
-import { db } from '../db';
+import { login, register, persistSession } from '../api/auth';
 import logo from '../assets/logo.png';
 import background from '../assets/background_2.jpg';
 
@@ -20,58 +20,31 @@ interface LoginProps {
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!username) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await db.execute({
-        sql: "SELECT id, username FROM users WHERE LOWER(username) = LOWER(?)",
-        args: [username]
-      });
-
-      if (result.rows.length > 0) {
-        const user = result.rows[0] as unknown as { id: number; username: string };
-        onLogin(user);
-      } else {
-        setError("Username not found. Try creating an account.");
-      }
-    } catch (err) {
-      console.error(err);
-      setError("An error occurred during login.");
-    } finally {
-      setLoading(false);
+  const submit = async () => {
+    if (!username.trim() || !password) {
+      setError('Username and password are required.');
+      return;
     }
-  };
+    if (isCreating && password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
 
-  const handleCreateAccount = async () => {
-    if (!username) return;
     setLoading(true);
     setError(null);
     try {
-      // Check if exists (case-insensitive)
-      const check = await db.execute({
-        sql: "SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
-        args: [username]
-      });
-
-      if (check.rows.length > 0) {
-        setError("Username already exists. Please select a new name.");
-      } else {
-        const result = await db.execute({
-          sql: "INSERT INTO users (username) VALUES (?) RETURNING id, username",
-          args: [username]
-        });
-        const user = result.rows[0] as unknown as { id: number; username: string };
-        onLogin(user);
-      }
+      const { user, token } = isCreating
+        ? await register(username, password)
+        : await login(username, password);
+      persistSession(user, token);
+      onLogin(user);
     } catch (err) {
-      console.error(err);
-      setError("An error occurred while creating account.");
+      setError(err instanceof Error ? err.message : 'Authentication failed.');
     } finally {
       setLoading(false);
     }
@@ -102,7 +75,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             p: 4, 
             textAlign: 'center', 
             backgroundColor: (theme) => alpha(theme.palette.background.paper, 0.8),
-            backdropFilter: 'blur(4px)' // Adding a slight blur for better readability
+            backdropFilter: 'blur(4px)'
           }}
         >
           <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
@@ -122,14 +95,19 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  if (isCreating) {
-                    handleCreateAccount();
-                  } else {
-                    handleLogin();
-                  }
-                }
+              autoComplete="username"
+            />
+            <TextField
+              fullWidth
+              label="Password"
+              type="password"
+              variant="outlined"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+              autoComplete={isCreating ? 'new-password' : 'current-password'}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submit();
               }}
             />
 
@@ -139,14 +117,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   variant="contained" 
                   color="primary" 
                   size="large"
-                  onClick={handleCreateAccount}
-                  disabled={loading || !username}
+                  onClick={submit}
+                  disabled={loading || !username || !password}
                 >
                   {loading ? <CircularProgress size={24} /> : "CREATE ACCOUNT"}
                 </Button>
                 <Button 
                   variant="text" 
-                  onClick={() => { setIsCreating(false); setError(null); }}
+                  onClick={() => { setIsCreating(false); setError(null); setPassword(''); }}
                   disabled={loading}
                 >
                   Back to Login
@@ -158,8 +136,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   variant="contained" 
                   color="primary" 
                   size="large"
-                  onClick={handleLogin}
-                  disabled={loading || !username}
+                  onClick={submit}
+                  disabled={loading || !username || !password}
                 >
                   {loading ? <CircularProgress size={24} /> : "LOGIN"}
                 </Button>
@@ -168,7 +146,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   <Button 
                     variant="text" 
                     size="small" 
-                    onClick={() => { setIsCreating(true); setError(null); }}
+                    onClick={() => { setIsCreating(true); setError(null); setPassword(''); }}
                     disabled={loading}
                   >
                     CREATE ACCOUNT
@@ -187,7 +165,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           left: '50%', 
           transform: 'translateX(-50%)', 
           width: '50vw',
-          zIndex: 1 // Above background (0) but below Container (2)
+          zIndex: 1
         }}
       >
         <img 

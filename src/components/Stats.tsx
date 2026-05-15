@@ -139,7 +139,10 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
   }, [currentUser.id]);
 
   useEffect(() => {
-    fetchStats();
+    const timer = window.setTimeout(() => {
+      void fetchStats();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [fetchStats]);
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;

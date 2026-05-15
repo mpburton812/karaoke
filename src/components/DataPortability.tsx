@@ -12,8 +12,7 @@ import {
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadIcon from '@mui/icons-material/Upload';
 import Papa from 'papaparse';
-import type { InValue } from '@libsql/client';
-import { db } from '../db';
+import { db, type InValue } from '../db';
 
 interface DataPortabilityProps {
   currentUser: { id: number; username: string };

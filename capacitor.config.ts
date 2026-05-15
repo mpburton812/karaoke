@@ -1,8 +1,8 @@
-import { CapacitorConfig } from '@capacitor/cli';
+import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.geminikaraoke.app',
-  appName: 'Gemini Karaoke',
+  appId: 'com.karaokecompanion.app',
+  appName: 'Karaoke Companion',
   webDir: 'dist',
   bundledWebRuntime: false
 };

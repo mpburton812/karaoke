@@ -196,8 +196,8 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
     if (!window.confirm('Are you sure you want to delete this tag? It will be removed from all songs and locations.')) return;
     try {
       await db.execute({
-        sql: "DELETE FROM tags WHERE id = ?",
-        args: [tagId]
+        sql: "DELETE FROM tags WHERE id = ? AND user_id = ?",
+        args: [tagId, currentUser.id]
       });
       fetchData();
       // Remove from selection if deleted

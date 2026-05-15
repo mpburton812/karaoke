@@ -3,11 +3,11 @@ import axios from 'axios';
 import { parse } from 'csv-parse/sync';
 
 // Initialize DB client using process.env (compatible with GitHub Actions)
-const url = process.env.VITE_TURSO_DATABASE_URL;
-const authToken = process.env.VITE_TURSO_AUTH_TOKEN;
+const url = process.env.TURSO_DATABASE_URL || process.env.VITE_TURSO_DATABASE_URL;
+const authToken = process.env.TURSO_AUTH_TOKEN || process.env.VITE_TURSO_AUTH_TOKEN;
 
 if (!url || !authToken) {
-  console.error("Missing Turso credentials. Ensure VITE_TURSO_DATABASE_URL and VITE_TURSO_AUTH_TOKEN are set.");
+  console.error("Missing Turso credentials. Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN.");
   process.exit(1);
 }
 

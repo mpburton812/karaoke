@@ -158,8 +158,8 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
     if (!window.confirm('Are you sure you want to delete this location?')) return;
     try {
       await db.execute({
-        sql: "DELETE FROM locations WHERE id = ?",
-        args: [id]
+        sql: "DELETE FROM locations WHERE id = ? AND user_id = ?",
+        args: [id, currentUser.id]
       });
       fetchLocations();
     } catch (err) {

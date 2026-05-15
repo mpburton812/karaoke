@@ -3,14 +3,30 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { execSync } from 'child_process'
 
-const commitHash = execSync('git rev-parse --short HEAD').toString().trim()
-const branchName = execSync('git rev-parse --abbrev-ref HEAD').toString().trim()
+function gitRef(command: string, fallback: string): string {
+  try {
+    return execSync(command).toString().trim()
+  } catch {
+    return fallback
+  }
+}
+
+const commitHash = gitRef('git rev-parse --short HEAD', 'unknown')
+const branchName = gitRef('git rev-parse --abbrev-ref HEAD', 'unknown')
 
 // https://vite.dev/config/
 export default defineConfig({
   define: {
     __COMMIT_HASH__: JSON.stringify(commitHash),
     __BRANCH_NAME__: JSON.stringify(branchName),
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [
     react(),

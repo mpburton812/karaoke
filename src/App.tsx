@@ -20,6 +20,7 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import TransgenderIcon from '@mui/icons-material/Transgender';
 import { db } from './db';
+import { clearSession } from './api/auth';
 
 // Lazy load tab components
 const SavedSongs = lazy(() => import('./components/SavedSongs'));
@@ -30,6 +31,7 @@ const SystemStatus = lazy(() => import('./components/SystemStatus'));
 const Login = lazy(() => import('./components/Login'));
 const Changelog = lazy(() => import('./components/Changelog'));
 const Stats = lazy(() => import('./components/Stats'));
+const ChangePassword = lazy(() => import('./components/ChangePassword'));
 
 type ThemeMode = 'light' | 'dark' | 'trans';
 
@@ -141,12 +143,15 @@ function App() {
 
   const [currentUser, setCurrentUser] = useState<{ id: number; username: string } | null>(() => {
     const savedUser = localStorage.getItem('karaoke_user');
-    if (savedUser) {
+    const token = localStorage.getItem('karaoke_token');
+    if (savedUser && token) {
       try {
         return JSON.parse(savedUser);
       } catch {
-        localStorage.removeItem('karaoke_user');
+        clearSession();
       }
+    } else if (savedUser || token) {
+      clearSession();
     }
     return null;
   });
@@ -158,7 +163,7 @@ function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('karaoke_user');
+    clearSession();
     setValue(0);
   };
 
@@ -291,6 +296,10 @@ function App() {
                     TRANS
                   </Button>
                 </ButtonGroup>
+              </Box>
+
+              <Box sx={{ mb: 4 }}>
+                <ChangePassword />
               </Box>
               
               <SystemStatus />

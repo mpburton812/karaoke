@@ -1,4 +1,4 @@
-package com.geminikaraoke.app;
+package com.karaokecompanion.app;
 
 import com.getcapacitor.BridgeActivity;
 
