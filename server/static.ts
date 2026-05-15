@@ -10,7 +10,7 @@ const distDir = path.resolve(
 
 /** Serve Vite production build and SPA fallback (API routes must be registered first). */
 export function attachStaticFrontend(app: Express): void {
-  app.use(express.static(distDir, { index: false }));
+  app.use(express.static(distDir));
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith("/api")) {

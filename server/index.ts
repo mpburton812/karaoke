@@ -17,7 +17,7 @@ async function start() {
   await initDb();
   console.log("Database initialized.");
 
-  const app = createApp();
+  const app = createApp({ serveStatic });
   if (serveStatic) {
     attachStaticFrontend(app);
     console.log("Serving production frontend from dist/");

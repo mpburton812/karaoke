@@ -12,22 +12,31 @@ import {
 } from "./auth.js";
 import { assertSqlAllowed } from "./sqlGuard.js";
 
-export function createApp() {
+function apiIndexPayload(serveStatic: boolean) {
+  return {
+    name: "Karaoke Companion API",
+    status: "running",
+    health: "/api/health",
+    auth: ["/api/auth/register", "/api/auth/login", "/api/auth/change-password"],
+    data: ["/api/execute", "/api/batch"],
+    note: serveStatic
+      ? "Web app is served at / on this host."
+      : "Use the web app at http://localhost:5173 — API-only mode on this port.",
+  };
+}
+
+export function createApp(options: { serveStatic?: boolean } = {}) {
+  const { serveStatic = false } = options;
   const app = express();
 
   app.use(cors({ origin: true, credentials: true }));
   app.use(express.json({ limit: "2mb" }));
 
-  app.get("/", (_req, res) => {
-    res.json({
-      name: "Karaoke Companion API",
-      status: "running",
-      health: "/api/health",
-      auth: ["/api/auth/register", "/api/auth/login", "/api/auth/change-password"],
-      data: ["/api/execute", "/api/batch"],
-      note: "Use the web app at http://localhost:5173 — not this URL directly.",
-    });
-  });
+  const apiIndex = (_req: express.Request, res: express.Response) => {
+    res.json(apiIndexPayload(serveStatic));
+  };
+  // When serving the SPA, reserve / for the web app; API metadata lives at /api.
+  app.get(serveStatic ? "/api" : "/", apiIndex);
 
   app.get("/api/health", (_req, res) => {
     res.json({
