@@ -1,0 +1,30 @@
+name: Integration Tests (Turso)
+
+# Optional: requires repository secrets. Skips gracefully when secrets are unset locally.
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+
+jobs:
+  turso-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run integration tests
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: npm run test:integration
