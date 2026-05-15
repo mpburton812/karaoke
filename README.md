@@ -104,8 +104,9 @@ If secrets are missing in CI, integration tests skip automatically.
 The live site must be a **Web Service**, not a **Static Site**. A static deploy only serves `dist/` files; `/api/*` returns 404 and the app shows “API server unavailable”.
 
 1. Use the repo’s [`render.yaml`](render.yaml) or create a **Web Service** from GitHub (`dev` branch).
-2. **Build command:** `npm install && npm run build`
-3. **Start command:** `npm start` (runs the API and serves `dist/` when `NODE_ENV=production`)
+2. **Build command:** `npm install --include=dev && npm run build`  
+   (Required if `NODE_ENV=production` is set — otherwise npm skips Vite/TypeScript.)
+3. **Start command:** `npm start` (API + serves `dist/` when `SERVE_STATIC=true`)
 4. **Environment variables** (required):
 
    | Variable | Description |
@@ -113,7 +114,7 @@ The live site must be a **Web Service**, not a **Static Site**. A static deploy 
    | `TURSO_DATABASE_URL` | Turso libSQL URL |
    | `TURSO_AUTH_TOKEN` | Turso token |
    | `JWT_SECRET` | Session signing secret |
-   | `NODE_ENV` | `production` (set in `render.yaml`) |
+   | `SERVE_STATIC` | `true` (serves built frontend; set in `render.yaml`) |
 
 5. Leave **`VITE_API_URL` empty** — the browser calls `/api` on the same host.
 6. After deploy, open `https://your-service.onrender.com/api/health` — expect `{"ok":true,"turso":true}`.

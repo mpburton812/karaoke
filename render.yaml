@@ -9,11 +9,12 @@ services:
     runtime: node
     plan: free
     branch: dev
-    buildCommand: npm install && npm run build
+    # NODE_ENV=production omits devDependencies; Vite/tsc need them at build time.
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     envVars:
-      - key: NODE_ENV
-        value: production
+      - key: SERVE_STATIC
+        value: "true"
       - key: TURSO_DATABASE_URL
         sync: false
       - key: TURSO_AUTH_TOKEN
