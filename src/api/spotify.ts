@@ -97,6 +97,8 @@ export interface SpotifyPlaylistItem {
   id: string;
   name: string;
   tracksTotal: number;
+  /** From API: false when Spotify blocks importing tracks (e.g. follow-only). */
+  canImportTracks?: boolean;
 }
 
 export interface SpotifySyncedPlaylist {
@@ -130,7 +132,11 @@ export async function fetchSpotifyPlaylists(): Promise<SpotifyPlaylistItem[]> {
   if (!res.ok) {
     throw new Error(body.error || "Failed to load Spotify playlists.");
   }
-  return body.playlists ?? [];
+  const playlists = body.playlists ?? [];
+  return playlists.map((p) => ({
+    ...p,
+    canImportTracks: typeof p.canImportTracks === "boolean" ? p.canImportTracks : true,
+  }));
 }
 
 export async function fetchSyncedSpotifyPlaylists(): Promise<

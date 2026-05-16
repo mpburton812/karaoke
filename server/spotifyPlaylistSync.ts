@@ -1,5 +1,8 @@
 import { db } from "./db.js";
-import { getSpotifyAccessTokenForUser } from "./spotifyAuth.js";
+import {
+  fetchSpotifyCurrentUser,
+  getSpotifyAccessTokenForUser,
+} from "./spotifyAuth.js";
 
 /** Extract Spotify playlist id from URL or raw id. */
 export function parseSpotifyPlaylistId(input: string): string | null {
@@ -46,12 +49,29 @@ export function readSimplifiedPlaylistTrackTotal(playlist: {
 
 function spotifyApiErrorMessage(data: Record<string, unknown>, status: number): string {
   const err = data.error;
-  if (typeof err === "string") return err;
+  if (typeof err === "string") {
+    return err.trim() ? `${err.trim()} (Spotify HTTP ${status})` : `Spotify HTTP ${status}`;
+  }
   if (err && typeof err === "object" && "message" in err) {
-    const m = (err as { message?: string }).message;
-    if (typeof m === "string" && m.trim()) return m.trim();
+    const o = err as { message?: string; reason?: string };
+    const m = typeof o.message === "string" ? o.message.trim() : "";
+    const r = typeof o.reason === "string" ? o.reason.trim() : "";
+    if (m && r) return `${m} (${r}) — Spotify HTTP ${status}`;
+    if (m) return `${m} — Spotify HTTP ${status}`;
   }
   return `Spotify HTTP ${status}`;
+}
+
+/** Best-effort: Spotify /playlists/{id}/tracks only works for owned or collaborative playlists you can edit. */
+export function playlistAllowsTrackImport(
+  yourSpotifyUserId: string,
+  ownerSpotifyId: string | undefined,
+  collaborative: boolean
+): boolean {
+  if (!yourSpotifyUserId) return false;
+  if (ownerSpotifyId && ownerSpotifyId === yourSpotifyUserId) return true;
+  if (collaborative) return true;
+  return false;
 }
 
 async function spotifyGet<T>(
@@ -63,7 +83,13 @@ async function spotifyGet<T>(
   });
   const data = (await res.json()) as Record<string, unknown>;
   if (!res.ok) {
-    throw new Error(spotifyApiErrorMessage(data, res.status));
+    const base = spotifyApiErrorMessage(data, res.status);
+    if (res.status === 403) {
+      throw new Error(
+        `${base}. Spotify only returns tracks for playlists you own or collaborate on. Lists you only follow cannot be imported—duplicate the playlist to your library in Spotify, or pick one you created. If your app is in Development mode, add your Spotify account email under developer.spotify.com → your app → User management.`
+      );
+    }
+    throw new Error(base);
   }
   return data as T;
 }
@@ -72,12 +98,15 @@ export interface SpotifyPlaylistSummary {
   id: string;
   name: string;
   tracksTotal: number;
+  /** False when Spotify will reject GET …/playlists/{id}/tracks (follow-only lists). */
+  canImportTracks: boolean;
 }
 
 export async function listSpotifyPlaylists(
   userId: number
 ): Promise<SpotifyPlaylistSummary[]> {
   const access = await getSpotifyAccessTokenForUser(userId);
+  const { id: meSpotifyId } = await fetchSpotifyCurrentUser(access);
   const out: SpotifyPlaylistSummary[] = [];
   const limit = 50;
   let offset = 0;
@@ -90,6 +119,8 @@ export async function listSpotifyPlaylists(
       items: Array<{
         id: string;
         name: string;
+        collaborative?: boolean;
+        owner?: { id?: string };
         tracks?: { total?: unknown };
         /** Track count ref (Spotify); not the paging `items` array */
         items?: unknown;
@@ -98,10 +129,18 @@ export async function listSpotifyPlaylists(
 
     const items = page.items ?? [];
     for (const p of items) {
+      const ownerId = typeof p.owner?.id === "string" ? p.owner.id : undefined;
+      const collaborative = Boolean(p.collaborative);
+      const canImportTracks = playlistAllowsTrackImport(
+        meSpotifyId,
+        ownerId,
+        collaborative
+      );
       out.push({
         id: p.id,
         name: p.name,
         tracksTotal: readSimplifiedPlaylistTrackTotal(p),
+        canImportTracks,
       });
     }
     if (items.length === 0 || items.length < limit) {

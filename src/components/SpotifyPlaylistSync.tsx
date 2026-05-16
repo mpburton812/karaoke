@@ -75,6 +75,15 @@ const SpotifyPlaylistSync: React.FC = () => {
       setError("Choose a playlist from the list or paste a playlist URL.");
       return;
     }
+    if ("playlistId" in body && body.playlistId) {
+      const chosen = playlists.find((p) => p.id === body.playlistId);
+      if (chosen?.canImportTracks === false) {
+        setError(
+          "That playlist is follow-only on Spotify; pick one you own, collaborate on, or paste a playlist URL you can open in full."
+        );
+        return;
+      }
+    }
     setSyncing(true);
     setError(null);
     setSuccess(null);
@@ -139,8 +148,13 @@ const SpotifyPlaylistSync: React.FC = () => {
             <em>{playlists.length === 0 ? "No playlists loaded" : "Select…"}</em>
           </MenuItem>
           {playlists.map((p) => (
-            <MenuItem key={p.id} value={p.id}>
+            <MenuItem
+              key={p.id}
+              value={p.id}
+              disabled={p.canImportTracks === false}
+            >
               {p.name} ({p.tracksTotal} tracks)
+              {p.canImportTracks === false ? " — follow only, cannot import" : ""}
             </MenuItem>
           ))}
         </Select>
@@ -157,7 +171,7 @@ const SpotifyPlaylistSync: React.FC = () => {
           setSuccess(null);
         }}
         sx={{ mb: 2 }}
-        helperText="If this field is filled, it takes priority over the dropdown."
+        helperText="If this field is filled, it takes priority over the dropdown. Paste only playlists you own or collaborate on—follow-only lists get “Forbidden” from Spotify."
       />
 
       <Button

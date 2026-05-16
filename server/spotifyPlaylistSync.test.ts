@@ -5,7 +5,11 @@ vi.mock("./db.js", () => ({
   tursoConfigured: true,
 }));
 
-import { parseSpotifyPlaylistId, readSimplifiedPlaylistTrackTotal } from "./spotifyPlaylistSync.js";
+import {
+  parseSpotifyPlaylistId,
+  readSimplifiedPlaylistTrackTotal,
+  playlistAllowsTrackImport,
+} from "./spotifyPlaylistSync.js";
 
 describe("readSimplifiedPlaylistTrackTotal", () => {
   it("reads total from items ref (Spotify simplified playlist shape)", () => {
@@ -62,5 +66,23 @@ describe("parseSpotifyPlaylistId", () => {
   it("returns null for garbage", () => {
     expect(parseSpotifyPlaylistId("")).toBeNull();
     expect(parseSpotifyPlaylistId("not-a-playlist")).toBeNull();
+  });
+});
+
+describe("playlistAllowsTrackImport", () => {
+  it("allows own playlists", () => {
+    expect(playlistAllowsTrackImport("abc", "abc", false)).toBe(true);
+  });
+
+  it("allows collaborative playlists (may include false positives for follow-only collab lists)", () => {
+    expect(playlistAllowsTrackImport("me", "other", true)).toBe(true);
+  });
+
+  it("disallows follow-only (other owner, not collaborative)", () => {
+    expect(playlistAllowsTrackImport("me", "other", false)).toBe(false);
+  });
+
+  it("disallows when your id is empty", () => {
+    expect(playlistAllowsTrackImport("", "x", false)).toBe(false);
   });
 });
