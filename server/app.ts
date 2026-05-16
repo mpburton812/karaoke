@@ -219,8 +219,8 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     }
     try {
       const userId = (req as express.Request & { userId: number }).userId;
-      const state = signSpotifyOAuthState(userId);
-      const url = buildSpotifyAuthorizeUrl(state);
+      const { state, codeChallenge } = signSpotifyOAuthState(userId);
+      const url = buildSpotifyAuthorizeUrl(state, codeChallenge);
       res.json({ url });
     } catch (err) {
       const message =
@@ -242,7 +242,14 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       typeof req.query.error === "string" ? req.query.error : null;
 
     if (oauthError) {
-      redirectWith({ spotify: "error", reason: oauthError });
+      const desc =
+        typeof req.query.error_description === "string"
+          ? req.query.error_description
+          : "";
+      const reason = desc
+        ? `${oauthError}: ${desc}`.slice(0, 400)
+        : oauthError;
+      redirectWith({ spotify: "error", reason });
       return;
     }
     if (!code || !state) {
@@ -255,15 +262,16 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     }
 
     let userId: number;
+    let codeVerifier: string;
     try {
-      userId = verifySpotifyOAuthState(state);
+      ({ userId, codeVerifier } = verifySpotifyOAuthState(state));
     } catch {
       redirectWith({ spotify: "error", reason: "invalid_state" });
       return;
     }
 
     try {
-      const tokens = await exchangeSpotifyCode(code);
+      const tokens = await exchangeSpotifyCode(code, codeVerifier);
       const profile = await fetchSpotifyCurrentUser(tokens.access_token);
       await saveSpotifyTokensForUser(
         userId,

@@ -322,6 +322,8 @@ function App() {
                 Manage your repertoire and data portability.
               </Typography>
 
+              <AdminAppReload />
+
               <Box sx={{ mb: 4 }}>
                 <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>THEME SELECTION</Typography>
                 <ButtonGroup variant="outlined" size="large">
@@ -359,8 +361,6 @@ function App() {
 
               <SpotifyConnect />
 
-              <AdminAppReload />
-              
               <SystemStatus />
               <Divider sx={{ my: 4 }} />
               <DataPortability currentUser={currentUser} />

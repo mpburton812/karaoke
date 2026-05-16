@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-16', description: 'Admin: Prominent restart-and-update button (SW update check, clear caches, reload)' },
   { date: '2026-05-15', description: 'Admin: Add force reload to fetch the latest app code (clears PWA cache)' },
   { date: '2026-05-15', description: 'Admin: Add change-password form on Admin tab' },
   { date: '2026-05-15', description: 'Security: Move Turso to Express API with JWT and password login' },

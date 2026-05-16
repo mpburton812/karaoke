@@ -13,6 +13,37 @@ export function parseSpotifyPlaylistId(input: string): string | null {
   return null;
 }
 
+function coercePositiveInt(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v) && v >= 0) return Math.floor(v);
+  if (typeof v === "string" && /^\d+$/.test(v)) {
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  }
+  return null;
+}
+
+/**
+ * Track count on "Get current user's playlists" items. Spotify moved the ref
+ * from deprecated `tracks` to `items` (object with href + total — not an array).
+ */
+export function readSimplifiedPlaylistTrackTotal(playlist: {
+  tracks?: { total?: unknown };
+  items?: unknown;
+}): number {
+  const itemsRef = playlist.items;
+  if (
+    itemsRef &&
+    typeof itemsRef === "object" &&
+    !Array.isArray(itemsRef) &&
+    "total" in itemsRef
+  ) {
+    const n = coercePositiveInt((itemsRef as { total?: unknown }).total);
+    if (n !== null) return n;
+  }
+  const fromTracks = coercePositiveInt(playlist.tracks?.total);
+  return fromTracks ?? 0;
+}
+
 function spotifyApiErrorMessage(data: Record<string, unknown>, status: number): string {
   const err = data.error;
   if (typeof err === "string") return err;
@@ -59,7 +90,9 @@ export async function listSpotifyPlaylists(
       items: Array<{
         id: string;
         name: string;
-        tracks?: { total?: number };
+        tracks?: { total?: unknown };
+        /** Track count ref (Spotify); not the paging `items` array */
+        items?: unknown;
       }>;
     }>(access, url);
 
@@ -68,7 +101,7 @@ export async function listSpotifyPlaylists(
       out.push({
         id: p.id,
         name: p.name,
-        tracksTotal: p.tracks?.total ?? 0,
+        tracksTotal: readSimplifiedPlaylistTrackTotal(p),
       });
     }
     if (items.length === 0 || items.length < limit) {
@@ -171,7 +204,7 @@ export async function syncSpotifyPlaylist(
     snapshot_id: string;
   }>(
     access,
-    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}?fields=id,name,snapshot_id`
+    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}?fields=id,name,snapshot_id&market=from_token`
   );
 
   const prev = await db.execute({
@@ -204,7 +237,9 @@ export async function syncSpotifyPlaylist(
   // Avoid following `page.next` for the same 403-on-deprecated-URL class of issues.
 
   for (;;) {
-    const url = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=${limit}&offset=${offset}`;
+    const url =
+      `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks` +
+      `?limit=${limit}&offset=${offset}&market=from_token&additional_types=track`;
     const page = await spotifyGet<{
       items: PlaylistTrackItem[];
     }>(access, url);

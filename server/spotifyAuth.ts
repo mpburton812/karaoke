@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import crypto from "node:crypto";
 import { db } from "./db.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-insecure-change-me";
@@ -46,26 +47,56 @@ export function getPublicAppUrl(): string {
   }
 }
 
-export function signSpotifyOAuthState(userId: number): string {
-  return jwt.sign(
-    { typ: "spotify-oauth", sub: userId },
+/** RFC 7636 PKCE: 43–128 chars from unreserved set; we use URL-safe base64. */
+function generateCodeVerifier(): string {
+  const raw = crypto.randomBytes(48).toString("base64url").replace(/=+$/, "");
+  if (raw.length < 43) {
+    return generateCodeVerifier();
+  }
+  return raw.length > 128 ? raw.slice(0, 128) : raw;
+}
+
+function codeChallengeS256(verifier: string): string {
+  return crypto.createHash("sha256").update(verifier).digest("base64url").replace(/=+$/, "");
+}
+
+export function signSpotifyOAuthState(userId: number): {
+  state: string;
+  codeChallenge: string;
+} {
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = codeChallengeS256(codeVerifier);
+  const state = jwt.sign(
+    { typ: "spotify-oauth", sub: userId, pv: codeVerifier },
     JWT_SECRET,
     { expiresIn: "10m" }
   );
+  return { state, codeChallenge };
 }
 
-export function verifySpotifyOAuthState(token: string): number {
+export function verifySpotifyOAuthState(token: string): {
+  userId: number;
+  codeVerifier: string;
+} {
   const payload = jwt.verify(token, JWT_SECRET) as {
     typ?: string;
     sub?: number;
+    pv?: string;
   };
   if (payload.typ !== "spotify-oauth" || typeof payload.sub !== "number") {
     throw new Error("Invalid OAuth state.");
   }
-  return payload.sub;
+  const pv = payload.pv;
+  if (typeof pv !== "string" || pv.length < 43) {
+    throw new Error("Invalid OAuth state.");
+  }
+  return { userId: payload.sub, codeVerifier: pv };
 }
 
-export function buildSpotifyAuthorizeUrl(state: string): string {
+export function buildSpotifyAuthorizeUrl(
+  state: string,
+  codeChallenge: string
+): string {
   const clientId = process.env.SPOTIFY_CLIENT_ID!.trim();
   const redirectUri = process.env.SPOTIFY_REDIRECT_URI!.trim();
   const params = new URLSearchParams({
@@ -74,11 +105,16 @@ export function buildSpotifyAuthorizeUrl(state: string): string {
     scope: SPOTIFY_SCOPES,
     redirect_uri: redirectUri,
     state,
+    code_challenge_method: "S256",
+    code_challenge: codeChallenge,
   });
   return `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
 
-export async function exchangeSpotifyCode(code: string): Promise<{
+export async function exchangeSpotifyCode(
+  code: string,
+  codeVerifier: string
+): Promise<{
   access_token: string;
   refresh_token: string;
   expires_in: number;
@@ -91,6 +127,7 @@ export async function exchangeSpotifyCode(code: string): Promise<{
     grant_type: "authorization_code",
     code,
     redirect_uri: redirectUri,
+    code_verifier: codeVerifier,
   });
 
   const res = await fetch("https://accounts.spotify.com/api/token", {

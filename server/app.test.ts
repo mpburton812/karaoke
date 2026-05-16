@@ -204,6 +204,8 @@ describe("API routes", () => {
       expect(typeof res.body.url).toBe("string");
       expect(res.body.url).toContain("accounts.spotify.com/authorize");
       expect(res.body.url).toContain("playlist-read-private");
+      expect(res.body.url).toContain("code_challenge_method=S256");
+      expect(res.body.url).toContain("code_challenge=");
     });
   });
 });

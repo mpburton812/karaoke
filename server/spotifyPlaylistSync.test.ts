@@ -5,7 +5,38 @@ vi.mock("./db.js", () => ({
   tursoConfigured: true,
 }));
 
-import { parseSpotifyPlaylistId } from "./spotifyPlaylistSync.js";
+import { parseSpotifyPlaylistId, readSimplifiedPlaylistTrackTotal } from "./spotifyPlaylistSync.js";
+
+describe("readSimplifiedPlaylistTrackTotal", () => {
+  it("reads total from items ref (Spotify simplified playlist shape)", () => {
+    expect(
+      readSimplifiedPlaylistTrackTotal({
+        items: { href: "https://api.spotify.com/v1/...", total: 42 },
+      })
+    ).toBe(42);
+  });
+
+  it("falls back to deprecated tracks ref", () => {
+    expect(
+      readSimplifiedPlaylistTrackTotal({
+        tracks: { href: "https://api.spotify.com/v1/...", total: 7 },
+      })
+    ).toBe(7);
+  });
+
+  it("prefers items ref when both are present", () => {
+    expect(
+      readSimplifiedPlaylistTrackTotal({
+        items: { total: 10 },
+        tracks: { total: 99 },
+      })
+    ).toBe(10);
+  });
+
+  it("returns 0 when no totals", () => {
+    expect(readSimplifiedPlaylistTrackTotal({})).toBe(0);
+  });
+});
 
 describe("parseSpotifyPlaylistId", () => {
   it("parses open.spotify.com URL", () => {
