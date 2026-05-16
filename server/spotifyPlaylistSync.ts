@@ -62,7 +62,7 @@ function spotifyApiErrorMessage(data: Record<string, unknown>, status: number): 
   return `Spotify HTTP ${status}`;
 }
 
-/** Best-effort: Spotify /playlists/{id}/tracks only works for owned or collaborative playlists you can edit. */
+/** Best-effort: Spotify GET …/playlists/{id}/items only returns tracks for owned or collaborative playlists. */
 export function playlistAllowsTrackImport(
   yourSpotifyUserId: string,
   ownerSpotifyId: string | undefined,
@@ -98,7 +98,7 @@ export interface SpotifyPlaylistSummary {
   id: string;
   name: string;
   tracksTotal: number;
-  /** False when Spotify will reject GET …/playlists/{id}/tracks (follow-only lists). */
+  /** False when Spotify will reject GET …/playlists/{id}/items (follow-only lists). */
   canImportTracks: boolean;
 }
 
@@ -166,7 +166,9 @@ interface SpotifyTrackLite {
 }
 
 interface PlaylistTrackItem {
-  track: SpotifyTrackLite | null;
+  /** Legacy field; Spotify docs deprecate in favor of `item`. */
+  track?: SpotifyTrackLite | null;
+  item?: SpotifyTrackLite | null;
 }
 
 function artistNames(track: SpotifyTrackLite): string {
@@ -273,11 +275,10 @@ export async function syncSpotifyPlaylist(
   const trackMap = new Map<string, SpotifyTrackLite>();
   const limit = 50;
   let offset = 0;
-  // Avoid following `page.next` for the same 403-on-deprecated-URL class of issues.
-
+  // Use /playlists/{id}/items — /tracks was removed Feb 2026 (403 on deprecated path).
   for (;;) {
     const url =
-      `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks` +
+      `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/items` +
       `?limit=${limit}&offset=${offset}&market=from_token&additional_types=track`;
     const page = await spotifyGet<{
       items: PlaylistTrackItem[];
@@ -285,7 +286,7 @@ export async function syncSpotifyPlaylist(
 
     const items = page.items ?? [];
     for (const item of items) {
-      const tr = item.track;
+      const tr = item.track ?? item.item;
       if (!tr?.id) continue;
       trackMap.set(tr.id, tr);
     }
