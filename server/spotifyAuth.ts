@@ -201,6 +201,10 @@ export async function saveSpotifyTokensForUser(
 
 export async function clearSpotifyForUser(userId: number): Promise<void> {
   await db.execute({
+    sql: `DELETE FROM spotify_synced_playlists WHERE user_id = ?`,
+    args: [userId],
+  });
+  await db.execute({
     sql: `UPDATE users SET spotify_refresh_token = NULL, spotify_user_id = NULL, spotify_display_name = NULL WHERE id = ?`,
     args: [userId],
   });
@@ -232,4 +236,23 @@ export async function getSpotifyLinkStatus(userId: number): Promise<{
         ? row.spotify_display_name
         : null,
   };
+}
+
+export async function getSpotifyRefreshTokenOrThrow(userId: number): Promise<string> {
+  const result = await db.execute({
+    sql: `SELECT spotify_refresh_token FROM users WHERE id = ?`,
+    args: [userId],
+  });
+  const row = result.rows[0] as { spotify_refresh_token: string | null } | undefined;
+  const t = row?.spotify_refresh_token?.trim();
+  if (!t) {
+    throw new Error("Spotify is not linked for this user.");
+  }
+  return t;
+}
+
+export async function getSpotifyAccessTokenForUser(userId: number): Promise<string> {
+  const refresh = await getSpotifyRefreshTokenOrThrow(userId);
+  const { access_token } = await refreshSpotifyAccessToken(refresh);
+  return access_token;
 }

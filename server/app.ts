@@ -24,6 +24,11 @@ import {
   getPublicAppUrl,
   getSpotifyEnvPresence,
 } from "./spotifyAuth.js";
+import {
+  listSpotifyPlaylists,
+  getSyncedPlaylistsForUser,
+  syncSpotifyPlaylist,
+} from "./spotifyPlaylistSync.js";
 
 function apiIndexPayload(serveStatic: boolean) {
   return {
@@ -38,6 +43,9 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/spotify/callback",
       "/api/spotify/disconnect",
       "/api/spotify/status",
+      "/api/spotify/playlists",
+      "/api/spotify/synced-playlists",
+      "/api/spotify/sync-playlist",
     ],
     data: ["/api/execute", "/api/batch"],
     note: serveStatic
@@ -120,6 +128,43 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       next();
     } catch {
       res.status(401).json({ error: "Invalid or expired session." });
+    }
+  }
+
+  function requireSpotifyOAuth(
+    _req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) {
+    if (!spotifyOAuthConfigured()) {
+      res.status(503).json({
+        error:
+          "Spotify OAuth is not configured on the server. Set SPOTIFY_* and PUBLIC_APP_URL.",
+      });
+      return;
+    }
+    next();
+  }
+
+  async function requireSpotifyLinked(
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) {
+    try {
+      const userId = (req as express.Request & { userId: number }).userId;
+      const s = await getSpotifyLinkStatus(userId);
+      if (!s.linked) {
+        res.status(403).json({
+          error: "Connect Spotify in Admin before using playlist features.",
+        });
+        return;
+      }
+      next();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Spotify link check failed.";
+      res.status(500).json({ error: message });
     }
   }
 
@@ -248,6 +293,72 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       res.status(500).json({ error: message });
     }
   });
+
+  app.get(
+    "/api/spotify/playlists",
+    requireAuth,
+    requireSpotifyOAuth,
+    requireSpotifyLinked,
+    async (req, res) => {
+      try {
+        const userId = (req as express.Request & { userId: number }).userId;
+        const playlists = await listSpotifyPlaylists(userId);
+        res.json({ playlists });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to load playlists.";
+        res.status(502).json({ error: message });
+      }
+    }
+  );
+
+  app.get(
+    "/api/spotify/synced-playlists",
+    requireAuth,
+    requireSpotifyOAuth,
+    requireSpotifyLinked,
+    async (req, res) => {
+      try {
+        const userId = (req as express.Request & { userId: number }).userId;
+        const synced = await getSyncedPlaylistsForUser(userId);
+        res.json({ synced });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to read sync history.";
+        res.status(500).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    "/api/spotify/sync-playlist",
+    requireAuth,
+    requireSpotifyOAuth,
+    requireSpotifyLinked,
+    async (req, res) => {
+      try {
+        const userId = (req as express.Request & { userId: number }).userId;
+        const { playlistId, playlistUrl } = req.body as {
+          playlistId?: string;
+          playlistUrl?: string;
+        };
+        const raw = (playlistUrl ?? playlistId ?? "").trim();
+        if (!raw) {
+          res.status(400).json({
+            error: "Provide playlistId or playlistUrl in the JSON body.",
+          });
+          return;
+        }
+        const result = await syncSpotifyPlaylist(userId, raw);
+        res.json(result);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Playlist sync failed.";
+        const status = message.includes("Invalid") ? 400 : 502;
+        res.status(status).json({ error: message });
+      }
+    }
+  );
 
   app.post("/api/execute", requireAuth, async (req, res) => {
     try {

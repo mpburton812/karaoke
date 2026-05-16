@@ -1,6 +1,12 @@
 import type { InValue } from "@libsql/client";
 
-const USER_SCOPED_TABLES = ["songs", "performances", "tags", "locations"] as const;
+const USER_SCOPED_TABLES = [
+  "songs",
+  "performances",
+  "tags",
+  "locations",
+  "spotify_synced_playlists",
+] as const;
 
 const BLOCKED_PATTERNS = [
   /;\s*drop\s+/i,

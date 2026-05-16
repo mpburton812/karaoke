@@ -19,10 +19,12 @@ import YouTubeIcon from '@mui/icons-material/YouTube';
 import SongLookup from './SongLookup';
 import { db } from '../db';
 import { fetchLyrics } from '../utils/lyricsService';
+import { KARAOKE_SONGS_REFRESH_EVENT } from './SpotifyPlaylistSync';
 
 interface Song {
   id: number;
-  itunes_id: number;
+  itunes_id: number | null;
+  spotify_track_id?: string | null;
   track_name: string;
   artist_name: string;
   artwork_url: string;
@@ -148,6 +150,14 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     };
     loadData();
   }, [fetchSongs, fetchTagsAndLocations]);
+
+  useEffect(() => {
+    const onRefresh = () => {
+      void fetchSongs();
+    };
+    window.addEventListener(KARAOKE_SONGS_REFRESH_EVENT, onRefresh);
+    return () => window.removeEventListener(KARAOKE_SONGS_REFRESH_EVENT, onRefresh);
+  }, [fetchSongs]);
 
   const fetchSongTags = useCallback(async (songId: number) => {
     try {

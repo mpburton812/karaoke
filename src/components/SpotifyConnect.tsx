@@ -15,6 +15,7 @@ import {
   getSpotifyConnectUrl,
   type SpotifyStatusResponse,
 } from "../api/spotify";
+import SpotifyPlaylistSync from "./SpotifyPlaylistSync";
 
 const SpotifyConnect: React.FC = () => {
   const [status, setStatus] = useState<SpotifyStatusResponse | null>(null);
@@ -82,8 +83,8 @@ const SpotifyConnect: React.FC = () => {
         SPOTIFY ACCOUNT
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Connect Spotify to read your playlists (playlist sync can use this
-        later). Tokens stay on the server.
+        Connect Spotify to sync playlists into your library. Tokens stay on the
+        server.
       </Typography>
 
       {error && (
@@ -171,6 +172,8 @@ const SpotifyConnect: React.FC = () => {
           Disconnect
         </Button>
       </Box>
+
+      {status?.configured && status.linked && <SpotifyPlaylistSync />}
     </Paper>
   );
 };

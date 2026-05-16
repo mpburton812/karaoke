@@ -82,3 +82,86 @@ export async function disconnectSpotify(): Promise<void> {
     throw new Error(body.error || "Disconnect failed.");
   }
 }
+
+export interface SpotifyPlaylistItem {
+  id: string;
+  name: string;
+  tracksTotal: number;
+}
+
+export interface SpotifySyncedPlaylist {
+  spotifyPlaylistId: string;
+  playlistName: string | null;
+  lastSyncedAt: string | null;
+  snapshotId: string | null;
+}
+
+export interface SpotifySyncResult {
+  added: number;
+  removed: number;
+  skipped: number;
+  playlistName: string;
+  snapshotId: string;
+  unchanged?: boolean;
+}
+
+export async function fetchSpotifyPlaylists(): Promise<SpotifyPlaylistItem[]> {
+  const token = getToken();
+  if (!token) {
+    throw new Error("Not authenticated.");
+  }
+  const res = await fetch(apiUrl("/api/spotify/playlists"), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = (await res.json()) as {
+    playlists?: SpotifyPlaylistItem[];
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.error || "Failed to load Spotify playlists.");
+  }
+  return body.playlists ?? [];
+}
+
+export async function fetchSyncedSpotifyPlaylists(): Promise<
+  SpotifySyncedPlaylist[]
+> {
+  const token = getToken();
+  if (!token) {
+    throw new Error("Not authenticated.");
+  }
+  const res = await fetch(apiUrl("/api/spotify/synced-playlists"), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = (await res.json()) as {
+    synced?: SpotifySyncedPlaylist[];
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.error || "Failed to load synced playlists.");
+  }
+  return body.synced ?? [];
+}
+
+export async function syncSpotifyPlaylist(input: {
+  playlistId?: string;
+  playlistUrl?: string;
+}): Promise<SpotifySyncResult> {
+  const token = getToken();
+  if (!token) {
+    throw new Error("Not authenticated.");
+  }
+  const res = await fetch(apiUrl("/api/spotify/sync-playlist"), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  const body = (await res.json()) as SpotifySyncResult & { error?: string };
+  if (!res.ok) {
+    throw new Error(body.error || "Playlist sync failed.");
+  }
+  return body;
+}

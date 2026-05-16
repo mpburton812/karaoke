@@ -79,6 +79,29 @@ export const initDb = async () => {
       } catch { /* ignore if already exists */ }
     }
 
+    for (const col of [
+      "spotify_track_id TEXT",
+      "spotify_sync_playlist_id TEXT",
+    ]) {
+      try {
+        await db.execute(`ALTER TABLE songs ADD COLUMN ${col}`);
+      } catch {
+        /* already exists */
+      }
+    }
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS spotify_synced_playlists (
+        user_id INTEGER NOT NULL,
+        spotify_playlist_id TEXT NOT NULL,
+        playlist_name TEXT,
+        snapshot_id TEXT,
+        last_synced_at TEXT,
+        PRIMARY KEY (user_id, spotify_playlist_id),
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      )
+    `);
+
     await db.execute(`
       CREATE TABLE IF NOT EXISTS setlists (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -304,6 +327,15 @@ export const initDb = async () => {
       console.error("Could not create songs unique index:", error);
     }
 
+    await dedupeSongsByUserSpotify();
+    try {
+      await db.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_songs_user_spotify ON songs(user_id, spotify_track_id) WHERE spotify_track_id IS NOT NULL"
+      );
+    } catch (error) {
+      console.error("Could not create Spotify songs unique index:", error);
+    }
+
   } catch (error) {
     console.error("Error initializing database:", error);
   }
@@ -324,5 +356,23 @@ async function dedupeSongsByUserItunes() {
     `);
   } catch (error) {
     console.error("Song deduplication skipped:", error);
+  }
+}
+
+/** Remove duplicate (user_id, spotify_track_id) rows before adding partial UNIQUE index. */
+async function dedupeSongsByUserSpotify() {
+  try {
+    await db.execute(`
+      DELETE FROM songs
+      WHERE spotify_track_id IS NOT NULL
+        AND id NOT IN (
+          SELECT MIN(id)
+          FROM songs
+          WHERE spotify_track_id IS NOT NULL
+          GROUP BY user_id, spotify_track_id
+        )
+    `);
+  } catch (error) {
+    console.error("Spotify song deduplication skipped:", error);
   }
 }
