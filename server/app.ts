@@ -23,6 +23,7 @@ import {
   getSpotifyLinkStatus,
   getPublicAppUrl,
   getSpotifyEnvPresence,
+  getConfiguredSpotifyRedirectUri,
 } from "./spotifyAuth.js";
 import {
   listSpotifyPlaylists,
@@ -198,6 +199,7 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       res.json({
         configured: spotifyOAuthConfigured(),
         env: getSpotifyEnvPresence(),
+        redirectUri: getConfiguredSpotifyRedirectUri(),
         linked: status.linked,
         spotifyUserId: status.spotifyUserId,
         displayName: status.displayName,

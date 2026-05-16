@@ -9,6 +9,12 @@ const SPOTIFY_SCOPES = [
   "playlist-read-collaborative",
 ].join(" ");
 
+/** Trimmed redirect URI from env (non-secret); must match Spotify Dashboard exactly. */
+export function getConfiguredSpotifyRedirectUri(): string | null {
+  const u = process.env.SPOTIFY_REDIRECT_URI?.trim();
+  return u || null;
+}
+
 export function spotifyOAuthConfigured(): boolean {
   return Boolean(
     process.env.SPOTIFY_CLIENT_ID?.trim() &&

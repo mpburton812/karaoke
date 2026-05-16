@@ -17,6 +17,8 @@ export interface SpotifyStatusResponse {
     redirectUri: boolean;
     publicAppUrl: boolean;
   };
+  /** Callback URL the API sends to Spotify; must match Dashboard redirect list exactly. */
+  redirectUri: string | null;
   linked: boolean;
   spotifyUserId: string | null;
   displayName: string | null;
@@ -42,6 +44,10 @@ export async function fetchSpotifyStatus(): Promise<SpotifyStatusResponse> {
       redirectUri: false,
       publicAppUrl: false,
     },
+    redirectUri:
+      typeof body.redirectUri === "string" || body.redirectUri === null
+        ? body.redirectUri
+        : null,
     linked: Boolean(body.linked),
     spotifyUserId: body.spotifyUserId ?? null,
     displayName: body.displayName ?? null,
