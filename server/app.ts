@@ -62,6 +62,18 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
   app.use(cors({ origin: true, credentials: true }));
   app.use(express.json({ limit: "2mb" }));
 
+  /** Avoid 304 / disk cache on API JSON (Spotify status looked "not linked" after OAuth). */
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/api")) {
+      res.setHeader(
+        "Cache-Control",
+        "private, no-store, no-cache, must-revalidate"
+      );
+      res.setHeader("Pragma", "no-cache");
+    }
+    next();
+  });
+
   const apiIndex = (_req: express.Request, res: express.Response) => {
     res.json(apiIndexPayload(serveStatic));
   };

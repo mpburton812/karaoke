@@ -190,6 +190,10 @@ function App() {
 
     setValue(4);
 
+    const notifySpotifyListeners = () => {
+      window.dispatchEvent(new Event("karaoke-spotify-oauth-return"));
+    };
+
     if (spotify === "connected") {
       if (loggedIn) {
         setSpotifySnackbar({
@@ -197,7 +201,8 @@ function App() {
           message: "Spotify account connected.",
           severity: "success",
         });
-        window.dispatchEvent(new Event("karaoke-spotify-oauth-return"));
+        // Defer until after React commits Admin + SpotifyConnect (listeners miss same-tick dispatch).
+        window.setTimeout(notifySpotifyListeners, 0);
       } else {
         setSpotifySnackbar({
           open: true,
@@ -220,7 +225,7 @@ function App() {
         severity: "error",
       });
       if (loggedIn) {
-        window.dispatchEvent(new Event("karaoke-spotify-oauth-return"));
+        window.setTimeout(notifySpotifyListeners, 0);
       }
     }
 

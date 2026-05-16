@@ -153,29 +153,6 @@ const SpotifyConnect: React.FC = () => {
         </Alert>
       )}
 
-      {status?.configured && status.redirectUri && (
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            OAuth <strong>redirect_uri</strong> this API sends to Spotify — add
-            this exact URL under your app&apos;s Redirect URIs (character-for-character,
-            including <code>https</code> and no trailing slash unless you intend it):
-          </Typography>
-          <Box
-            component="code"
-            sx={{
-              display: "block",
-              p: 1.5,
-              bgcolor: "action.hover",
-              borderRadius: 1,
-              wordBreak: "break-all",
-              typography: "body2",
-            }}
-          >
-            {status.redirectUri}
-          </Box>
-        </Box>
-      )}
-
       {status?.configured && status.linked && (
         <Typography variant="body2" sx={{ mb: 2 }}>
           Connected

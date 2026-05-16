@@ -5,6 +5,10 @@ function apiUrl(path: string): string {
   return path;
 }
 
+function spotifyFetch(input: string, init?: RequestInit): Promise<Response> {
+  return fetch(input, { ...init, cache: "no-store" });
+}
+
 function getToken(): string | null {
   return localStorage.getItem("karaoke_token");
 }
@@ -29,7 +33,7 @@ export async function fetchSpotifyStatus(): Promise<SpotifyStatusResponse> {
   if (!token) {
     throw new Error("Not authenticated.");
   }
-  const res = await fetch(apiUrl("/api/spotify/status"), {
+  const res = await spotifyFetch(apiUrl("/api/spotify/status"), {
     headers: { Authorization: `Bearer ${token}` },
   });
   const body = (await res.json()) as SpotifyStatusResponse & { error?: string };
@@ -60,7 +64,7 @@ export async function getSpotifyConnectUrl(): Promise<string> {
   if (!token) {
     throw new Error("Not authenticated.");
   }
-  const res = await fetch(apiUrl("/api/spotify/connect"), {
+  const res = await spotifyFetch(apiUrl("/api/spotify/connect"), {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -79,7 +83,7 @@ export async function disconnectSpotify(): Promise<void> {
   if (!token) {
     throw new Error("Not authenticated.");
   }
-  const res = await fetch(apiUrl("/api/spotify/disconnect"), {
+  const res = await spotifyFetch(apiUrl("/api/spotify/disconnect"), {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -116,7 +120,7 @@ export async function fetchSpotifyPlaylists(): Promise<SpotifyPlaylistItem[]> {
   if (!token) {
     throw new Error("Not authenticated.");
   }
-  const res = await fetch(apiUrl("/api/spotify/playlists"), {
+  const res = await spotifyFetch(apiUrl("/api/spotify/playlists"), {
     headers: { Authorization: `Bearer ${token}` },
   });
   const body = (await res.json()) as {
@@ -157,7 +161,7 @@ export async function syncSpotifyPlaylist(input: {
   if (!token) {
     throw new Error("Not authenticated.");
   }
-  const res = await fetch(apiUrl("/api/spotify/sync-playlist"), {
+  const res = await spotifyFetch(apiUrl("/api/spotify/sync-playlist"), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
