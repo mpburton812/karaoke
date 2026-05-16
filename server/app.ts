@@ -11,13 +11,33 @@ import {
   verifyToken,
 } from "./auth.js";
 import { assertSqlAllowed } from "./sqlGuard.js";
+import {
+  spotifyOAuthConfigured,
+  signSpotifyOAuthState,
+  verifySpotifyOAuthState,
+  buildSpotifyAuthorizeUrl,
+  exchangeSpotifyCode,
+  fetchSpotifyCurrentUser,
+  saveSpotifyTokensForUser,
+  clearSpotifyForUser,
+  getSpotifyLinkStatus,
+  getPublicAppUrl,
+} from "./spotifyAuth.js";
 
 function apiIndexPayload(serveStatic: boolean) {
   return {
     name: "Karaoke Companion API",
     status: "running",
     health: "/api/health",
-    auth: ["/api/auth/register", "/api/auth/login", "/api/auth/change-password"],
+    auth: [
+      "/api/auth/register",
+      "/api/auth/login",
+      "/api/auth/change-password",
+      "/api/spotify/connect",
+      "/api/spotify/callback",
+      "/api/spotify/disconnect",
+      "/api/spotify/status",
+    ],
     data: ["/api/execute", "/api/batch"],
     note: serveStatic
       ? "Web app is served at / on this host."
@@ -122,6 +142,116 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       const message = err instanceof Error ? err.message : "Password change failed.";
       const status = message.includes("incorrect") ? 401 : 400;
       res.status(status).json({ error: message });
+    }
+  });
+
+  app.get("/api/spotify/status", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as express.Request & { userId: number }).userId;
+      const status = await getSpotifyLinkStatus(userId);
+      res.json({
+        configured: spotifyOAuthConfigured(),
+        linked: status.linked,
+        spotifyUserId: status.spotifyUserId,
+        displayName: status.displayName,
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to read Spotify status.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.post("/api/spotify/connect", requireAuth, (req, res) => {
+    if (!spotifyOAuthConfigured()) {
+      res.status(503).json({
+        error:
+          "Spotify is not configured on the server. Set SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and SPOTIFY_REDIRECT_URI.",
+      });
+      return;
+    }
+    const publicUrl = getPublicAppUrl();
+    if (!publicUrl) {
+      res.status(503).json({
+        error:
+          "Set PUBLIC_APP_URL to your web app origin (e.g. http://127.0.0.1:5173 for local dev).",
+      });
+      return;
+    }
+    try {
+      const userId = (req as express.Request & { userId: number }).userId;
+      const state = signSpotifyOAuthState(userId);
+      const url = buildSpotifyAuthorizeUrl(state);
+      res.json({ url });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to start Spotify login.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.get("/api/spotify/callback", async (req, res) => {
+    const publicUrl = getPublicAppUrl() || "http://127.0.0.1:5173";
+    const redirectWith = (query: Record<string, string>) => {
+      const q = new URLSearchParams(query).toString();
+      res.redirect(`${publicUrl}/?${q}`);
+    };
+
+    const code = typeof req.query.code === "string" ? req.query.code : null;
+    const state = typeof req.query.state === "string" ? req.query.state : null;
+    const oauthError =
+      typeof req.query.error === "string" ? req.query.error : null;
+
+    if (oauthError) {
+      redirectWith({ spotify: "error", reason: oauthError });
+      return;
+    }
+    if (!code || !state) {
+      redirectWith({ spotify: "error", reason: "missing_code_or_state" });
+      return;
+    }
+    if (!spotifyOAuthConfigured()) {
+      redirectWith({ spotify: "error", reason: "not_configured" });
+      return;
+    }
+
+    let userId: number;
+    try {
+      userId = verifySpotifyOAuthState(state);
+    } catch {
+      redirectWith({ spotify: "error", reason: "invalid_state" });
+      return;
+    }
+
+    try {
+      const tokens = await exchangeSpotifyCode(code);
+      const profile = await fetchSpotifyCurrentUser(tokens.access_token);
+      await saveSpotifyTokensForUser(
+        userId,
+        tokens.refresh_token,
+        profile.id,
+        profile.display_name
+      );
+      redirectWith({ spotify: "connected" });
+    } catch (err) {
+      const reason =
+        err instanceof Error ? err.message : "token_exchange_failed";
+      redirectWith({
+        spotify: "error",
+        reason: reason.slice(0, 200),
+      });
+    }
+  });
+
+  app.post("/api/spotify/disconnect", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as express.Request & { userId: number }).userId;
+      await clearSpotifyForUser(userId);
+      res.json({ ok: true });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to disconnect Spotify.";
+      res.status(500).json({ error: message });
     }
   });
 

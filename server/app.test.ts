@@ -170,4 +170,40 @@ describe("API routes", () => {
       expect(res.body.results).toHaveLength(1);
     });
   });
+
+  describe("Spotify OAuth", () => {
+    beforeEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("POST /api/spotify/connect returns 503 when not configured", async () => {
+      const token = signToken({ id: USER_ID, username: "tester" });
+      const res = await request(app)
+        .post("/api/spotify/connect")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(503);
+      expect(res.body.error).toMatch(/not configured/i);
+    });
+
+    it("POST /api/spotify/connect returns authorize URL when configured", async () => {
+      vi.stubEnv("SPOTIFY_CLIENT_ID", "test_client_id");
+      vi.stubEnv("SPOTIFY_CLIENT_SECRET", "test_secret");
+      vi.stubEnv(
+        "SPOTIFY_REDIRECT_URI",
+        "http://127.0.0.1:3001/api/spotify/callback"
+      );
+      vi.stubEnv("PUBLIC_APP_URL", "http://127.0.0.1:5173");
+
+      const token = signToken({ id: USER_ID, username: "tester" });
+      const res = await request(app)
+        .post("/api/spotify/connect")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(typeof res.body.url).toBe("string");
+      expect(res.body.url).toContain("accounts.spotify.com/authorize");
+      expect(res.body.url).toContain("playlist-read-private");
+    });
+  });
 });

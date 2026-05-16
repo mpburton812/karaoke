@@ -13,7 +13,9 @@ import {
   Toolbar,
   Divider,
   CircularProgress,
-  ButtonGroup
+  ButtonGroup,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import LightModeIcon from '@mui/icons-material/LightMode';
@@ -34,6 +36,7 @@ const Changelog = lazy(() => import('./components/Changelog'));
 const Stats = lazy(() => import('./components/Stats'));
 const ChangePassword = lazy(() => import('./components/ChangePassword'));
 const AdminAppReload = lazy(() => import('./components/AdminAppReload'));
+const SpotifyConnect = lazy(() => import('./components/SpotifyConnect'));
 
 type ThemeMode = 'light' | 'dark' | 'trans';
 
@@ -168,6 +171,43 @@ function App() {
     });
     return () => setSessionExpiredHandler(null);
   }, []);
+
+  const [spotifySnackbar, setSpotifySnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error";
+  }>({ open: false, message: "", severity: "success" });
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const params = new URLSearchParams(window.location.search);
+    const spotify = params.get("spotify");
+    if (!spotify) return;
+
+    if (spotify === "connected") {
+      setSpotifySnackbar({
+        open: true,
+        message: "Spotify account connected.",
+        severity: "success",
+      });
+    } else if (spotify === "error") {
+      const reason = params.get("reason") || "unknown";
+      setSpotifySnackbar({
+        open: true,
+        message: `Spotify connection failed: ${decodeURIComponent(reason)}`,
+        severity: "error",
+      });
+    }
+
+    params.delete("spotify");
+    params.delete("reason");
+    const q = params.toString();
+    window.history.replaceState(
+      {},
+      "",
+      window.location.pathname + (q ? `?${q}` : "")
+    );
+  }, [currentUser]);
 
   const handleLogin = (user: { id: number; username: string }) => {
     setSessionNotice(null);
@@ -317,6 +357,8 @@ function App() {
                 <ChangePassword />
               </Box>
 
+              <SpotifyConnect />
+
               <AdminAppReload />
               
               <SystemStatus />
@@ -346,6 +388,22 @@ function App() {
         </Suspense>
       </Container>
       
+      <Snackbar
+        open={spotifySnackbar.open}
+        autoHideDuration={8000}
+        onClose={() => setSpotifySnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity={spotifySnackbar.severity}
+          variant="filled"
+          onClose={() => setSpotifySnackbar((s) => ({ ...s, open: false }))}
+          sx={{ width: "100%" }}
+        >
+          {spotifySnackbar.message}
+        </Alert>
+      </Snackbar>
+
       <Box component="footer" sx={{ 
         position: 'fixed',
         bottom: 0,

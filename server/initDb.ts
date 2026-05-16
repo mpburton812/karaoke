@@ -16,6 +16,18 @@ export const initDb = async () => {
       /* column may already exist */
     }
 
+    for (const col of [
+      "spotify_refresh_token TEXT",
+      "spotify_user_id TEXT",
+      "spotify_display_name TEXT",
+    ]) {
+      try {
+        await db.execute(`ALTER TABLE users ADD COLUMN ${col}`);
+      } catch {
+        /* already exists */
+      }
+    }
+
     await db.execute(`
       CREATE TABLE IF NOT EXISTS songs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

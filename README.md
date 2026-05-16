@@ -41,6 +41,10 @@ cp .env.example .env
 | `PORT` | No | API port (default `3001`) |
 | `VITE_API_URL` | No | Leave **empty** locally — Vite proxies `/api` to the API |
 | `VITE_API_PROXY_TARGET` | No | Proxy target if not `http://localhost:3001` |
+| `SPOTIFY_CLIENT_ID` | No | Spotify OAuth (see Deployment → Spotify) |
+| `SPOTIFY_CLIENT_SECRET` | No | Spotify OAuth (server only) |
+| `SPOTIFY_REDIRECT_URI` | No | e.g. `http://127.0.0.1:3001/api/spotify/callback` |
+| `PUBLIC_APP_URL` | No | SPA origin after OAuth, e.g. `http://127.0.0.1:5173` |
 
 **Never commit `.env` or put Turso tokens in `VITE_*` variables.**
 
@@ -121,6 +125,27 @@ The live site must be a **Web Service**, not a **Static Site**. A static deploy 
 
 If you already have a Static Site named `karaoke-companion`, delete it or switch to a Web Service with the settings above (same custom domain can be reattached).
 
+### Spotify OAuth (optional)
+
+Used by **Admin → Spotify account** to link a Spotify user for playlist access (sync can build on this later).
+
+1. [Create a Spotify app](https://developer.spotify.com/dashboard) and note **Client ID** and **Client Secret**.
+2. **Redirect URI** (must match exactly):  
+   `https://<your-render-host>/api/spotify/callback`  
+   For local API: `http://127.0.0.1:3001/api/spotify/callback`
+3. Set environment variables on the **API** (Render / `.env`):
+
+   | Variable | Example (local) | Notes |
+   |----------|-----------------|--------|
+   | `SPOTIFY_CLIENT_ID` | from dashboard | Required to enable OAuth |
+   | `SPOTIFY_CLIENT_SECRET` | from dashboard | Server only |
+   | `SPOTIFY_REDIRECT_URI` | `http://127.0.0.1:3001/api/spotify/callback` | Must match Spotify app settings |
+   | `PUBLIC_APP_URL` | `http://127.0.0.1:5173` | Where the **browser** returns after OAuth (Vite dev URL, or your production site origin). On a single Render Web Service, use the same public URL as the app, e.g. `https://karaoke-companion.onrender.com`. |
+
+4. In the app, log in → **Admin** → **Connect Spotify** → approve on Spotify → you should land back on the app with a success message.
+
+Scopes requested: `playlist-read-private`, `playlist-read-collaborative`. Refresh tokens are stored in Turso on the `users` row.
+
 ### Split deploy (API + static frontend on different hosts)
 
 **API** — any Node host:
@@ -139,7 +164,7 @@ VITE_API_URL=https://your-api.example.com npm run build
 
 Serve `dist/` (Netlify, Vercel, Render static site, etc.). CORS is enabled on the API; consider restricting origins in `server/app.ts` for production.
 
-### 3. Android APK (optional)
+### Android APK (optional)
 
 CI builds a debug APK on push to `dev` (`.github/workflows/android-build.yml`).
 
