@@ -140,7 +140,7 @@ Used by **Admin → Spotify account** to link a Spotify user for playlist access
    | `SPOTIFY_CLIENT_ID` | from dashboard | Required to enable OAuth |
    | `SPOTIFY_CLIENT_SECRET` | from dashboard | Server only |
    | `SPOTIFY_REDIRECT_URI` | `http://127.0.0.1:3001/api/spotify/callback` | Must match Spotify app settings |
-   | `PUBLIC_APP_URL` | `http://127.0.0.1:5173` | Where the **browser** returns after OAuth (Vite dev URL, or your production site origin). On a single Render Web Service, use the same public URL as the app, e.g. `https://karaoke-companion.onrender.com`. |
+   | `PUBLIC_APP_URL` | `http://127.0.0.1:5173` | Where the **browser** returns after OAuth when `Origin` is unavailable. Use the exact SPA origin you open in the address bar. On one Render service, set this to that service URL (e.g. `https://karaoke-companion-api.onrender.com`). If it is wrong, the app still redirects correctly when the SPA and callback share the same host—the Connect request’s `Origin` is stored in signed OAuth state. |
 
 4. In the app, log in → **Admin** → **Connect Spotify** → approve on Spotify → you should land back on the app with a success message.
 

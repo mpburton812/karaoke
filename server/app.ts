@@ -233,7 +233,15 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     }
     try {
       const userId = (req as express.Request & { userId: number }).userId;
-      const { state, codeChallenge } = signSpotifyOAuthState(userId);
+      const originHeader = req.get("origin");
+      const browserOrigin =
+        typeof originHeader === "string" && originHeader.trim()
+          ? originHeader.trim()
+          : null;
+      const { state, codeChallenge } = signSpotifyOAuthState(
+        userId,
+        browserOrigin
+      );
       const url = buildSpotifyAuthorizeUrl(state, codeChallenge);
       res.json({ url });
     } catch (err) {
@@ -244,14 +252,27 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
   });
 
   app.get("/api/spotify/callback", async (req, res) => {
-    const publicUrl = getPublicAppUrl() || "http://127.0.0.1:5173";
+    const fallbackPublic = getPublicAppUrl() || "http://127.0.0.1:5173";
+
+    const stateParam =
+      typeof req.query.state === "string" ? req.query.state : null;
+    let oauthContext: ReturnType<typeof verifySpotifyOAuthState> | null = null;
+    if (stateParam) {
+      try {
+        oauthContext = verifySpotifyOAuthState(stateParam);
+      } catch {
+        oauthContext = null;
+      }
+    }
+
+    const baseForRedirect = oauthContext?.returnBase ?? fallbackPublic;
     const redirectWith = (query: Record<string, string>) => {
       const q = new URLSearchParams(query).toString();
-      res.redirect(`${publicUrl}/?${q}`);
+      res.redirect(`${baseForRedirect}/?${q}`);
     };
 
     const code = typeof req.query.code === "string" ? req.query.code : null;
-    const state = typeof req.query.state === "string" ? req.query.state : null;
+    const state = stateParam;
     const oauthError =
       typeof req.query.error === "string" ? req.query.error : null;
 
@@ -275,14 +296,12 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       return;
     }
 
-    let userId: number;
-    let codeVerifier: string;
-    try {
-      ({ userId, codeVerifier } = verifySpotifyOAuthState(state));
-    } catch {
+    if (!oauthContext) {
       redirectWith({ spotify: "error", reason: "invalid_state" });
       return;
     }
+
+    const { userId, codeVerifier } = oauthContext;
 
     try {
       const tokens = await exchangeSpotifyCode(code, codeVerifier);

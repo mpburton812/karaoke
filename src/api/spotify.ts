@@ -140,7 +140,7 @@ export async function fetchSyncedSpotifyPlaylists(): Promise<
   if (!token) {
     throw new Error("Not authenticated.");
   }
-  const res = await fetch(apiUrl("/api/spotify/synced-playlists"), {
+  const res = await spotifyFetch(apiUrl("/api/spotify/synced-playlists"), {
     headers: { Authorization: `Bearer ${token}` },
   });
   const body = (await res.json()) as {

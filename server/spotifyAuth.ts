@@ -53,6 +53,38 @@ export function getPublicAppUrl(): string {
   }
 }
 
+/** Origin of SPOTIFY_REDIRECT_URI (API callback host); often same as the SPA when served together. */
+export function getSpotifyCallbackOrigin(): string {
+  const redir = process.env.SPOTIFY_REDIRECT_URI?.trim();
+  if (!redir) return "";
+  try {
+    return new URL(redir).origin;
+  } catch {
+    return "";
+  }
+}
+
+export function normalizeWebOrigin(origin: string): string | null {
+  try {
+    const u = new URL(origin);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Browsers may only return here after OAuth if it matches Connect request Origin or PUBLIC_APP_URL. */
+export function isAllowedOAuthReturnOrigin(origin: string): boolean {
+  const o = normalizeWebOrigin(origin);
+  if (!o) return false;
+  const callbackOrigin = getSpotifyCallbackOrigin();
+  if (callbackOrigin && o === callbackOrigin) return true;
+  const pub = process.env.PUBLIC_APP_URL?.trim().replace(/\/$/, "");
+  if (pub && o === pub) return true;
+  return false;
+}
+
 /** RFC 7636 PKCE: 43–128 chars from unreserved set; we use URL-safe base64. */
 function generateCodeVerifier(): string {
   const raw = crypto.randomBytes(48).toString("base64url").replace(/=+$/, "");
@@ -66,28 +98,40 @@ function codeChallengeS256(verifier: string): string {
   return crypto.createHash("sha256").update(verifier).digest("base64url").replace(/=+$/, "");
 }
 
-export function signSpotifyOAuthState(userId: number): {
+export function signSpotifyOAuthState(
+  userId: number,
+  browserOrigin: string | null = null
+): {
   state: string;
   codeChallenge: string;
 } {
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = codeChallengeS256(codeVerifier);
-  const state = jwt.sign(
-    { typ: "spotify-oauth", sub: userId, pv: codeVerifier },
-    JWT_SECRET,
-    { expiresIn: "10m" }
-  );
+  const payload: {
+    typ: string;
+    sub: number;
+    pv: string;
+    rb?: string;
+  } = { typ: "spotify-oauth", sub: userId, pv: codeVerifier };
+  if (browserOrigin && isAllowedOAuthReturnOrigin(browserOrigin)) {
+    const normalized = normalizeWebOrigin(browserOrigin);
+    if (normalized) payload.rb = normalized;
+  }
+  const state = jwt.sign(payload, JWT_SECRET, { expiresIn: "10m" });
   return { state, codeChallenge };
 }
 
 export function verifySpotifyOAuthState(token: string): {
   userId: number;
   codeVerifier: string;
+  /** When set, redirect the browser here after OAuth (same tab that started Connect). */
+  returnBase?: string;
 } {
   const payload = jwt.verify(token, JWT_SECRET) as {
     typ?: string;
     sub?: number;
     pv?: string;
+    rb?: string;
   };
   if (payload.typ !== "spotify-oauth" || typeof payload.sub !== "number") {
     throw new Error("Invalid OAuth state.");
@@ -96,7 +140,12 @@ export function verifySpotifyOAuthState(token: string): {
   if (typeof pv !== "string" || pv.length < 43) {
     throw new Error("Invalid OAuth state.");
   }
-  return { userId: payload.sub, codeVerifier: pv };
+  let returnBase: string | undefined;
+  if (typeof payload.rb === "string" && isAllowedOAuthReturnOrigin(payload.rb)) {
+    const n = normalizeWebOrigin(payload.rb);
+    if (n) returnBase = n;
+  }
+  return { userId: payload.sub, codeVerifier: pv, returnBase };
 }
 
 export function buildSpotifyAuthorizeUrl(
