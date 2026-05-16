@@ -11,7 +11,10 @@ import {
   verifySpotifyOAuthState,
   isSpotifyRefreshTokenDeadError,
   normalizeWebOrigin,
+  refreshSpotifyAccessToken,
+  getSpotifyAccessTokenForUser,
 } from "./spotifyAuth.js";
+import { db } from "./db.js";
 
 describe("isSpotifyRefreshTokenDeadError", () => {
   it("detects revoked / invalid_grant style messages", () => {
@@ -21,6 +24,10 @@ describe("isSpotifyRefreshTokenDeadError", () => {
       isSpotifyRefreshTokenDeadError("The token has been expired or revoked")
     ).toBe(true);
     expect(isSpotifyRefreshTokenDeadError("network timeout")).toBe(false);
+  });
+
+  it("does not treat unrelated 'revoked' copy as refresh failure", () => {
+    expect(isSpotifyRefreshTokenDeadError("Access was revoked")).toBe(false);
   });
 });
 
@@ -93,5 +100,102 @@ describe("spotifyAuth state JWT", () => {
       process.env.JWT_SECRET || "dev-insecure-change-me"
     );
     expect(() => verifySpotifyOAuthState(bad)).toThrow();
+  });
+});
+
+describe("refreshSpotifyAccessToken", () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    vi.stubEnv("SPOTIFY_CLIENT_ID", "cid");
+    vi.stubEnv("SPOTIFY_CLIENT_SECRET", "sec");
+    vi.unstubAllGlobals();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns new_refresh_token when Spotify sends one", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          access_token: "acc",
+          expires_in: 3600,
+          refresh_token: "rotated",
+        }),
+      })
+    );
+    const out = await refreshSpotifyAccessToken("old");
+    expect(out.access_token).toBe("acc");
+    expect(out.new_refresh_token).toBe("rotated");
+  });
+});
+
+describe("getSpotifyAccessTokenForUser", () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    vi.stubEnv("SPOTIFY_CLIENT_ID", "cid");
+    vi.stubEnv("SPOTIFY_CLIENT_SECRET", "sec");
+    vi.mocked(db.execute).mockReset();
+    vi.unstubAllGlobals();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("persists rotated refresh token from Spotify", async () => {
+    vi.mocked(db.execute)
+      .mockResolvedValueOnce({
+        rows: [{ spotify_refresh_token: "stored_refresh" }],
+      } as never)
+      .mockResolvedValueOnce({ rows: [] } as never);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          access_token: "acc_tok",
+          expires_in: 3600,
+          refresh_token: "new_long_refresh",
+        }),
+      })
+    );
+
+    const access = await getSpotifyAccessTokenForUser(42);
+    expect(access).toBe("acc_tok");
+    expect(db.execute).toHaveBeenCalledTimes(2);
+    const upd = vi.mocked(db.execute).mock.calls[1]![0] as {
+      sql: string;
+      args: unknown[];
+    };
+    expect(upd.sql).toContain("spotify_refresh_token");
+    expect(upd.args).toEqual(["new_long_refresh", 42]);
+  });
+
+  it("does not UPDATE when Spotify omits refresh_token", async () => {
+    vi.mocked(db.execute).mockResolvedValueOnce({
+      rows: [{ spotify_refresh_token: "only_refresh" }],
+    } as never);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          access_token: "acc2",
+          expires_in: 3600,
+        }),
+      })
+    );
+
+    await getSpotifyAccessTokenForUser(1);
+    expect(db.execute).toHaveBeenCalledTimes(1);
   });
 });

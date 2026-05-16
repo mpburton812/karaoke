@@ -268,6 +268,11 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     const baseForRedirect = oauthContext?.returnBase ?? fallbackPublic;
     const redirectWith = (query: Record<string, string>) => {
       const q = new URLSearchParams(query).toString();
+      res.setHeader(
+        "Cache-Control",
+        "private, no-store, no-cache, must-revalidate"
+      );
+      res.setHeader("Pragma", "no-cache");
       res.redirect(`${baseForRedirect}/?${q}`);
     };
 

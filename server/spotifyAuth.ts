@@ -117,7 +117,7 @@ export function signSpotifyOAuthState(
     const normalized = normalizeWebOrigin(browserOrigin);
     if (normalized) payload.rb = normalized;
   }
-  const state = jwt.sign(payload, JWT_SECRET, { expiresIn: "10m" });
+  const state = jwt.sign(payload, JWT_SECRET, { expiresIn: "30m" });
   return { state, codeChallenge };
 }
 
@@ -216,7 +216,12 @@ export async function exchangeSpotifyCode(
 
 export async function refreshSpotifyAccessToken(
   refreshToken: string
-): Promise<{ access_token: string; expires_in: number }> {
+): Promise<{
+  access_token: string;
+  expires_in: number;
+  /** Spotify may return a new refresh token; the previous one can stop working if ignored. */
+  new_refresh_token?: string;
+}> {
   const clientId = process.env.SPOTIFY_CLIENT_ID!.trim();
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET!.trim();
 
@@ -247,10 +252,18 @@ export async function refreshSpotifyAccessToken(
 
   const access_token = data.access_token as string | undefined;
   const expires_in = data.expires_in as number | undefined;
+  const new_refresh_token = data.refresh_token as string | undefined;
   if (!access_token || typeof expires_in !== "number") {
     throw new Error("Invalid refresh response from Spotify.");
   }
-  return { access_token, expires_in };
+  return {
+    access_token,
+    expires_in,
+    new_refresh_token:
+      typeof new_refresh_token === "string" && new_refresh_token.length > 0
+        ? new_refresh_token
+        : undefined,
+  };
 }
 
 export async function fetchSpotifyCurrentUser(accessToken: string): Promise<{
@@ -345,22 +358,28 @@ export async function getSpotifyRefreshTokenOrThrow(userId: number): Promise<str
   return t;
 }
 
-/** Spotify token endpoint signals the stored refresh token must be replaced. */
+/** Spotify token endpoint: treat as dead refresh only for refresh-specific failures. */
 export function isSpotifyRefreshTokenDeadError(message: string): boolean {
   const m = message.toLowerCase();
-  return (
-    m.includes("invalid_grant") ||
-    m.includes("revoked") ||
-    m.includes("invalid refresh token") ||
-    m.includes("refresh token revoked") ||
-    m.includes("expired or revoked")
-  );
+  if (m.includes("invalid_grant")) return true;
+  if (m.includes("invalid refresh token")) return true;
+  if (m.includes("refresh token revoked")) return true;
+  if (m.includes("expired or revoked")) return true;
+  if (m.includes("refresh token") && m.includes("revoked")) return true;
+  return false;
 }
 
 export async function getSpotifyAccessTokenForUser(userId: number): Promise<string> {
   const refresh = await getSpotifyRefreshTokenOrThrow(userId);
   try {
-    const { access_token } = await refreshSpotifyAccessToken(refresh);
+    const { access_token, new_refresh_token } =
+      await refreshSpotifyAccessToken(refresh);
+    if (new_refresh_token) {
+      await db.execute({
+        sql: `UPDATE users SET spotify_refresh_token = ? WHERE id = ?`,
+        args: [new_refresh_token, userId],
+      });
+    }
     return access_token;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
