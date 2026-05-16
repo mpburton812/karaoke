@@ -11,6 +11,12 @@ function getToken(): string | null {
 
 export interface SpotifyStatusResponse {
   configured: boolean;
+  env: {
+    clientId: boolean;
+    clientSecret: boolean;
+    redirectUri: boolean;
+    publicAppUrl: boolean;
+  };
   linked: boolean;
   spotifyUserId: string | null;
   displayName: string | null;
@@ -28,7 +34,18 @@ export async function fetchSpotifyStatus(): Promise<SpotifyStatusResponse> {
   if (!res.ok) {
     throw new Error(body.error || "Failed to load Spotify status.");
   }
-  return body;
+  return {
+    configured: Boolean(body.configured),
+    env: body.env ?? {
+      clientId: false,
+      clientSecret: false,
+      redirectUri: false,
+      publicAppUrl: false,
+    },
+    linked: Boolean(body.linked),
+    spotifyUserId: body.spotifyUserId ?? null,
+    displayName: body.displayName ?? null,
+  };
 }
 
 /** Returns Spotify authorize URL; open in same window (full-page redirect). */

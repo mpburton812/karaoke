@@ -22,6 +22,7 @@ import {
   clearSpotifyForUser,
   getSpotifyLinkStatus,
   getPublicAppUrl,
+  getSpotifyEnvPresence,
 } from "./spotifyAuth.js";
 
 function apiIndexPayload(serveStatic: boolean) {
@@ -151,6 +152,7 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       const status = await getSpotifyLinkStatus(userId);
       res.json({
         configured: spotifyOAuthConfigured(),
+        env: getSpotifyEnvPresence(),
         linked: status.linked,
         spotifyUserId: status.spotifyUserId,
         displayName: status.displayName,
@@ -166,15 +168,7 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     if (!spotifyOAuthConfigured()) {
       res.status(503).json({
         error:
-          "Spotify is not configured on the server. Set SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and SPOTIFY_REDIRECT_URI.",
-      });
-      return;
-    }
-    const publicUrl = getPublicAppUrl();
-    if (!publicUrl) {
-      res.status(503).json({
-        error:
-          "Set PUBLIC_APP_URL to your web app origin (e.g. http://127.0.0.1:5173 for local dev).",
+          "Spotify is not configured. Set SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, and PUBLIC_APP_URL (see README), then restart the API.",
       });
       return;
     }

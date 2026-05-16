@@ -94,10 +94,46 @@ const SpotifyConnect: React.FC = () => {
 
       {!status?.configured && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          Spotify OAuth is not configured on this server. Add{" "}
-          <code>SPOTIFY_CLIENT_ID</code>, <code>SPOTIFY_CLIENT_SECRET</code>,{" "}
-          <code>SPOTIFY_REDIRECT_URI</code>, and <code>PUBLIC_APP_URL</code> to
-          the API environment (see README).
+          <Typography variant="body2" component="div" gutterBottom>
+            Spotify OAuth is not fully configured. Add the missing variables to
+            the API <code>.env</code>, then restart <code>npm run dev</code>{" "}
+            (see README).
+          </Typography>
+          <Box component="ul" sx={{ pl: 2, m: 0, typography: "body2" }}>
+            {!status?.env.clientId && (
+              <li>
+                <code>SPOTIFY_CLIENT_ID</code> — from{" "}
+                <a
+                  href="https://developer.spotify.com/dashboard"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Spotify Developer Dashboard
+                </a>
+              </li>
+            )}
+            {!status?.env.clientSecret && (
+              <li>
+                <code>SPOTIFY_CLIENT_SECRET</code> — same app settings
+              </li>
+            )}
+            {!status?.env.redirectUri && (
+              <li>
+                <code>SPOTIFY_REDIRECT_URI</code> — e.g.{" "}
+                <code>
+                  http://127.0.0.1:3001/api/spotify/callback
+                </code>{" "}
+                (must match the Redirect URI in your Spotify app exactly)
+              </li>
+            )}
+            {!status?.env.publicAppUrl && (
+              <li>
+                <code>PUBLIC_APP_URL</code> — where the React app runs, e.g.{" "}
+                <code>http://127.0.0.1:5173</code> (used after Spotify sends you
+                back)
+              </li>
+            )}
+          </Box>
         </Alert>
       )}
 

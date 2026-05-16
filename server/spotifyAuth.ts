@@ -12,8 +12,24 @@ export function spotifyOAuthConfigured(): boolean {
   return Boolean(
     process.env.SPOTIFY_CLIENT_ID?.trim() &&
       process.env.SPOTIFY_CLIENT_SECRET?.trim() &&
-      process.env.SPOTIFY_REDIRECT_URI?.trim()
+      process.env.SPOTIFY_REDIRECT_URI?.trim() &&
+      getPublicAppUrl()
   );
+}
+
+/** Which Spotify-related env vars are set (never exposes values). */
+export function getSpotifyEnvPresence(): {
+  clientId: boolean;
+  clientSecret: boolean;
+  redirectUri: boolean;
+  publicAppUrl: boolean;
+} {
+  return {
+    clientId: Boolean(process.env.SPOTIFY_CLIENT_ID?.trim()),
+    clientSecret: Boolean(process.env.SPOTIFY_CLIENT_SECRET?.trim()),
+    redirectUri: Boolean(process.env.SPOTIFY_REDIRECT_URI?.trim()),
+    publicAppUrl: Boolean(process.env.PUBLIC_APP_URL?.trim()),
+  };
 }
 
 /** Where to send the browser after Spotify OAuth (SPA origin). */
