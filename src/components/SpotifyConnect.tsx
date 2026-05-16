@@ -41,6 +41,21 @@ const SpotifyConnect: React.FC = () => {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [load]);
+
+  useEffect(() => {
+    const onOAuthReturn = () => void load();
+    window.addEventListener("karaoke-spotify-oauth-return", onOAuthReturn);
+    return () =>
+      window.removeEventListener("karaoke-spotify-oauth-return", onOAuthReturn);
+  }, [load]);
+
   const handleConnect = async () => {
     setActionLoading(true);
     setError(null);

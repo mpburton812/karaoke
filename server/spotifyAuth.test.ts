@@ -9,7 +9,19 @@ vi.mock("./db.js", () => ({
 import {
   signSpotifyOAuthState,
   verifySpotifyOAuthState,
+  isSpotifyRefreshTokenDeadError,
 } from "./spotifyAuth.js";
+
+describe("isSpotifyRefreshTokenDeadError", () => {
+  it("detects revoked / invalid_grant style messages", () => {
+    expect(isSpotifyRefreshTokenDeadError("Refresh token revoked")).toBe(true);
+    expect(isSpotifyRefreshTokenDeadError("invalid_grant")).toBe(true);
+    expect(
+      isSpotifyRefreshTokenDeadError("The token has been expired or revoked")
+    ).toBe(true);
+    expect(isSpotifyRefreshTokenDeadError("network timeout")).toBe(false);
+  });
+});
 
 describe("spotifyAuth state JWT", () => {
   it("round-trips user id and PKCE verifier in OAuth state", () => {

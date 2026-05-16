@@ -175,28 +175,53 @@ function App() {
   const [spotifySnackbar, setSpotifySnackbar] = useState<{
     open: boolean;
     message: string;
-    severity: "success" | "error";
+    severity: "success" | "error" | "info";
   }>({ open: false, message: "", severity: "success" });
 
+  /** OAuth return: run once on load (not tied to React user state) so ?spotify= is never missed. */
   useEffect(() => {
-    if (!currentUser) return;
     const params = new URLSearchParams(window.location.search);
     const spotify = params.get("spotify");
     if (!spotify) return;
 
+    const token = localStorage.getItem("karaoke_token");
+    const saved = localStorage.getItem("karaoke_user");
+    const loggedIn = Boolean(token && saved);
+
+    setValue(4);
+
     if (spotify === "connected") {
-      setSpotifySnackbar({
-        open: true,
-        message: "Spotify account connected.",
-        severity: "success",
-      });
+      if (loggedIn) {
+        setSpotifySnackbar({
+          open: true,
+          message: "Spotify account connected.",
+          severity: "success",
+        });
+        window.dispatchEvent(new Event("karaoke-spotify-oauth-return"));
+      } else {
+        setSpotifySnackbar({
+          open: true,
+          message:
+            "Spotify approved the link. Sign in with the same account to use playlist features.",
+          severity: "info",
+        });
+      }
     } else if (spotify === "error") {
-      const reason = params.get("reason") || "unknown";
+      const rawReason = params.get("reason") || "unknown";
+      let displayReason = rawReason;
+      try {
+        displayReason = decodeURIComponent(rawReason);
+      } catch {
+        /* use raw */
+      }
       setSpotifySnackbar({
         open: true,
-        message: `Spotify connection failed: ${decodeURIComponent(reason)}`,
+        message: `Spotify connection failed: ${displayReason}`,
         severity: "error",
       });
+      if (loggedIn) {
+        window.dispatchEvent(new Event("karaoke-spotify-oauth-return"));
+      }
     }
 
     params.delete("spotify");
@@ -207,7 +232,7 @@ function App() {
       "",
       window.location.pathname + (q ? `?${q}` : "")
     );
-  }, [currentUser]);
+  }, []);
 
   const handleLogin = (user: { id: number; username: string }) => {
     setSessionNotice(null);

@@ -190,7 +190,9 @@ export async function refreshSpotifyAccessToken(
     const msg =
       typeof data.error_description === "string"
         ? data.error_description
-        : "Refresh failed.";
+        : typeof data.error === "string"
+          ? data.error
+          : "Refresh failed.";
     throw new Error(msg);
   }
 
@@ -294,8 +296,31 @@ export async function getSpotifyRefreshTokenOrThrow(userId: number): Promise<str
   return t;
 }
 
+/** Spotify token endpoint signals the stored refresh token must be replaced. */
+export function isSpotifyRefreshTokenDeadError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("invalid_grant") ||
+    m.includes("revoked") ||
+    m.includes("invalid refresh token") ||
+    m.includes("refresh token revoked") ||
+    m.includes("expired or revoked")
+  );
+}
+
 export async function getSpotifyAccessTokenForUser(userId: number): Promise<string> {
   const refresh = await getSpotifyRefreshTokenOrThrow(userId);
-  const { access_token } = await refreshSpotifyAccessToken(refresh);
-  return access_token;
+  try {
+    const { access_token } = await refreshSpotifyAccessToken(refresh);
+    return access_token;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (isSpotifyRefreshTokenDeadError(msg)) {
+      await clearSpotifyForUser(userId);
+      throw new Error(
+        "Spotify connection was revoked or reset (e.g. new Spotify app credentials). Use Admin → Disconnect if shown, then Connect Spotify again."
+      );
+    }
+    throw err;
+  }
 }
