@@ -29,6 +29,7 @@ import {
   listSpotifyPlaylists,
   getSyncedPlaylistsForUser,
   syncSpotifyPlaylist,
+  deleteImportedSongsForSpotifyPlaylist,
 } from "./spotifyPlaylistSync.js";
 
 function apiIndexPayload(serveStatic: boolean) {
@@ -47,6 +48,7 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/spotify/playlists",
       "/api/spotify/synced-playlists",
       "/api/spotify/sync-playlist",
+      "/api/spotify/delete-imported-songs",
     ],
     data: ["/api/execute", "/api/batch"],
     note: serveStatic
@@ -402,6 +404,37 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
           err instanceof Error ? err.message : "Playlist sync failed.";
         const status = message.includes("Invalid") ? 400 : 502;
         res.status(status).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    "/api/spotify/delete-imported-songs",
+    requireAuth,
+    requireSpotifyOAuth,
+    requireSpotifyLinked,
+    async (req, res) => {
+      try {
+        const userId = (req as express.Request & { userId: number }).userId;
+        const raw = (req.body as { spotifyPlaylistId?: string })
+          .spotifyPlaylistId;
+        const spotifyPlaylistId =
+          typeof raw === "string" ? raw.trim() : "";
+        if (!spotifyPlaylistId) {
+          res.status(400).json({
+            error: "Provide spotifyPlaylistId in the JSON body.",
+          });
+          return;
+        }
+        const { deleted } = await deleteImportedSongsForSpotifyPlaylist(
+          userId,
+          spotifyPlaylistId
+        );
+        res.json({ deleted });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to delete imported songs.";
+        res.status(500).json({ error: message });
       }
     }
   );

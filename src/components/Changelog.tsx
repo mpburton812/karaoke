@@ -6,6 +6,11 @@ import {
 
 const changelogData = [
   { date: '2026-05-16', description: 'Admin: Prominent restart-and-update button (SW update check, clear caches, reload)' },
+  { date: '2026-05-16', description: 'Perf: Manual iTunes import saves immediately; MB/AB enrichment runs in background' },
+  { date: '2026-05-16', description: 'Feature: Shared post-import song enrichment (KaraFun, lyrics, MB, AB) and list refresh event' },
+  { date: '2026-05-16', description: 'Feature: Spotify playlist import enriches new songs in the background after save' },
+  { date: '2026-05-16', description: 'Repertoire: Show Spotify source playlist name on synced-import tracks' },
+  { date: '2026-05-16', description: 'Admin/API: POST delete-imported-songs to clear repertoire rows for a synced playlist' },
   { date: '2026-05-15', description: 'Admin: Add force reload to fetch the latest app code (clears PWA cache)' },
   { date: '2026-05-15', description: 'Admin: Add change-password form on Admin tab' },
   { date: '2026-05-15', description: 'Security: Move Turso to Express API with JWT and password login' },

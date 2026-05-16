@@ -15,23 +15,32 @@ import {
 } from "@mui/material";
 import SyncIcon from "@mui/icons-material/Sync";
 import {
+  deleteImportedSongsFromPlaylist,
   fetchSpotifyPlaylists,
   fetchSyncedSpotifyPlaylists,
   syncSpotifyPlaylist,
   type SpotifyPlaylistItem,
   type SpotifySyncedPlaylist,
 } from "../api/spotify";
+import { KARAOKE_SONGS_REFRESH_EVENT } from "../lib/karaokeEvents";
+import { runEnrichmentForImportedSongIds } from "../utils/songEnrichment";
 
-/** Dispatched after a successful Spotify playlist sync so lists can refetch. */
-export const KARAOKE_SONGS_REFRESH_EVENT = "karaoke-songs-refresh";
+export { KARAOKE_SONGS_REFRESH_EVENT };
 
-const SpotifyPlaylistSync: React.FC = () => {
+interface SpotifyPlaylistSyncProps {
+  currentUser: { id: number; username: string };
+}
+
+const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
+  currentUser,
+}) => {
   const [playlists, setPlaylists] = useState<SpotifyPlaylistItem[]>([]);
   const [synced, setSynced] = useState<SpotifySyncedPlaylist[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [pasteUrl, setPasteUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [clearingId, setClearingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -61,6 +70,28 @@ const SpotifyPlaylistSync: React.FC = () => {
   const handleSelectChange = (e: SelectChangeEvent<string>) => {
     setSelectedId(e.target.value);
     setSuccess(null);
+  };
+
+  const handleClearImported = async (spotifyPlaylistId: string, label: string) => {
+    if (
+      !window.confirm(
+        `Remove every song in your library that was imported from “${label}”? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setClearingId(spotifyPlaylistId);
+    setError(null);
+    try {
+      const { deleted } = await deleteImportedSongsFromPlaylist(spotifyPlaylistId);
+      setSuccess(`Removed ${deleted} song(s) from “${label}”.`);
+      await load();
+      window.dispatchEvent(new Event(KARAOKE_SONGS_REFRESH_EVENT));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove songs.");
+    } finally {
+      setClearingId(null);
+    }
   };
 
   const handleSync = async () => {
@@ -97,6 +128,12 @@ const SpotifyPlaylistSync: React.FC = () => {
       setSuccess(`${r.playlistName}: ${parts.join(" ")}`);
       await load();
       window.dispatchEvent(new Event(KARAOKE_SONGS_REFRESH_EVENT));
+      if (r.addedSongIds?.length) {
+        void runEnrichmentForImportedSongIds(
+          currentUser.id,
+          r.addedSongIds
+        ).catch((e) => console.warn("[spotify enrichment] batch", e));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sync failed.");
     } finally {
@@ -192,13 +229,42 @@ const SpotifyPlaylistSync: React.FC = () => {
           >
             Recently synced
           </Typography>
-          <Box component="ul" sx={{ m: 0, pl: 2, typography: "body2" }}>
-            {synced.slice(0, 8).map((s) => (
-              <li key={s.spotifyPlaylistId}>
-                {s.playlistName ?? s.spotifyPlaylistId}
-                {s.lastSyncedAt ? ` — ${s.lastSyncedAt}` : ""}
-              </li>
-            ))}
+          <Box component="ul" sx={{ m: 0, pl: 0, listStyle: "none", typography: "body2" }}>
+            {synced.slice(0, 12).map((s) => {
+              const label = s.playlistName ?? s.spotifyPlaylistId;
+              const busy = clearingId === s.spotifyPlaylistId;
+              return (
+                <Box
+                  key={s.spotifyPlaylistId}
+                  component="li"
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 1,
+                    py: 0.5,
+                    borderBottom: 1,
+                    borderColor: "divider",
+                  }}
+                >
+                  <span>
+                    {label}
+                    {s.lastSyncedAt ? ` — ${s.lastSyncedAt}` : ""}
+                  </span>
+                  <Button
+                    size="small"
+                    color="warning"
+                    variant="outlined"
+                    disabled={busy}
+                    onClick={() =>
+                      void handleClearImported(s.spotifyPlaylistId, label)
+                    }
+                  >
+                    {busy ? "Removing…" : "Remove imported songs"}
+                  </Button>
+                </Box>
+              );
+            })}
           </Box>
         </Box>
       )}

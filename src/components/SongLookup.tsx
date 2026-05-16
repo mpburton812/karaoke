@@ -25,7 +25,9 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import axios from 'axios';
 import { db } from '../db';
+import { KARAOKE_SONGS_REFRESH_EVENT } from '../lib/karaokeEvents';
 import { fetchLyrics, cleanText } from '../utils/lyricsService';
+import { runEnrichmentForImportedSongIds } from '../utils/songEnrichment';
 
 interface iTunesSong {
   trackId: number;
@@ -46,19 +48,6 @@ interface SongLookupProps {
 
 type LookupState = 'idle' | 'loading' | 'success' | 'error';
 
-interface MusicalQualities {
-  bpm: number | null;
-  key: string;
-  energy: number | null;
-  danceability: number | null;
-  happiness: number | null;
-  acousticness: number | null;
-  instrumentalness: number | null;
-  liveness: number | null;
-  speechiness: number | null;
-  loudness: number | null;
-}
-
 const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<iTunesSong[]>([]);
@@ -74,6 +63,8 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
     musicbrainz: 'idle' as LookupState,
     acousticbrainz: 'idle' as LookupState
   });
+
+  const [lyrics, setLyrics] = useState<string | null>(null);
 
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
@@ -154,64 +145,24 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
     }
   };
 
-  const [lyrics, setLyrics] = useState<string | null>(null);
-
-  const fetchMusicalQualities = async (song: iTunesSong): Promise<MusicalQualities> => {
-    let qualities: MusicalQualities = {
-      bpm: null, key: "DNF", energy: null, danceability: null, happiness: null,
-      acousticness: null, instrumentalness: null, liveness: null, speechiness: null, loudness: null
-    };
-
-    try {
-      setLookupStatus(prev => ({ ...prev, musicbrainz: 'loading' }));
-      const mbSearchUrl = `https://musicbrainz.org/ws/2/recording/?query=recording:${encodeURIComponent(song.trackName)} AND artist:${encodeURIComponent(song.artistName)}&fmt=json`;
-      const mbRes = await axios.get(mbSearchUrl);
-      const mbid = mbRes.data.recordings?.[0]?.id;
-
-      if (mbid) {
-        setLookupStatus(prev => ({ ...prev, musicbrainz: 'success', acousticbrainz: 'loading' }));
-        try {
-          const abUrl = `https://acousticbrainz.org/api/v1/${mbid}/high-level`;
-          const abRes = await axios.get(abUrl);
-          const data = abRes.data.highlevel;
-          
-          if (data) {
-            qualities = {
-              bpm: null,
-              key: data.tonal_atonal?.all?.tonal > 0.5 ? (data.key_edma?.all?.key || "DNF") : "DNF",
-              energy: data.mood_acoustic?.all?.acoustic !== undefined ? 1 - data.mood_acoustic.all.acoustic : null, 
-              danceability: data.danceability?.all?.danceable || null,
-              happiness: data.mood_happy?.all?.happy || null,
-              acousticness: data.mood_acoustic?.all?.acoustic || null,
-              instrumentalness: data.voice_instrumental?.all?.instrumental || null,
-              liveness: null,
-              speechiness: data.voice_instrumental?.all?.voice || null,
-              loudness: null
-            };
-            setLookupStatus(prev => ({ ...prev, acousticbrainz: 'success' }));
-          } else {
-            setLookupStatus(prev => ({ ...prev, acousticbrainz: 'error' }));
-          }
-        } catch {
-          setLookupStatus(prev => ({ ...prev, acousticbrainz: 'error' }));
-        }
-      } else {
-        setLookupStatus(prev => ({ ...prev, musicbrainz: 'error', acousticbrainz: 'error' }));
-      }
-    } catch {
-      setLookupStatus(prev => ({ ...prev, musicbrainz: 'error', acousticbrainz: 'error' }));
-    }
-
-    return qualities;
-  };
-
   const handleSave = async () => {
     if (!selectedSong) return;
     setSaving(true);
     try {
-      const qualities = await fetchMusicalQualities(selectedSong);
+      const qualities = {
+        bpm: null as number | null,
+        key: "DNF",
+        energy: null as number | null,
+        danceability: null as number | null,
+        happiness: null as number | null,
+        acousticness: null as number | null,
+        instrumentalness: null as number | null,
+        liveness: null as number | null,
+        speechiness: null as number | null,
+        loudness: null as number | null,
+      };
 
-      await db.execute({
+      const ins = await db.execute({
         sql: `INSERT INTO songs (
           user_id, itunes_id, track_name, artist_name, artwork_url, karafun_available,
           key, bpm, duration_ms, popularity, energy, danceability, happiness,
@@ -239,7 +190,8 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
           album = excluded.album,
           genre = excluded.genre,
           release_year = excluded.release_year,
-          lyrics = excluded.lyrics`,
+          lyrics = excluded.lyrics
+        RETURNING id`,
         args: [
           currentUser.id,
           selectedSong.trackId,
@@ -250,7 +202,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
           qualities.key,
           qualities.bpm,
           selectedSong.trackTimeMillis,
-          null, 
+          null,
           qualities.energy,
           qualities.danceability,
           qualities.happiness,
@@ -264,17 +216,30 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
           selectedSong.collectionName,
           selectedSong.primaryGenreName,
           new Date(selectedSong.releaseDate).getFullYear(),
-          lyrics
-        ]
+          lyrics,
+        ],
       });
-      
-      setSnackbar({ open: true, message: 'Song saved successfully!', severity: 'success' });
+
+      const newId = (ins.rows[0] as unknown as { id?: number })?.id;
+      if (typeof newId === "number") {
+        void runEnrichmentForImportedSongIds(currentUser.id, [newId]).catch(
+          (e) => console.warn("[song lookup enrichment]", e)
+        );
+      }
+
+      setSnackbar({
+        open: true,
+        message:
+          "Song saved. KaraFun, lyrics, MusicBrainz, and AcousticBrainz finish in the background.",
+        severity: "success",
+      });
       if (onSongAdded) onSongAdded();
+      window.dispatchEvent(new Event(KARAOKE_SONGS_REFRESH_EVENT));
       setTimeout(() => {
         setSelectedSong(null);
         setResults([]);
         setQuery('');
-      }, 1000); // Give user a moment to see the success checkmarks
+      }, 1000);
     } catch (err) {
       console.error('Error saving song:', err);
       setSnackbar({ open: true, message: 'Failed to save song.', severity: 'error' });
@@ -362,7 +327,13 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
                   ].map((source) => (
                     <Box key={source.key} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography variant="body2">{source.label}</Typography>
-                      <StatusIcon status={lookupStatus[source.key as keyof typeof lookupStatus]} />
+                      {source.key === 'musicbrainz' || source.key === 'acousticbrainz' ? (
+                        <Typography variant="caption" color="text.secondary" sx={{ maxWidth: '55%', textAlign: 'right' }}>
+                          After save (background)
+                        </Typography>
+                      ) : (
+                        <StatusIcon status={lookupStatus[source.key as keyof typeof lookupStatus]} />
+                      )}
                     </Box>
                   ))}
                 </Box>

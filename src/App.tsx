@@ -389,7 +389,7 @@ function App() {
                 <ChangePassword />
               </Box>
 
-              <SpotifyConnect />
+              <SpotifyConnect currentUser={currentUser} />
 
               <SystemStatus />
               <Divider sx={{ my: 4 }} />

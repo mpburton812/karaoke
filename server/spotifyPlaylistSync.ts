@@ -230,6 +230,7 @@ export async function syncSpotifyPlaylist(
   skipped: number;
   playlistName: string;
   snapshotId: string;
+  addedSongIds: number[];
   unchanged?: boolean;
 }> {
   const playlistId = parseSpotifyPlaylistId(playlistIdRaw);
@@ -268,6 +269,7 @@ export async function syncSpotifyPlaylist(
       skipped: 0,
       playlistName: meta.name,
       snapshotId: meta.snapshot_id,
+      addedSongIds: [],
       unchanged: true,
     };
   }
@@ -330,6 +332,7 @@ export async function syncSpotifyPlaylist(
 
   let added = 0;
   let skipped = 0;
+  const addedSongIds: number[] = [];
   for (const [trackId, tr] of trackMap) {
     if (existingByTrack.has(trackId)) {
       skipped += 1;
@@ -338,13 +341,14 @@ export async function syncSpotifyPlaylist(
 
     const artwork = pickArtwork(tr);
     const year = releaseYear(tr);
-    await db.execute({
+    const ins = await db.execute({
       sql: `INSERT INTO songs (
         user_id, itunes_id, spotify_track_id, spotify_sync_playlist_id,
         track_name, artist_name, artwork_url, duration_ms, album, explicit,
         popularity, release_date, release_year, genre,
         karafun_available, personal_key, vocal_status
-      ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, 'Standard', 'Practicing')`,
+      ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, 'Standard', 'Practicing')
+      RETURNING id`,
       args: [
         userId,
         trackId,
@@ -360,6 +364,8 @@ export async function syncSpotifyPlaylist(
         year,
       ],
     });
+    const newRow = ins.rows[0] as { id: number } | undefined;
+    if (newRow?.id != null) addedSongIds.push(newRow.id);
     added += 1;
   }
 
@@ -379,5 +385,26 @@ export async function syncSpotifyPlaylist(
     skipped,
     playlistName: meta.name,
     snapshotId: meta.snapshot_id,
+    addedSongIds,
   };
+}
+
+/** Deletes all songs created from a Spotify playlist import for this user. */
+export async function deleteImportedSongsForSpotifyPlaylist(
+  userId: number,
+  spotifyPlaylistId: string
+): Promise<{ deleted: number }> {
+  const sel = await db.execute({
+    sql: `SELECT id FROM songs WHERE user_id = ? AND spotify_sync_playlist_id = ?`,
+    args: [userId, spotifyPlaylistId],
+  });
+  const n = sel.rows.length;
+  if (n === 0) {
+    return { deleted: 0 };
+  }
+  await db.execute({
+    sql: `DELETE FROM songs WHERE user_id = ? AND spotify_sync_playlist_id = ?`,
+    args: [userId, spotifyPlaylistId],
+  });
+  return { deleted: n };
 }

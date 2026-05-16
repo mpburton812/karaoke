@@ -114,6 +114,7 @@ export interface SpotifySyncResult {
   skipped: number;
   playlistName: string;
   snapshotId: string;
+  addedSongIds: number[];
   unchanged?: boolean;
 }
 
@@ -179,5 +180,30 @@ export async function syncSpotifyPlaylist(input: {
   if (!res.ok) {
     throw new Error(body.error || "Playlist sync failed.");
   }
-  return body;
+  return {
+    ...body,
+    addedSongIds: Array.isArray(body.addedSongIds) ? body.addedSongIds : [],
+  };
+}
+
+export async function deleteImportedSongsFromPlaylist(
+  spotifyPlaylistId: string
+): Promise<{ deleted: number }> {
+  const token = getToken();
+  if (!token) {
+    throw new Error("Not authenticated.");
+  }
+  const res = await spotifyFetch(apiUrl("/api/spotify/delete-imported-songs"), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ spotifyPlaylistId }),
+  });
+  const body = (await res.json()) as { deleted?: number; error?: string };
+  if (!res.ok) {
+    throw new Error(body.error || "Failed to remove imported songs.");
+  }
+  return { deleted: typeof body.deleted === "number" ? body.deleted : 0 };
 }

@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-05-16]
+- Admin: Prominent restart-and-update button (service worker check, clear caches, reload)
+- Perf: Manual iTunes song import saves immediately; MusicBrainz and AcousticBrainz run in background via shared enrichment
+- Feature: Centralize post-import enrichment (KaraFun, lyrics, MusicBrainz, AcousticBrainz) in `songEnrichment` with a shared `karaoke-songs-refresh` event
+- Feature: Spotify playlist import persists rows first, then enriches new song IDs in the background
+- Repertoire: Show Spotify source playlist name on tracks imported from a synced playlist
+- Admin/API: `POST /api/spotify/delete-imported-songs` removes user songs tied to a synced Spotify playlist
+
 ## [2026-05-15]
 - Admin: Add force reload to fetch the latest app code (clears PWA cache)
 - Admin: Add change-password form on Admin tab

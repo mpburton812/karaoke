@@ -17,7 +17,11 @@ import {
 } from "../api/spotify";
 import SpotifyPlaylistSync from "./SpotifyPlaylistSync";
 
-const SpotifyConnect: React.FC = () => {
+interface SpotifyConnectProps {
+  currentUser: { id: number; username: string };
+}
+
+const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ currentUser }) => {
   const [status, setStatus] = useState<SpotifyStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -188,7 +192,9 @@ const SpotifyConnect: React.FC = () => {
         </Button>
       </Box>
 
-      {status?.configured && status.linked && <SpotifyPlaylistSync />}
+      {status?.configured && status.linked && (
+        <SpotifyPlaylistSync currentUser={currentUser} />
+      )}
     </Paper>
   );
 };
