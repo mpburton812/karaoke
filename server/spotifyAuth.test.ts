@@ -9,12 +9,20 @@ vi.mock("./db.js", () => ({
 import {
   signSpotifyOAuthState,
   verifySpotifyOAuthState,
+  exchangeSpotifyCode,
   isSpotifyRefreshTokenDeadError,
   normalizeWebOrigin,
   refreshSpotifyAccessToken,
   getSpotifyAccessTokenForUser,
 } from "./spotifyAuth.js";
 import { db } from "./db.js";
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
 
 describe("isSpotifyRefreshTokenDeadError", () => {
   it("detects revoked / invalid_grant style messages", () => {
@@ -118,19 +126,50 @@ describe("refreshSpotifyAccessToken", () => {
   it("returns new_refresh_token when Spotify sends one", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({
+      vi.fn().mockResolvedValue(
+        jsonResponse({
           access_token: "acc",
           expires_in: 3600,
           refresh_token: "rotated",
-        }),
-      })
+        })
+      )
     );
     const out = await refreshSpotifyAccessToken("old");
     expect(out.access_token).toBe("acc");
     expect(out.new_refresh_token).toBe("rotated");
+  });
+});
+
+describe("exchangeSpotifyCode", () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    vi.stubEnv("SPOTIFY_CLIENT_ID", "cid");
+    vi.stubEnv("SPOTIFY_CLIENT_SECRET", "sec");
+    vi.stubEnv(
+      "SPOTIFY_REDIRECT_URI",
+      "https://example.com/api/spotify/callback"
+    );
+    vi.unstubAllGlobals();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("surfaces non-JSON Spotify token errors without a parser failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("The user is not registered in the Developer Dashboard.", {
+          status: 400,
+          headers: { "content-type": "text/plain" },
+        })
+      )
+    );
+
+    await expect(exchangeSpotifyCode("code", "verifier")).rejects.toThrow(
+      "The user is not registered in the Developer Dashboard."
+    );
   });
 });
 
@@ -156,15 +195,13 @@ describe("getSpotifyAccessTokenForUser", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({
+      vi.fn().mockResolvedValue(
+        jsonResponse({
           access_token: "acc_tok",
           expires_in: 3600,
           refresh_token: "new_long_refresh",
-        }),
-      })
+        })
+      )
     );
 
     const access = await getSpotifyAccessTokenForUser(42);
@@ -185,14 +222,12 @@ describe("getSpotifyAccessTokenForUser", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({
+      vi.fn().mockResolvedValue(
+        jsonResponse({
           access_token: "acc2",
           expires_in: 3600,
-        }),
-      })
+        })
+      )
     );
 
     await getSpotifyAccessTokenForUser(1);

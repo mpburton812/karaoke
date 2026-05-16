@@ -166,6 +166,41 @@ export function buildSpotifyAuthorizeUrl(
   return `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
 
+function compactResponseText(text: string): string {
+  const compact = text.replace(/\s+/g, " ").trim();
+  return compact.length > 300 ? `${compact.slice(0, 300)}...` : compact;
+}
+
+async function readSpotifyJson(
+  res: Response,
+  invalidJsonMessage: string
+): Promise<Record<string, unknown>> {
+  const text = await res.text();
+  if (!text.trim()) return {};
+
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    if (!res.ok && typeof parsed === "string" && parsed.trim()) {
+      return { error_description: compactResponseText(parsed) };
+    }
+  } catch {
+    const responseText = compactResponseText(text);
+    if (!res.ok && responseText) {
+      return { error_description: responseText };
+    }
+    throw new Error(
+      responseText
+        ? `${invalidJsonMessage}: ${responseText}`
+        : invalidJsonMessage
+    );
+  }
+
+  return {};
+}
+
 export async function exchangeSpotifyCode(
   code: string,
   codeVerifier: string
@@ -194,7 +229,10 @@ export async function exchangeSpotifyCode(
     body,
   });
 
-  const data = (await res.json()) as Record<string, unknown>;
+  const data = await readSpotifyJson(
+    res,
+    "Invalid token response from Spotify."
+  );
   if (!res.ok) {
     const msg =
       typeof data.error_description === "string"
@@ -239,7 +277,10 @@ export async function refreshSpotifyAccessToken(
     body,
   });
 
-  const data = (await res.json()) as Record<string, unknown>;
+  const data = await readSpotifyJson(
+    res,
+    "Invalid refresh response from Spotify."
+  );
   if (!res.ok) {
     const msg =
       typeof data.error_description === "string"
@@ -273,7 +314,10 @@ export async function fetchSpotifyCurrentUser(accessToken: string): Promise<{
   const res = await fetch("https://api.spotify.com/v1/me", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  const data = (await res.json()) as Record<string, unknown>;
+  const data = await readSpotifyJson(
+    res,
+    "Invalid profile response from Spotify."
+  );
   if (!res.ok) {
     const errObj = data.error as { message?: string } | undefined;
     const msg =
@@ -386,7 +430,8 @@ export async function getSpotifyAccessTokenForUser(userId: number): Promise<stri
     if (isSpotifyRefreshTokenDeadError(msg)) {
       await clearSpotifyForUser(userId);
       throw new Error(
-        "Spotify connection was revoked or reset (e.g. new Spotify app credentials). Use Admin → Disconnect if shown, then Connect Spotify again."
+        "Spotify connection was revoked or reset (e.g. new Spotify app credentials). Use Admin → Disconnect if shown, then Connect Spotify again.",
+        { cause: err }
       );
     }
     throw err;
