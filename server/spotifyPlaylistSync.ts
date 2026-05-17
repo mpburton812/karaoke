@@ -339,6 +339,25 @@ export async function syncSpotifyPlaylist(
       continue;
     }
 
+    const artistName = artistNames(tr);
+    const duplicate = await db.execute({
+      sql: `SELECT id FROM songs
+            WHERE user_id = ?
+              AND (
+                spotify_track_id = ?
+                OR (
+                  lower(trim(track_name)) = lower(trim(?))
+                  AND lower(trim(artist_name)) = lower(trim(?))
+                )
+              )
+            LIMIT 1`,
+      args: [userId, trackId, tr.name, artistName],
+    });
+    if (duplicate.rows.length > 0) {
+      skipped += 1;
+      continue;
+    }
+
     const artwork = pickArtwork(tr);
     const year = releaseYear(tr);
     const ins = await db.execute({
@@ -354,7 +373,7 @@ export async function syncSpotifyPlaylist(
         trackId,
         playlistId,
         tr.name,
-        artistNames(tr),
+        artistName,
         artwork,
         tr.duration_ms ?? 0,
         tr.album?.name ?? null,

@@ -88,6 +88,41 @@ describe("API routes", () => {
     });
   });
 
+  describe("Enrichment API", () => {
+    it("GET /api/enrichment/status returns counters for authenticated user", async () => {
+      mockExecute
+        .mockResolvedValueOnce({ rows: [{ c: 2 }] })
+        .mockResolvedValueOnce({ rows: [{ c: 5 }] });
+
+      const token = signToken({ id: USER_ID, username: "tester" });
+      const res = await request(app)
+        .get("/api/enrichment/status")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.pending).toBe(2);
+      expect(res.body.totalSongs).toBe(5);
+      expect(res.body.running).toBe(false);
+    });
+
+    it("POST /api/enrichment/run starts an empty enrichment scan", async () => {
+      mockExecute
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ c: 0 }] })
+        .mockResolvedValueOnce({ rows: [{ c: 0 }] });
+
+      const token = signToken({ id: USER_ID, username: "tester" });
+      const res = await request(app)
+        .post("/api/enrichment/run")
+        .set("Authorization", `Bearer ${token}`)
+        .send({});
+
+      expect(res.status).toBe(200);
+      expect(res.body.running).toBe(false);
+      expect(res.body.message).toBe("No songs need enrichment.");
+    });
+  });
+
   describe("POST /api/execute", () => {
     it("requires authentication", async () => {
       const res = await request(app)

@@ -37,6 +37,7 @@ const Stats = lazy(() => import('./components/Stats'));
 const ChangePassword = lazy(() => import('./components/ChangePassword'));
 const AdminAppReload = lazy(() => import('./components/AdminAppReload'));
 const SpotifyConnect = lazy(() => import('./components/SpotifyConnect'));
+const EnrichmentAdmin = lazy(() => import('./components/EnrichmentAdmin'));
 
 type ThemeMode = 'light' | 'dark' | 'trans';
 type SpotifySnackbarState = {
@@ -411,6 +412,7 @@ function App() {
               </Box>
 
               <SpotifyConnect currentUser={currentUser} />
+              <EnrichmentAdmin />
 
               <SystemStatus />
               <Divider sx={{ my: 4 }} />

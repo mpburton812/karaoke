@@ -1,4 +1,5 @@
 import axios from "axios";
+import { startEnrichmentRun } from "../api/enrichment";
 import { db } from "../db";
 import { KARAOKE_SONGS_REFRESH_EVENT } from "../lib/karaokeEvents";
 import { fetchLyrics, cleanText } from "./lyricsService";
@@ -115,10 +116,6 @@ export async function fetchMusicalQualitiesForNames(
   return qualities;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
 export async function enrichSpotifyImportedSong(
   userId: number,
   songId: number,
@@ -177,27 +174,7 @@ export async function runEnrichmentForImportedSongIds(
   userId: number,
   songIds: number[]
 ): Promise<void> {
-  for (let i = 0; i < songIds.length; i++) {
-    if (i > 0) await sleep(1100);
-    const songId = songIds[i]!;
-    try {
-      const res = await db.execute({
-        sql: `SELECT id, track_name, artist_name FROM songs WHERE id = ? AND user_id = ?`,
-        args: [songId, userId],
-      });
-      const row = res.rows[0] as unknown as
-        | { id: number; track_name: string; artist_name: string }
-        | undefined;
-      if (!row) continue;
-      await enrichSpotifyImportedSong(
-        userId,
-        row.id,
-        row.track_name,
-        row.artist_name
-      );
-    } catch (e) {
-      console.warn("[spotify enrichment] song", songId, e);
-    }
-  }
+  void userId;
+  await startEnrichmentRun(songIds);
   window.dispatchEvent(new Event(KARAOKE_SONGS_REFRESH_EVENT));
 }

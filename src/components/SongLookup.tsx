@@ -149,6 +149,41 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
     if (!selectedSong) return;
     setSaving(true);
     try {
+      const duplicate = await db.execute({
+        sql: `SELECT id, track_name, artist_name FROM songs
+              WHERE user_id = ?
+                AND (
+                  itunes_id = ?
+                  OR (
+                    lower(trim(track_name)) = lower(trim(?))
+                    AND lower(trim(artist_name)) = lower(trim(?))
+                  )
+                )
+              LIMIT 1`,
+        args: [
+          currentUser.id,
+          selectedSong.trackId,
+          selectedSong.trackName,
+          selectedSong.artistName,
+        ],
+      });
+      const existing = duplicate.rows[0] as
+        | { id?: number; track_name?: string; artist_name?: string }
+        | undefined;
+      if (existing?.id) {
+        void runEnrichmentForImportedSongIds(currentUser.id, [existing.id]).catch(
+          (e) => console.warn("[song lookup enrichment]", e)
+        );
+        setSnackbar({
+          open: true,
+          message: `"${existing.track_name ?? selectedSong.trackName}" is already in your song list. No duplicate was added.`,
+          severity: "success",
+        });
+        if (onSongAdded) onSongAdded();
+        setSaving(false);
+        return;
+      }
+
       const qualities = {
         bpm: null as number | null,
         key: "DNF",
@@ -169,28 +204,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
           acousticness, instrumentalness, liveness, speechiness, loudness,
           release_date, explicit, album, genre, release_year, lyrics
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(user_id, itunes_id) DO UPDATE SET
-          track_name = excluded.track_name,
-          artist_name = excluded.artist_name,
-          artwork_url = excluded.artwork_url,
-          karafun_available = excluded.karafun_available,
-          key = excluded.key,
-          bpm = excluded.bpm,
-          duration_ms = excluded.duration_ms,
-          energy = excluded.energy,
-          danceability = excluded.danceability,
-          happiness = excluded.happiness,
-          acousticness = excluded.acousticness,
-          instrumentalness = excluded.instrumentalness,
-          liveness = excluded.liveness,
-          speechiness = excluded.speechiness,
-          loudness = excluded.loudness,
-          release_date = excluded.release_date,
-          explicit = excluded.explicit,
-          album = excluded.album,
-          genre = excluded.genre,
-          release_year = excluded.release_year,
-          lyrics = excluded.lyrics
+        ON CONFLICT(user_id, itunes_id) DO NOTHING
         RETURNING id`,
         args: [
           currentUser.id,
@@ -221,11 +235,19 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
       });
 
       const newId = (ins.rows[0] as unknown as { id?: number })?.id;
-      if (typeof newId === "number") {
-        void runEnrichmentForImportedSongIds(currentUser.id, [newId]).catch(
-          (e) => console.warn("[song lookup enrichment]", e)
-        );
+      if (typeof newId !== "number") {
+        setSnackbar({
+          open: true,
+          message: "That song is already in your song list. No duplicate was added.",
+          severity: "success",
+        });
+        if (onSongAdded) onSongAdded();
+        setSaving(false);
+        return;
       }
+      void runEnrichmentForImportedSongIds(currentUser.id, [newId]).catch(
+        (e) => console.warn("[song lookup enrichment]", e)
+      );
 
       setSnackbar({
         open: true,

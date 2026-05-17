@@ -36,6 +36,10 @@ import {
   recordSpotifyDiagnostic,
   spotifyErrorDetails,
 } from "./spotifyDiagnostics.js";
+import {
+  getEnrichmentStatus,
+  startEnrichmentJob,
+} from "./songEnrichment.js";
 
 function apiIndexPayload(serveStatic: boolean) {
   return {
@@ -55,6 +59,8 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/spotify/synced-playlists",
       "/api/spotify/sync-playlist",
       "/api/spotify/delete-imported-songs",
+      "/api/enrichment/status",
+      "/api/enrichment/run",
     ],
     data: ["/api/execute", "/api/batch"],
     note: serveStatic
@@ -209,6 +215,34 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       const message = err instanceof Error ? err.message : "Password change failed.";
       const status = message.includes("incorrect") ? 401 : 400;
       res.status(status).json({ error: message });
+    }
+  });
+
+  app.get("/api/enrichment/status", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as express.Request & { userId: number }).userId;
+      res.json(await getEnrichmentStatus(userId));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to read enrichment status.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.post("/api/enrichment/run", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as express.Request & { userId: number }).userId;
+      const rawSongIds = (req.body as { songIds?: unknown }).songIds;
+      const songIds = Array.isArray(rawSongIds)
+        ? rawSongIds
+            .map((v) => (typeof v === "number" ? v : Number(v)))
+            .filter((v) => Number.isFinite(v) && v > 0)
+        : undefined;
+      res.json(await startEnrichmentJob(userId, songIds));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to start enrichment.";
+      res.status(500).json({ error: message });
     }
   });
 
