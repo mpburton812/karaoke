@@ -7,14 +7,15 @@ import {
   Button, 
   CircularProgress,
   Divider,
-  Chip
+  Chip,
+  Alert
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
-import axios from 'axios';
 import { db } from '../db';
+import { syncKarafunCatalog } from '../api/karafun';
 
 const SystemStatus = () => {
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
@@ -22,7 +23,10 @@ const SystemStatus = () => {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(0);
+  const [syncNotice, setSyncNotice] = useState<{
+    severity: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   const checkStatus = useCallback(async () => {
     setLoading(true);
@@ -52,61 +56,26 @@ const SystemStatus = () => {
     if (!window.confirm("This will download the entire KaraFun catalog (~5MB) and update your database. Continue?")) return;
     
     setSyncing(true);
-    setSyncProgress(0);
+    setSyncNotice(null);
     try {
-      const KARA_URL = 'https://www.karafun.com/cl/3107312/bc24526ef023397ecac1814014ca8f14/';
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(KARA_URL)}`;
-      
-      const response = await axios.get(proxyUrl);
-      const csvText = response.data.contents;
-      
-      if (!csvText) throw new Error("Failed to fetch catalog content");
-
-      const lines = csvText.split('\n').filter((l: string) => l.trim() !== '');
-      lines.shift(); // Remove header
-
-      const total = lines.length;
-      const batchSize = 100;
-      
-      await db.execute("DELETE FROM karafun_catalog");
-
-      for (let i = 0; i < lines.length; i += batchSize) {
-        const batch = lines.slice(i, i + batchSize);
-        const statements = batch.map((line: string): { sql: string; args: (string | number)[] } | null => {
-          const parts = line.split(';');
-          if (parts.length < 3) return null;
-          
-          return {
-            sql: "INSERT INTO karafun_catalog (id, title, artist, duration, styles) VALUES (?, ?, ?, ?, ?)",
-            args: [
-              parseInt(parts[0]) || 0, 
-              parts[1]?.replace(/^"|"$/g, '') || '', 
-              parts[2]?.replace(/^"|"$/g, '') || '', 
-              parseInt(parts[3]) || 0, // Year
-              parts[7]?.replace(/^"|"$/g, '') || ''  // Styles
-            ]
-          };
-        }).filter((s: { sql: string; args: (string | number)[] } | null): s is { sql: string; args: (string | number)[] } => s !== null);
-
-        await db.batch(statements);
-        setSyncProgress(Math.round(((i + batch.length) / total) * 100));
-      }
-
-      const now = new Date().toISOString();
-      await db.execute({
-        sql: "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
-        args: ["karafun_last_updated", now]
+      const result = await syncKarafunCatalog();
+      setLastUpdated(result.updatedAt);
+      setKarafunCount(result.count);
+      setSyncNotice({
+        severity: 'success',
+        message: `KaraFun catalog synced (${result.count.toLocaleString()} records).`,
       });
-
-      setLastUpdated(now);
-      setKarafunCount(total);
-      alert("Sync complete!");
     } catch (err) {
       console.error("Sync failed:", err);
-      alert("Sync failed. Check console for details.");
+      setSyncNotice({
+        severity: 'error',
+        message:
+          err instanceof Error
+            ? err.message
+            : 'KaraFun catalog sync failed.',
+      });
     } finally {
       setSyncing(false);
-      setSyncProgress(0);
     }
   };
 
@@ -125,6 +94,16 @@ const SystemStatus = () => {
       </Box>
       
       <Divider sx={{ mb: 3 }} />
+
+      {syncNotice && (
+        <Alert
+          severity={syncNotice.severity}
+          sx={{ mb: 2 }}
+          onClose={() => setSyncNotice(null)}
+        >
+          {syncNotice.message}
+        </Alert>
+      )}
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, sm: 4 }}>
@@ -163,7 +142,7 @@ const SystemStatus = () => {
           fullWidth
           sx={{ maxWidth: 300 }}
         >
-          {syncing ? `Syncing (${syncProgress}%)` : 'Sync KaraFun Catalog'}
+          {syncing ? 'Syncing…' : 'Sync KaraFun Catalog'}
         </Button>
         <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }}>
           Automatically fetches the latest library from KaraFun.com

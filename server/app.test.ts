@@ -123,6 +123,43 @@ describe("API routes", () => {
     });
   });
 
+  describe("KaraFun sync", () => {
+    beforeEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("syncs the KaraFun catalog on the server", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          new Response(
+            'id;title;artist;duration;year;foo;bar;styles\n1;"Song";"Artist";180;;;;"Pop"',
+            { status: 200 }
+          )
+        )
+      );
+      mockExecute
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
+      mockBatch.mockResolvedValueOnce([{ rows: [] }]);
+
+      const token = signToken({ id: USER_ID, username: "tester" });
+      const res = await request(app)
+        .post("/api/karafun/sync")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.count).toBe(1);
+      expect(typeof res.body.updatedAt).toBe("string");
+      expect(mockExecute).toHaveBeenCalledWith("DELETE FROM karafun_catalog");
+      expect(mockBatch).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("POST /api/execute", () => {
     it("requires authentication", async () => {
       const res = await request(app)

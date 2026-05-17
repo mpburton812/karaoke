@@ -5,6 +5,12 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-17', description: 'Fix: Backend KaraFun catalog sync with inline success/error messages' },
+  { date: '2026-05-17', description: 'Repertoire: Multi-select vocal status filter includes songs matching any selected status' },
+  { date: '2026-05-17', description: 'Admin: Backend song enrichment jobs with progress counter and auto-check button' },
+  { date: '2026-05-17', description: 'Spotify: Track song membership across multiple playlists and link duplicates instead of inserting them' },
+  { date: '2026-05-17', description: 'Spotify: Only delete Spotify-created songs after their final playlist link is removed' },
+  { date: '2026-05-17', description: 'Spotify: Add diagnostics panel and clearer OAuth/profile errors' },
   { date: '2026-05-16', description: 'Admin: Prominent restart-and-update button (SW update check, clear caches, reload)' },
   { date: '2026-05-16', description: 'Perf: Manual iTunes import saves immediately; MB/AB enrichment runs in background' },
   { date: '2026-05-16', description: 'Feature: Shared post-import song enrichment (KaraFun, lyrics, MB, AB) and list refresh event' },

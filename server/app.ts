@@ -40,6 +40,7 @@ import {
   getEnrichmentStatus,
   startEnrichmentJob,
 } from "./songEnrichment.js";
+import { syncKarafunCatalog } from "./karafunSync.js";
 
 function apiIndexPayload(serveStatic: boolean) {
   return {
@@ -61,6 +62,7 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/spotify/delete-imported-songs",
       "/api/enrichment/status",
       "/api/enrichment/run",
+      "/api/karafun/sync",
     ],
     data: ["/api/execute", "/api/batch"],
     note: serveStatic
@@ -243,6 +245,16 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       const message =
         err instanceof Error ? err.message : "Failed to start enrichment.";
       res.status(500).json({ error: message });
+    }
+  });
+
+  app.post("/api/karafun/sync", requireAuth, async (_req, res) => {
+    try {
+      res.json(await syncKarafunCatalog());
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "KaraFun catalog sync failed.";
+      res.status(502).json({ error: message });
     }
   });
 

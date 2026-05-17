@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-05-17]
+- Fix: Move KaraFun catalog sync to the backend and show real sync errors inline instead of a generic browser alert.
+- Repertoire: Allow multi-select vocal status filtering; songs match any selected status.
+- Admin: Add backend song enrichment jobs with progress counters and an auto-check-all button.
+- Spotify: Track song membership across multiple playlists, link duplicates instead of inserting them, and only delete Spotify-created songs after their final playlist link is removed.
+- Spotify: Add OAuth/profile error diagnostics and safer Spotify error messages.
+- Spotify: Remove synced playlist entries when playlist links are removed.
+
 ## [2026-05-16]
 - Admin: Prominent restart-and-update button (service worker check, clear caches, reload)
 - Perf: Manual iTunes song import saves immediately; MusicBrainz and AcousticBrainz run in background via shared enrichment
