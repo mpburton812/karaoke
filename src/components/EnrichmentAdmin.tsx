@@ -87,12 +87,22 @@ const EnrichmentAdmin: React.FC = () => {
     }
   };
 
-  const progress =
-    status.requested > 0
+  const enriched = Math.max(0, status.totalSongs - status.pending);
+  const progress = status.running
+    ? status.requested > 0
       ? Math.round((status.processed / status.requested) * 100)
-      : status.pending === 0
-        ? 100
-        : 0;
+      : 0
+    : status.totalSongs > 0
+      ? Math.round((enriched / status.totalSongs) * 100)
+      : 100;
+  const detailText =
+    status.currentSong ??
+    (status.running
+      ? status.message
+      : status.pending > 0
+        ? `${enriched} enriched, ${status.pending} remaining.`
+        : status.message) ??
+    "Idle";
 
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 3, textAlign: "left" }}>
@@ -122,7 +132,7 @@ const EnrichmentAdmin: React.FC = () => {
         sx={{ mb: 1, borderRadius: 1 }}
       />
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
-        {status.currentSong ?? status.message ?? "Idle"}
+        {detailText}
         {status.failed > 0 ? ` (${status.failed} failed)` : ""}
       </Typography>
 

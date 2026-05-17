@@ -363,6 +363,11 @@ export async function getEnrichmentStatus(
     };
   }
 
+  const idleMessage =
+    !job.running && pending > 0
+      ? `${pending} song(s) still need enrichment.`
+      : job.message;
+
   return {
     running: job.running,
     requested: job.requested,
@@ -376,7 +381,7 @@ export async function getEnrichmentStatus(
     startedAt: job.startedAt,
     updatedAt: job.updatedAt,
     completedAt: job.completedAt,
-    message: job.message,
+    message: idleMessage,
     errors: [...job.errors],
   };
 }
