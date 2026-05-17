@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./db.js", () => ({
   db: { execute: vi.fn(), batch: vi.fn() },
@@ -6,10 +6,12 @@ vi.mock("./db.js", () => ({
 }));
 
 import {
+  deleteImportedSongsForSpotifyPlaylist,
   parseSpotifyPlaylistId,
   readSimplifiedPlaylistTrackTotal,
   playlistAllowsTrackImport,
 } from "./spotifyPlaylistSync.js";
+import { db } from "./db.js";
 
 describe("readSimplifiedPlaylistTrackTotal", () => {
   it("reads total from items ref (Spotify simplified playlist shape)", () => {
@@ -84,5 +86,46 @@ describe("playlistAllowsTrackImport", () => {
 
   it("disallows when your id is empty", () => {
     expect(playlistAllowsTrackImport("", "x", false)).toBe(false);
+  });
+});
+
+describe("deleteImportedSongsForSpotifyPlaylist", () => {
+  beforeEach(() => {
+    vi.mocked(db.execute).mockReset();
+  });
+
+  it("deletes imported songs and removes the playlist sync entry", async () => {
+    vi.mocked(db.execute)
+      .mockResolvedValueOnce({ rows: [{ id: 1 }, { id: 2 }] } as never)
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({ rows: [] } as never);
+
+    const result = await deleteImportedSongsForSpotifyPlaylist(42, "spotify-pl");
+
+    expect(result.deleted).toBe(2);
+    expect(db.execute).toHaveBeenCalledTimes(3);
+    expect(vi.mocked(db.execute).mock.calls[1]![0]).toMatchObject({
+      sql: expect.stringContaining("DELETE FROM songs"),
+      args: [42, "spotify-pl"],
+    });
+    expect(vi.mocked(db.execute).mock.calls[2]![0]).toMatchObject({
+      sql: expect.stringContaining("DELETE FROM spotify_synced_playlists"),
+      args: [42, "spotify-pl"],
+    });
+  });
+
+  it("removes the playlist sync entry even when no imported songs remain", async () => {
+    vi.mocked(db.execute)
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({ rows: [] } as never);
+
+    const result = await deleteImportedSongsForSpotifyPlaylist(42, "empty-pl");
+
+    expect(result.deleted).toBe(0);
+    expect(db.execute).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(db.execute).mock.calls[1]![0]).toMatchObject({
+      sql: expect.stringContaining("DELETE FROM spotify_synced_playlists"),
+      args: [42, "empty-pl"],
+    });
   });
 });

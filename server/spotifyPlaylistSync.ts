@@ -399,11 +399,14 @@ export async function deleteImportedSongsForSpotifyPlaylist(
     args: [userId, spotifyPlaylistId],
   });
   const n = sel.rows.length;
-  if (n === 0) {
-    return { deleted: 0 };
+  if (n > 0) {
+    await db.execute({
+      sql: `DELETE FROM songs WHERE user_id = ? AND spotify_sync_playlist_id = ?`,
+      args: [userId, spotifyPlaylistId],
+    });
   }
   await db.execute({
-    sql: `DELETE FROM songs WHERE user_id = ? AND spotify_sync_playlist_id = ?`,
+    sql: `DELETE FROM spotify_synced_playlists WHERE user_id = ? AND spotify_playlist_id = ?`,
     args: [userId, spotifyPlaylistId],
   });
   return { deleted: n };
