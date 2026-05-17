@@ -4,7 +4,7 @@ import {
   Avatar, Typography, Paper, Divider, Button, Grid, Chip, IconButton,
   CircularProgress, Alert, Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Select, MenuItem, FormControl, InputLabel,
+  Select, MenuItem, FormControl, InputLabel, Checkbox,
   Autocomplete, Rating, SvgIcon, Tooltip
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -104,7 +104,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [genreFilter, setGenreFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
 
   // Performance Dialog State
   const [perfDialogOpen, setPerfDialogOpen] = useState(false);
@@ -373,11 +373,13 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch = title.includes(q) || artist.includes(q);
     const matchesGenre = genreFilter === 'All' || song.genre === genreFilter;
-    const matchesStatus = statusFilter === 'All' || song.vocal_status === statusFilter;
+    const status = song.vocal_status || 'Practicing';
+    const matchesStatus = statusFilter.length === 0 || statusFilter.includes(status);
     return matchesSearch && matchesGenre && matchesStatus;
   });
 
   const genres = ['All', ...new Set(songs.map(s => s.genre).filter(Boolean))];
+  const statusOptions = ['Mastered', 'Proficient', 'Practicing'];
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
   if (error) return <Alert severity="error">{error}</Alert>;
@@ -674,8 +676,25 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <InputLabel>Status</InputLabel>
-            <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
-              {['All', 'Mastered', 'Proficient', 'Practicing'].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+            <Select
+              multiple
+              value={statusFilter}
+              label="Status"
+              onChange={(e) => {
+                const value = e.target.value;
+                setStatusFilter(typeof value === 'string' ? value.split(',') : value);
+              }}
+              renderValue={(selected) =>
+                selected.length === 0 ? 'All statuses' : selected.join(', ')
+              }
+              displayEmpty
+            >
+              {statusOptions.map(s => (
+                <MenuItem key={s} value={s}>
+                  <Checkbox checked={statusFilter.includes(s)} />
+                  <ListItemText primary={s} />
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Paper>
