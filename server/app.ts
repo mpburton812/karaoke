@@ -561,11 +561,11 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
           });
           return;
         }
-        const { deleted } = await deleteImportedSongsForSpotifyPlaylist(
+        const { deleted, unlinked } = await deleteImportedSongsForSpotifyPlaylist(
           userId,
           spotifyPlaylistId
         );
-        res.json({ deleted });
+        res.json({ deleted, unlinked });
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to delete imported songs.";

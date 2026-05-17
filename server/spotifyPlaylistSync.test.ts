@@ -10,6 +10,7 @@ import {
   parseSpotifyPlaylistId,
   readSimplifiedPlaylistTrackTotal,
   playlistAllowsTrackImport,
+  syncSpotifyPlaylist,
 } from "./spotifyPlaylistSync.js";
 import { db } from "./db.js";
 
@@ -94,21 +95,28 @@ describe("deleteImportedSongsForSpotifyPlaylist", () => {
     vi.mocked(db.execute).mockReset();
   });
 
-  it("deletes imported songs and removes the playlist sync entry", async () => {
+  it("unlinks playlist songs and deletes orphaned Spotify-created songs", async () => {
     vi.mocked(db.execute)
-      .mockResolvedValueOnce({ rows: [{ id: 1 }, { id: 2 }] } as never)
+      .mockResolvedValueOnce({ rows: [{ song_id: 1 }, { song_id: 2 }] } as never)
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({ rows: [{ c: 1 }] } as never)
+      .mockResolvedValueOnce({ rows: [] } as never)
       .mockResolvedValueOnce({ rows: [] } as never)
       .mockResolvedValueOnce({ rows: [] } as never);
 
     const result = await deleteImportedSongsForSpotifyPlaylist(42, "spotify-pl");
 
-    expect(result.deleted).toBe(2);
-    expect(db.execute).toHaveBeenCalledTimes(3);
+    expect(result).toEqual({ deleted: 1, unlinked: 2 });
+    expect(db.execute).toHaveBeenCalledTimes(6);
     expect(vi.mocked(db.execute).mock.calls[1]![0]).toMatchObject({
-      sql: expect.stringContaining("DELETE FROM songs"),
+      sql: expect.stringContaining("DELETE FROM spotify_playlist_songs"),
       args: [42, "spotify-pl"],
     });
-    expect(vi.mocked(db.execute).mock.calls[2]![0]).toMatchObject({
+    expect(vi.mocked(db.execute).mock.calls[3]![0]).toMatchObject({
+      sql: expect.stringContaining("DELETE FROM songs"),
+      args: [42, 1, 2],
+    });
+    expect(vi.mocked(db.execute).mock.calls[5]![0]).toMatchObject({
       sql: expect.stringContaining("DELETE FROM spotify_synced_playlists"),
       args: [42, "spotify-pl"],
     });
@@ -121,11 +129,93 @@ describe("deleteImportedSongsForSpotifyPlaylist", () => {
 
     const result = await deleteImportedSongsForSpotifyPlaylist(42, "empty-pl");
 
-    expect(result.deleted).toBe(0);
+    expect(result).toEqual({ deleted: 0, unlinked: 0 });
     expect(db.execute).toHaveBeenCalledTimes(2);
     expect(vi.mocked(db.execute).mock.calls[1]![0]).toMatchObject({
       sql: expect.stringContaining("DELETE FROM spotify_synced_playlists"),
       args: [42, "empty-pl"],
+    });
+  });
+});
+
+describe("syncSpotifyPlaylist duplicate linking", () => {
+  beforeEach(() => {
+    vi.mocked(db.execute).mockReset();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.stubEnv("SPOTIFY_CLIENT_ID", "cid");
+    vi.stubEnv("SPOTIFY_CLIENT_SECRET", "secret");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("links an existing library song to the playlist instead of inserting a duplicate", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ access_token: "access", expires_in: 3600 }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              id: "playlist123456789",
+              name: "Playlist One",
+              snapshot_id: "snap1",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              items: [
+                {
+                  track: {
+                    id: "track1",
+                    name: "Already Here",
+                    artists: [{ name: "The Artist" }],
+                    album: {},
+                    duration_ms: 123000,
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        )
+    );
+
+    vi.mocked(db.execute)
+      .mockResolvedValueOnce({
+        rows: [{ spotify_refresh_token: "refresh" }],
+      } as never)
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({
+        rows: [
+          { id: 99, track_name: "Already Here", artist_name: "The Artist" },
+        ],
+      } as never)
+      .mockResolvedValueOnce({ rows: [] } as never);
+
+    const result = await syncSpotifyPlaylist(42, "playlist123456789");
+
+    expect(result.added).toBe(0);
+    expect(result.linkedExisting).toBe(1);
+    expect(result.duplicateSongs).toEqual([
+      { trackName: "Already Here", artistName: "The Artist" },
+    ]);
+    expect(db.execute).toHaveBeenCalledTimes(6);
+    expect(vi.mocked(db.execute).mock.calls[5]![0]).toMatchObject({
+      sql: expect.stringContaining("INSERT OR IGNORE INTO spotify_playlist_songs"),
+      args: [42, "playlist123456789", 99, "track1", "Already Here", "The Artist"],
     });
   });
 });

@@ -127,10 +127,17 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     setLoading(true);
     try {
       const result = await db.execute({
-        sql: `SELECT s.*, p.playlist_name AS spotify_source_playlist_name
+        sql: `SELECT s.*, sp.spotify_source_playlist_name
               FROM songs s
-              LEFT JOIN spotify_synced_playlists p
-                ON s.user_id = p.user_id AND s.spotify_sync_playlist_id = p.spotify_playlist_id
+              LEFT JOIN (
+                SELECT ps.user_id, ps.song_id, group_concat(p.playlist_name, ', ') AS spotify_source_playlist_name
+                FROM spotify_playlist_songs ps
+                JOIN spotify_synced_playlists p
+                  ON p.user_id = ps.user_id
+                 AND p.spotify_playlist_id = ps.spotify_playlist_id
+                GROUP BY ps.user_id, ps.song_id
+              ) sp
+                ON s.user_id = sp.user_id AND s.id = sp.song_id
               WHERE s.user_id = ?
               ORDER BY s.id DESC`,
         args: [currentUser.id]
@@ -444,10 +451,10 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                 <Chip label={selectedSong.genre || 'Unknown Genre'} color="secondary" variant="outlined" />
                 <Chip label={selectedSong.release_year || 'Unknown Year'} variant="outlined" />
                 <Chip label={selectedSong.karafun_available ? "KaraFun Available" : "Not on KaraFun"} color={selectedSong.karafun_available ? "success" : "default"} variant="outlined" />
-                {selectedSong.spotify_track_id && selectedSong.spotify_source_playlist_name && (
+                {selectedSong.spotify_source_playlist_name && (
                   <Chip
                     icon={<SpotifyGlyphIcon />}
-                    label={`From: ${selectedSong.spotify_source_playlist_name}`}
+                    label={`Spotify: ${selectedSong.spotify_source_playlist_name}`}
                     variant="outlined"
                     sx={{ borderColor: '#1DB954', color: '#1DB954', '& .MuiChip-icon': { color: '#1DB954' } }}
                   />

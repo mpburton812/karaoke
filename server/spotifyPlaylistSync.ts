@@ -227,7 +227,10 @@ export async function syncSpotifyPlaylist(
 ): Promise<{
   added: number;
   removed: number;
+  unlinked: number;
   skipped: number;
+  linkedExisting: number;
+  duplicateSongs: Array<{ trackName: string; artistName: string }>;
   playlistName: string;
   snapshotId: string;
   addedSongIds: number[];
@@ -266,7 +269,10 @@ export async function syncSpotifyPlaylist(
     return {
       added: 0,
       removed: 0,
+      unlinked: 0,
       skipped: 0,
+      linkedExisting: 0,
+      duplicateSongs: [],
       playlistName: meta.name,
       snapshotId: meta.snapshot_id,
       addedSongIds: [],
@@ -298,19 +304,30 @@ export async function syncSpotifyPlaylist(
     offset += limit;
   }
 
+  await db.execute({
+    sql: `INSERT INTO spotify_synced_playlists (user_id, spotify_playlist_id, playlist_name, snapshot_id, last_synced_at)
+          VALUES (?, ?, ?, ?, datetime('now'))
+          ON CONFLICT(user_id, spotify_playlist_id) DO UPDATE SET
+            playlist_name = excluded.playlist_name,
+            snapshot_id = excluded.snapshot_id,
+            last_synced_at = excluded.last_synced_at`,
+    args: [userId, playlistId, meta.name, meta.snapshot_id],
+  });
+
   const existing = await db.execute({
-    sql: `SELECT id, spotify_track_id FROM songs
-          WHERE user_id = ? AND spotify_sync_playlist_id = ? AND spotify_track_id IS NOT NULL`,
+    sql: `SELECT song_id, spotify_track_id FROM spotify_playlist_songs
+          WHERE user_id = ? AND spotify_playlist_id = ? AND spotify_track_id IS NOT NULL`,
     args: [userId, playlistId],
   });
 
   const existingByTrack = new Map<string, number>();
   for (const row of existing.rows) {
-    const o = row as { id: number; spotify_track_id: string };
-    existingByTrack.set(o.spotify_track_id, o.id);
+    const o = row as { song_id: number; spotify_track_id: string };
+    existingByTrack.set(o.spotify_track_id, o.song_id);
   }
 
   let removed = 0;
+  let unlinked = 0;
   const toRemove: number[] = [];
   for (const [tid, songId] of existingByTrack) {
     if (!trackMap.has(tid)) {
@@ -324,15 +341,45 @@ export async function syncSpotifyPlaylist(
     if (slice.length === 0) continue;
     const placeholders = slice.map(() => "?").join(",");
     await db.execute({
-      sql: `DELETE FROM songs WHERE user_id = ? AND id IN (${placeholders})`,
+      sql: `DELETE FROM spotify_playlist_songs
+            WHERE user_id = ? AND spotify_playlist_id = ? AND song_id IN (${placeholders})`,
+      args: [userId, playlistId, ...slice],
+    });
+    unlinked += slice.length;
+
+    const orphaned = await db.execute({
+      sql: `SELECT COUNT(*) AS c FROM songs s
+            WHERE s.user_id = ? AND s.id IN (${placeholders})
+              AND s.spotify_track_id IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM spotify_playlist_songs ps
+                WHERE ps.user_id = s.user_id AND ps.song_id = s.id
+              )`,
       args: [userId, ...slice],
     });
-    removed += slice.length;
+    const deleteCount = Number(
+      (orphaned.rows[0] as { c?: unknown } | undefined)?.c ?? 0
+    );
+    if (deleteCount > 0) {
+      await db.execute({
+        sql: `DELETE FROM songs
+              WHERE user_id = ? AND id IN (${placeholders})
+                AND spotify_track_id IS NOT NULL
+                AND NOT EXISTS (
+                  SELECT 1 FROM spotify_playlist_songs ps
+                  WHERE ps.user_id = songs.user_id AND ps.song_id = songs.id
+                )`,
+        args: [userId, ...slice],
+      });
+    }
+    removed += deleteCount;
   }
 
   let added = 0;
   let skipped = 0;
+  let linkedExisting = 0;
   const addedSongIds: number[] = [];
+  const duplicateSongs: Array<{ trackName: string; artistName: string }> = [];
   for (const [trackId, tr] of trackMap) {
     if (existingByTrack.has(trackId)) {
       skipped += 1;
@@ -341,7 +388,7 @@ export async function syncSpotifyPlaylist(
 
     const artistName = artistNames(tr);
     const duplicate = await db.execute({
-      sql: `SELECT id FROM songs
+      sql: `SELECT id, track_name, artist_name FROM songs
             WHERE user_id = ?
               AND (
                 spotify_track_id = ?
@@ -353,8 +400,28 @@ export async function syncSpotifyPlaylist(
             LIMIT 1`,
       args: [userId, trackId, tr.name, artistName],
     });
-    if (duplicate.rows.length > 0) {
-      skipped += 1;
+    const duplicateRow = duplicate.rows[0] as
+      | { id: number; track_name: string; artist_name: string }
+      | undefined;
+    if (duplicateRow) {
+      await db.execute({
+        sql: `INSERT OR IGNORE INTO spotify_playlist_songs (
+                user_id, spotify_playlist_id, song_id, spotify_track_id, track_name, artist_name
+              ) VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [
+          userId,
+          playlistId,
+          duplicateRow.id,
+          trackId,
+          tr.name,
+          artistName,
+        ],
+      });
+      linkedExisting += 1;
+      duplicateSongs.push({
+        trackName: duplicateRow.track_name,
+        artistName: duplicateRow.artist_name,
+      });
       continue;
     }
 
@@ -384,49 +451,98 @@ export async function syncSpotifyPlaylist(
       ],
     });
     const newRow = ins.rows[0] as { id: number } | undefined;
-    if (newRow?.id != null) addedSongIds.push(newRow.id);
+    if (newRow?.id != null) {
+      addedSongIds.push(newRow.id);
+      await db.execute({
+        sql: `INSERT OR IGNORE INTO spotify_playlist_songs (
+                user_id, spotify_playlist_id, song_id, spotify_track_id, track_name, artist_name
+              ) VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [userId, playlistId, newRow.id, trackId, tr.name, artistName],
+      });
+    }
     added += 1;
   }
-
-  await db.execute({
-    sql: `INSERT INTO spotify_synced_playlists (user_id, spotify_playlist_id, playlist_name, snapshot_id, last_synced_at)
-          VALUES (?, ?, ?, ?, datetime('now'))
-          ON CONFLICT(user_id, spotify_playlist_id) DO UPDATE SET
-            playlist_name = excluded.playlist_name,
-            snapshot_id = excluded.snapshot_id,
-            last_synced_at = excluded.last_synced_at`,
-    args: [userId, playlistId, meta.name, meta.snapshot_id],
-  });
 
   return {
     added,
     removed,
+    unlinked,
     skipped,
+    linkedExisting,
+    duplicateSongs,
     playlistName: meta.name,
     snapshotId: meta.snapshot_id,
     addedSongIds,
   };
 }
 
-/** Deletes all songs created from a Spotify playlist import for this user. */
+/** Removes one Spotify playlist association and deletes orphaned Spotify-created songs. */
 export async function deleteImportedSongsForSpotifyPlaylist(
   userId: number,
   spotifyPlaylistId: string
-): Promise<{ deleted: number }> {
+): Promise<{ deleted: number; unlinked: number }> {
   const sel = await db.execute({
-    sql: `SELECT id FROM songs WHERE user_id = ? AND spotify_sync_playlist_id = ?`,
+    sql: `SELECT song_id FROM spotify_playlist_songs
+          WHERE user_id = ? AND spotify_playlist_id = ?`,
     args: [userId, spotifyPlaylistId],
   });
   const n = sel.rows.length;
   if (n > 0) {
+    const songIds = sel.rows
+      .map((row) => Number((row as { song_id?: unknown }).song_id))
+      .filter(Number.isFinite);
+    const placeholders = songIds.map(() => "?").join(",");
     await db.execute({
-      sql: `DELETE FROM songs WHERE user_id = ? AND spotify_sync_playlist_id = ?`,
+      sql: `DELETE FROM spotify_playlist_songs
+            WHERE user_id = ? AND spotify_playlist_id = ?`,
       args: [userId, spotifyPlaylistId],
     });
+
+    if (songIds.length > 0) {
+      const orphaned = await db.execute({
+        sql: `SELECT COUNT(*) AS c FROM songs s
+              WHERE s.user_id = ? AND s.id IN (${placeholders})
+                AND s.spotify_track_id IS NOT NULL
+                AND NOT EXISTS (
+                  SELECT 1 FROM spotify_playlist_songs ps
+                  WHERE ps.user_id = s.user_id AND ps.song_id = s.id
+                )`,
+        args: [userId, ...songIds],
+      });
+      const deleteCount = Number(
+        (orphaned.rows[0] as { c?: unknown } | undefined)?.c ?? 0
+      );
+      if (deleteCount > 0) {
+        await db.execute({
+          sql: `DELETE FROM songs
+                WHERE user_id = ? AND id IN (${placeholders})
+                  AND spotify_track_id IS NOT NULL
+                  AND NOT EXISTS (
+                    SELECT 1 FROM spotify_playlist_songs ps
+                    WHERE ps.user_id = songs.user_id AND ps.song_id = songs.id
+                  )`,
+          args: [userId, ...songIds],
+        });
+      }
+
+      await db.execute({
+        sql: `UPDATE songs
+              SET spotify_sync_playlist_id = NULL
+              WHERE user_id = ? AND id IN (${placeholders})`,
+        args: [userId, ...songIds],
+      });
+
+      await db.execute({
+        sql: `DELETE FROM spotify_synced_playlists
+              WHERE user_id = ? AND spotify_playlist_id = ?`,
+        args: [userId, spotifyPlaylistId],
+      });
+      return { deleted: deleteCount, unlinked: n };
+    }
   }
   await db.execute({
     sql: `DELETE FROM spotify_synced_playlists WHERE user_id = ? AND spotify_playlist_id = ?`,
     args: [userId, spotifyPlaylistId],
   });
-  return { deleted: n };
+  return { deleted: 0, unlinked: n };
 }

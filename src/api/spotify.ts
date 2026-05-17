@@ -141,7 +141,10 @@ export interface SpotifySyncedPlaylist {
 export interface SpotifySyncResult {
   added: number;
   removed: number;
+  unlinked: number;
   skipped: number;
+  linkedExisting: number;
+  duplicateSongs: Array<{ trackName: string; artistName: string }>;
   playlistName: string;
   snapshotId: string;
   addedSongIds: number[];
@@ -213,12 +216,16 @@ export async function syncSpotifyPlaylist(input: {
   return {
     ...body,
     addedSongIds: Array.isArray(body.addedSongIds) ? body.addedSongIds : [],
+    duplicateSongs: Array.isArray(body.duplicateSongs) ? body.duplicateSongs : [],
+    linkedExisting:
+      typeof body.linkedExisting === "number" ? body.linkedExisting : 0,
+    unlinked: typeof body.unlinked === "number" ? body.unlinked : 0,
   };
 }
 
 export async function deleteImportedSongsFromPlaylist(
   spotifyPlaylistId: string
-): Promise<{ deleted: number }> {
+): Promise<{ deleted: number; unlinked: number }> {
   const token = getToken();
   if (!token) {
     throw new Error("Not authenticated.");
@@ -231,9 +238,16 @@ export async function deleteImportedSongsFromPlaylist(
     },
     body: JSON.stringify({ spotifyPlaylistId }),
   });
-  const body = (await res.json()) as { deleted?: number; error?: string };
+  const body = (await res.json()) as {
+    deleted?: number;
+    unlinked?: number;
+    error?: string;
+  };
   if (!res.ok) {
     throw new Error(body.error || "Failed to remove imported songs.");
   }
-  return { deleted: typeof body.deleted === "number" ? body.deleted : 0 };
+  return {
+    deleted: typeof body.deleted === "number" ? body.deleted : 0,
+    unlinked: typeof body.unlinked === "number" ? body.unlinked : 0,
+  };
 }

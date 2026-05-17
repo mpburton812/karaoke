@@ -6,6 +6,7 @@ const USER_SCOPED_TABLES = [
   "tags",
   "locations",
   "spotify_synced_playlists",
+  "spotify_playlist_songs",
 ] as const;
 
 const BLOCKED_PATTERNS = [

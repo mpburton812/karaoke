@@ -105,6 +105,45 @@ export const initDb = async () => {
     `);
 
     await db.execute(`
+      CREATE TABLE IF NOT EXISTS spotify_playlist_songs (
+        user_id INTEGER NOT NULL,
+        spotify_playlist_id TEXT NOT NULL,
+        song_id INTEGER NOT NULL,
+        spotify_track_id TEXT,
+        track_name TEXT,
+        artist_name TEXT,
+        linked_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, spotify_playlist_id, song_id),
+        FOREIGN KEY (user_id, spotify_playlist_id)
+          REFERENCES spotify_synced_playlists (user_id, spotify_playlist_id)
+          ON DELETE CASCADE,
+        FOREIGN KEY (song_id) REFERENCES songs (id) ON DELETE CASCADE
+      )
+    `);
+    await db.execute(`
+      CREATE INDEX IF NOT EXISTS idx_spotify_playlist_songs_song
+      ON spotify_playlist_songs(user_id, song_id)
+    `);
+    await db.execute(`
+      CREATE INDEX IF NOT EXISTS idx_spotify_playlist_songs_track
+      ON spotify_playlist_songs(user_id, spotify_track_id)
+      WHERE spotify_track_id IS NOT NULL
+    `);
+    await db.execute(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_spotify_playlist_songs_playlist_track
+      ON spotify_playlist_songs(user_id, spotify_playlist_id, spotify_track_id)
+      WHERE spotify_track_id IS NOT NULL
+    `);
+    await db.execute(`
+      INSERT OR IGNORE INTO spotify_playlist_songs (
+        user_id, spotify_playlist_id, song_id, spotify_track_id, track_name, artist_name
+      )
+      SELECT user_id, spotify_sync_playlist_id, id, spotify_track_id, track_name, artist_name
+      FROM songs
+      WHERE spotify_sync_playlist_id IS NOT NULL
+    `);
+
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS setlists (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,

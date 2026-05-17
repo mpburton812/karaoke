@@ -43,6 +43,9 @@ const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
   const [clearingId, setClearingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [linkedDuplicates, setLinkedDuplicates] = useState<
+    Array<{ trackName: string; artistName: string }>
+  >([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,12 +76,13 @@ const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
   const handleSelectChange = (e: SelectChangeEvent<string>) => {
     setSelectedId(e.target.value);
     setSuccess(null);
+    setLinkedDuplicates([]);
   };
 
   const handleClearImported = async (spotifyPlaylistId: string, label: string) => {
     if (
       !window.confirm(
-        `Remove every song in your library that was imported from “${label}”? This cannot be undone.`
+        `Remove the “${label}” Spotify playlist link? Songs also in another Spotify playlist stay in your library. Spotify-created songs with no remaining playlist links will be removed.`
       )
     ) {
       return;
@@ -86,8 +90,11 @@ const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
     setClearingId(spotifyPlaylistId);
     setError(null);
     try {
-      const { deleted } = await deleteImportedSongsFromPlaylist(spotifyPlaylistId);
-      setSuccess(`Removed ${deleted} song(s) from “${label}”.`);
+      const { deleted, unlinked } =
+        await deleteImportedSongsFromPlaylist(spotifyPlaylistId);
+      setSuccess(
+        `Removed “${label}” from ${unlinked} song(s). Deleted ${deleted} Spotify-only song(s) with no remaining playlist links.`
+      );
       await load();
       window.dispatchEvent(new Event(KARAOKE_SONGS_REFRESH_EVENT));
     } catch (err) {
@@ -121,14 +128,16 @@ const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
     setSyncing(true);
     setError(null);
     setSuccess(null);
+    setLinkedDuplicates([]);
     try {
       const r = await syncSpotifyPlaylist(body);
       const parts = [
         r.unchanged
           ? "Playlist unchanged on Spotify."
-          : `Added ${r.added}, removed ${r.removed}, already had ${r.skipped}.`,
+          : `Added ${r.added}, linked ${r.linkedExisting} existing, unlinked ${r.unlinked}, deleted ${r.removed}, already linked ${r.skipped}.`,
       ];
       setSuccess(`${r.playlistName}: ${parts.join(" ")}`);
+      setLinkedDuplicates(r.duplicateSongs ?? []);
       await load();
       window.dispatchEvent(new Event(KARAOKE_SONGS_REFRESH_EVENT));
       if (r.addedSongIds?.length) {
@@ -159,9 +168,9 @@ const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
         PLAYLIST SYNC
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Pull tracks from a Spotify playlist into your library. Removing a track
-        from the playlist on Spotify and syncing again removes it here (only
-        for rows created from that playlist).
+        Pull tracks from Spotify playlists into your library. Existing songs are
+        linked to the playlist instead of duplicated. Removing a playlist link
+        only deletes Spotify-created songs that are no longer linked anywhere.
       </Typography>
 
       {error && (
@@ -209,6 +218,7 @@ const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
         onChange={(e) => {
           setPasteUrl(e.target.value);
           setSuccess(null);
+          setLinkedDuplicates([]);
         }}
         sx={{ mb: 2 }}
         helperText="If this field is filled, it takes priority over the dropdown. Paste only playlists you own or collaborate on—follow-only lists get “Forbidden” from Spotify."
@@ -222,6 +232,24 @@ const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
       >
         {syncing ? "Syncing…" : "Sync now"}
       </Button>
+
+      {linkedDuplicates.length > 0 && (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          <Typography variant="body2" sx={{ fontWeight: "bold", mb: 0.5 }}>
+            Already in your library; linked to this playlist:
+          </Typography>
+          <Box component="ul" sx={{ m: 0, pl: 2 }}>
+            {linkedDuplicates.slice(0, 12).map((song, idx) => (
+              <li key={`${song.trackName}-${song.artistName}-${idx}`}>
+                {song.trackName} — {song.artistName}
+              </li>
+            ))}
+            {linkedDuplicates.length > 12 && (
+              <li>{linkedDuplicates.length - 12} more...</li>
+            )}
+          </Box>
+        </Alert>
+      )}
 
       {synced.length > 0 && (
         <Box sx={{ mt: 2 }}>
@@ -263,7 +291,7 @@ const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
                       void handleClearImported(s.spotifyPlaylistId, label)
                     }
                   >
-                    {busy ? "Removing…" : "Remove imported songs"}
+                    {busy ? "Removing…" : "Remove playlist link"}
                   </Button>
                 </Box>
               );
