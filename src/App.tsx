@@ -22,7 +22,7 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import TransgenderIcon from '@mui/icons-material/Transgender';
 import { db } from './db';
-import { clearSession } from './api/auth';
+import { clearSession, fetchCurrentUser, type AuthUser } from './api/auth';
 import { setSessionExpiredHandler } from './api/session';
 
 // Lazy load tab components
@@ -38,6 +38,7 @@ const ChangePassword = lazy(() => import('./components/ChangePassword'));
 const AdminAppReload = lazy(() => import('./components/AdminAppReload'));
 const SpotifyConnect = lazy(() => import('./components/SpotifyConnect'));
 const EnrichmentAdmin = lazy(() => import('./components/EnrichmentAdmin'));
+const GodMode = lazy(() => import('./components/GodMode'));
 
 type ThemeMode = 'light' | 'dark' | 'trans';
 type SpotifySnackbarState = {
@@ -160,7 +161,7 @@ function App() {
 
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
 
-  const [currentUser, setCurrentUser] = useState<{ id: number; username: string } | null>(() => {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
     const savedUser = localStorage.getItem('karaoke_user');
     const token = localStorage.getItem('karaoke_token');
     if (savedUser && token) {
@@ -174,6 +175,8 @@ function App() {
     }
     return null;
   });
+  const isAdmin = currentUser?.accessLevel === 'admin';
+  const currentUserId = currentUser?.id;
 
   useEffect(() => {
     setSessionExpiredHandler((message) => {
@@ -183,6 +186,21 @@ function App() {
     });
     return () => setSessionExpiredHandler(null);
   }, []);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const id = window.setTimeout(() => {
+      void fetchCurrentUser()
+        .then((user) => {
+          setCurrentUser(user);
+          localStorage.setItem('karaoke_user', JSON.stringify(user));
+        })
+        .catch(() => {
+          /* session handler clears expired sessions */
+        });
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [currentUserId]);
 
   const [spotifySnackbar, setSpotifySnackbar] = useState<SpotifySnackbarState>({
     open: false,
@@ -261,7 +279,7 @@ function App() {
     }, 0);
   }, []);
 
-  const handleLogin = (user: { id: number; username: string }) => {
+  const handleLogin = (user: AuthUser) => {
     setSessionNotice(null);
     setCurrentUser(user);
     localStorage.setItem('karaoke_user', JSON.stringify(user));
@@ -352,6 +370,7 @@ function App() {
             <Tab label="Tags" />
             <Tab label="Stats" />
             <Tab label="Admin" />
+            {isAdmin && <Tab label="GOD MODE" />}
           </Tabs>
         </Box>
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>}>
@@ -438,6 +457,11 @@ function App() {
               </Box>
             </Box>
           </CustomTabPanel>
+          {isAdmin && (
+            <CustomTabPanel value={value} index={5}>
+              <GodMode />
+            </CustomTabPanel>
+          )}
         </Suspense>
       </Container>
       

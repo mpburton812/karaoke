@@ -4,10 +4,13 @@ import type { InValue } from "@libsql/client";
 import { db, tursoConfigured } from "./db.js";
 import {
   getBearerToken,
+  adminSetUserPassword,
   changePassword,
+  getAuthUserById,
   loginUser,
   registerUser,
   signToken,
+  userIsAdmin,
   verifyToken,
 } from "./auth.js";
 import { assertSqlAllowed } from "./sqlGuard.js";
@@ -50,7 +53,12 @@ function apiIndexPayload(serveStatic: boolean) {
     auth: [
       "/api/auth/register",
       "/api/auth/login",
+      "/api/auth/me",
       "/api/auth/change-password",
+      "/api/admin/users",
+      "/api/admin/users/:id/password",
+      "/api/admin/users/:id",
+      "/api/admin/users/:id/performances",
       "/api/spotify/connect",
       "/api/spotify/callback",
       "/api/spotify/disconnect",
@@ -161,6 +169,25 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     }
   }
 
+  async function requireAdmin(
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) {
+    try {
+      const userId = (req as express.Request & { userId: number }).userId;
+      if (!(await userIsAdmin(userId))) {
+        res.status(403).json({ error: "Administrative access required." });
+        return;
+      }
+      next();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Administrative check failed.";
+      res.status(500).json({ error: message });
+    }
+  }
+
   function requireSpotifyOAuth(
     _req: express.Request,
     res: express.Response,
@@ -220,6 +247,179 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       res.status(status).json({ error: message });
     }
   });
+
+  app.get("/api/auth/me", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as express.Request & { userId: number }).userId;
+      const user = await getAuthUserById(userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found." });
+        return;
+      }
+      res.json({ user });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to read current user.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.get("/api/admin/users", requireAuth, requireAdmin, async (_req, res) => {
+    try {
+      const result = await db.execute(`
+        SELECT
+          u.id,
+          u.username,
+          COALESCE(u.access_level, 'user') AS access_level,
+          u.last_login_at,
+          COUNT(DISTINCT s.id) AS song_count,
+          COUNT(DISTINCT t.id) AS tag_count,
+          COUNT(DISTINCT l.id) AS venue_count
+        FROM users u
+        LEFT JOIN songs s ON s.user_id = u.id
+        LEFT JOIN tags t ON t.user_id = u.id
+        LEFT JOIN locations l ON l.user_id = u.id
+        GROUP BY u.id, u.username, u.access_level, u.last_login_at
+        ORDER BY LOWER(u.username)
+      `);
+      res.json({
+        users: result.rows.map((row) => {
+          const o = row as Record<string, unknown>;
+          return {
+            id: Number(o.id),
+            username: String(o.username ?? ""),
+            accessLevel: o.access_level === "admin" ? "admin" : "user",
+            lastLoginAt:
+              typeof o.last_login_at === "string" ? o.last_login_at : null,
+            songCount: Number(o.song_count ?? 0),
+            tagCount: Number(o.tag_count ?? 0),
+            venueCount: Number(o.venue_count ?? 0),
+          };
+        }),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to list users.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.post(
+    "/api/admin/users/:id/password",
+    requireAuth,
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const targetUserId = Number(req.params.id);
+        const { newPassword } = req.body as { newPassword?: string };
+        if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
+          res.status(400).json({ error: "Invalid user id." });
+          return;
+        }
+        if (!newPassword) {
+          res.status(400).json({ error: "newPassword is required." });
+          return;
+        }
+        await adminSetUserPassword(targetUserId, newPassword);
+        res.json({ ok: true });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to change user password.";
+        res.status(400).json({ error: message });
+      }
+    }
+  );
+
+  app.delete(
+    "/api/admin/users/:id",
+    requireAuth,
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const actorUserId = (req as express.Request & { userId: number }).userId;
+        const targetUserId = Number(req.params.id);
+        if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
+          res.status(400).json({ error: "Invalid user id." });
+          return;
+        }
+        if (targetUserId === actorUserId) {
+          res.status(400).json({ error: "You cannot delete your own account." });
+          return;
+        }
+        await db.batch([
+          {
+            sql: "DELETE FROM performance_tags WHERE performance_id IN (SELECT id FROM performances WHERE user_id = ?)",
+            args: [targetUserId],
+          },
+          {
+            sql: "DELETE FROM song_tags WHERE song_id IN (SELECT id FROM songs WHERE user_id = ?)",
+            args: [targetUserId],
+          },
+          {
+            sql: "DELETE FROM spotify_playlist_songs WHERE user_id = ?",
+            args: [targetUserId],
+          },
+          {
+            sql: "DELETE FROM spotify_synced_playlists WHERE user_id = ?",
+            args: [targetUserId],
+          },
+          { sql: "DELETE FROM performances WHERE user_id = ?", args: [targetUserId] },
+          { sql: "DELETE FROM songs WHERE user_id = ?", args: [targetUserId] },
+          { sql: "DELETE FROM tags WHERE user_id = ?", args: [targetUserId] },
+          { sql: "DELETE FROM locations WHERE user_id = ?", args: [targetUserId] },
+          { sql: "DELETE FROM users WHERE id = ?", args: [targetUserId] },
+        ]);
+        res.json({ ok: true });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to delete user.";
+        res.status(500).json({ error: message });
+      }
+    }
+  );
+
+  app.get(
+    "/api/admin/users/:id/performances",
+    requireAuth,
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const targetUserId = Number(req.params.id);
+        if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
+          res.status(400).json({ error: "Invalid user id." });
+          return;
+        }
+        const result = await db.execute({
+          sql: `SELECT p.id, p.date, p.time, p.location, p.rating, p.notes,
+                       s.track_name, s.artist_name
+                FROM performances p
+                LEFT JOIN songs s ON s.id = p.song_id AND s.user_id = p.user_id
+                WHERE p.user_id = ?
+                ORDER BY p.date DESC, p.time DESC, p.id DESC`,
+          args: [targetUserId],
+        });
+        res.json({
+          performances: result.rows.map((row) => {
+            const o = row as Record<string, unknown>;
+            return {
+              id: Number(o.id),
+              date: typeof o.date === "string" ? o.date : null,
+              time: typeof o.time === "string" ? o.time : null,
+              location: typeof o.location === "string" ? o.location : null,
+              rating: Number(o.rating ?? 0),
+              notes: typeof o.notes === "string" ? o.notes : null,
+              trackName: typeof o.track_name === "string" ? o.track_name : null,
+              artistName:
+                typeof o.artist_name === "string" ? o.artist_name : null,
+            };
+          }),
+        });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to list performances.";
+        res.status(500).json({ error: message });
+      }
+    }
+  );
 
   app.get("/api/enrichment/status", requireAuth, async (req, res) => {
     try {

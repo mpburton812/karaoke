@@ -10,12 +10,12 @@ import {
   CircularProgress,
   alpha
 } from '@mui/material';
-import { login, register, persistSession } from '../api/auth';
+import { login, register, persistSession, type AuthUser } from '../api/auth';
 import logo from '../assets/logo.png';
 import background from '../assets/background_2.jpg';
 
 interface LoginProps {
-  onLogin: (user: { id: number; username: string }) => void;
+  onLogin: (user: AuthUser) => void;
   sessionNotice?: string | null;
 }
 

@@ -10,6 +10,7 @@ function apiUrl(path: string): string {
 export interface AuthUser {
   id: number;
   username: string;
+  accessLevel?: "user" | "admin";
 }
 
 export async function register(
@@ -56,6 +57,26 @@ export function clearSession(): void {
 
 export function getStoredToken(): string | null {
   return localStorage.getItem("karaoke_token");
+}
+
+export async function fetchCurrentUser(): Promise<AuthUser> {
+  const token = getStoredToken();
+  if (!token) {
+    throw new Error("Not authenticated. Please log in again.");
+  }
+
+  const res = await fetch(apiUrl("/api/auth/me"), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    const message = body.error || "Failed to load current user.";
+    if (shouldExpireSession(res.status, message)) {
+      expireSession();
+    }
+    throw new Error(message);
+  }
+  return body.user as AuthUser;
 }
 
 export async function changePassword(

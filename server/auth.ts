@@ -9,16 +9,22 @@ const TOKEN_TTL = "7d";
 export interface AuthUser {
   id: number;
   username: string;
+  accessLevel: "user" | "admin";
 }
 
 export interface JwtPayload {
   sub: number;
   username: string;
+  accessLevel?: "user" | "admin";
 }
 
 export function signToken(user: AuthUser): string {
   return jwt.sign(
-    { sub: user.id, username: user.username } satisfies JwtPayload,
+    {
+      sub: user.id,
+      username: user.username,
+      accessLevel: user.accessLevel,
+    } satisfies JwtPayload,
     JWT_SECRET,
     { expiresIn: TOKEN_TTL }
   );
@@ -52,12 +58,21 @@ export async function registerUser(
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
+  const accessLevel = trimmed.toLowerCase() === "mpburton" ? "admin" : "user";
   const result = await db.execute({
-    sql: "INSERT INTO users (username, password_hash) VALUES (?, ?) RETURNING id, username",
-    args: [trimmed, passwordHash],
+    sql: "INSERT INTO users (username, password_hash, access_level) VALUES (?, ?, ?) RETURNING id, username, access_level",
+    args: [trimmed, passwordHash, accessLevel],
   });
-  const row = result.rows[0] as { id: number; username: string };
-  return { id: row.id, username: row.username };
+  const row = result.rows[0] as {
+    id: number;
+    username: string;
+    access_level?: string;
+  };
+  return {
+    id: row.id,
+    username: row.username,
+    accessLevel: row.access_level === "admin" ? "admin" : "user",
+  };
 }
 
 export async function loginUser(
@@ -66,7 +81,7 @@ export async function loginUser(
 ): Promise<AuthUser> {
   const trimmed = username.trim();
   const result = await db.execute({
-    sql: "SELECT id, username, password_hash FROM users WHERE LOWER(username) = LOWER(?)",
+    sql: "SELECT id, username, password_hash, access_level FROM users WHERE LOWER(username) = LOWER(?)",
     args: [trimmed],
   });
 
@@ -78,6 +93,7 @@ export async function loginUser(
     id: number;
     username: string;
     password_hash: string | null;
+    access_level?: string | null;
   };
 
   if (!row.password_hash) {
@@ -91,7 +107,16 @@ export async function loginUser(
     throw new Error("Invalid username or password.");
   }
 
-  return { id: row.id, username: row.username };
+  await db.execute({
+    sql: "UPDATE users SET last_login_at = datetime('now') WHERE id = ?",
+    args: [row.id],
+  });
+
+  return {
+    id: row.id,
+    username: row.username,
+    accessLevel: row.access_level === "admin" ? "admin" : "user",
+  };
 }
 
 export async function changePassword(
@@ -104,7 +129,7 @@ export async function changePassword(
   }
 
   const result = await db.execute({
-    sql: "SELECT id, username, password_hash FROM users WHERE id = ?",
+    sql: "SELECT id, username, password_hash, access_level FROM users WHERE id = ?",
     args: [userId],
   });
 
@@ -116,6 +141,7 @@ export async function changePassword(
     id: number;
     username: string;
     password_hash: string | null;
+    access_level?: string | null;
   };
 
   if (!row.password_hash) {
@@ -133,5 +159,47 @@ export async function changePassword(
     args: [passwordHash, userId],
   });
 
-  return { id: row.id, username: row.username };
+  return {
+    id: row.id,
+    username: row.username,
+    accessLevel: row.access_level === "admin" ? "admin" : "user",
+  };
+}
+
+export async function getAuthUserById(userId: number): Promise<AuthUser | null> {
+  const result = await db.execute({
+    sql: "SELECT id, username, access_level FROM users WHERE id = ?",
+    args: [userId],
+  });
+  const row = result.rows[0] as
+    | { id: number; username: string; access_level?: string | null }
+    | undefined;
+  if (!row) return null;
+  return {
+    id: row.id,
+    username: row.username,
+    accessLevel: row.access_level === "admin" ? "admin" : "user",
+  };
+}
+
+export async function userIsAdmin(userId: number): Promise<boolean> {
+  const user = await getAuthUserById(userId);
+  return user?.accessLevel === "admin";
+}
+
+export async function adminSetUserPassword(
+  targetUserId: number,
+  newPassword: string
+): Promise<void> {
+  if (newPassword.length < 8) {
+    throw new Error("New password must be at least 8 characters.");
+  }
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const result = await db.execute({
+    sql: "UPDATE users SET password_hash = ? WHERE id = ?",
+    args: [passwordHash, targetUserId],
+  });
+  if ((result.rowsAffected ?? 0) === 0) {
+    throw new Error("User not found.");
+  }
 }

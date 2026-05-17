@@ -17,6 +17,22 @@ export const initDb = async () => {
     }
 
     for (const col of [
+      "access_level TEXT DEFAULT 'user'",
+      "last_login_at TEXT",
+    ]) {
+      try {
+        await db.execute(`ALTER TABLE users ADD COLUMN ${col}`);
+      } catch {
+        /* already exists */
+      }
+    }
+
+    await db.execute({
+      sql: "UPDATE users SET access_level = 'admin' WHERE LOWER(username) = LOWER(?)",
+      args: ["mpburton"],
+    });
+
+    for (const col of [
       "spotify_refresh_token TEXT",
       "spotify_user_id TEXT",
       "spotify_display_name TEXT",

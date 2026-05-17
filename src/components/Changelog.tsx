@@ -5,6 +5,9 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-17', description: 'Admin: Add protected GOD MODE access layer for admin users' },
+  { date: '2026-05-17', description: 'Admin: GOD MODE user metrics, password reset, account deletion, and performance history' },
+  { date: '2026-05-17', description: 'Admin: Grant mpburton administrative access during database initialization' },
   { date: '2026-05-17', description: 'UI: Add Admin Health Dashboard cards and consolidate system/provider health' },
   { date: '2026-05-17', description: 'UI: Add repertoire filter accordion and list/card view toggle' },
   { date: '2026-05-17', description: 'UI: Add song detail data-source chips for lyrics, KaraFun, BPM/key, genre, and Spotify playlists' },

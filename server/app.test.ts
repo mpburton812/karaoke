@@ -55,7 +55,11 @@ describe("API routes", () => {
         .send({ username: "tester", password: "password123" });
 
       expect(res.status).toBe(200);
-      expect(res.body.user).toEqual({ id: USER_ID, username: "tester" });
+      expect(res.body.user).toEqual({
+        id: USER_ID,
+        username: "tester",
+        accessLevel: "user",
+      });
       expect(typeof res.body.token).toBe("string");
     });
   });
@@ -85,6 +89,79 @@ describe("API routes", () => {
       expect(res.status).toBe(200);
       expect(res.body.user.username).toBe("tester");
       expect(typeof res.body.token).toBe("string");
+    });
+  });
+
+  describe("GET /api/auth/me", () => {
+    it("returns current user with access level", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [{ id: USER_ID, username: "tester", access_level: "admin" }],
+      });
+
+      const token = signToken({ id: USER_ID, username: "tester", accessLevel: "admin" });
+      const res = await request(app)
+        .get("/api/auth/me")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.user).toEqual({
+        id: USER_ID,
+        username: "tester",
+        accessLevel: "admin",
+      });
+    });
+  });
+
+  describe("God Mode admin routes", () => {
+    it("rejects non-admin users", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [{ id: USER_ID, username: "tester", access_level: "user" }],
+      });
+
+      const token = signToken({ id: USER_ID, username: "tester", accessLevel: "user" });
+      const res = await request(app)
+        .get("/api/admin/users")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(403);
+    });
+
+    it("lists users for admins", async () => {
+      mockExecute
+        .mockResolvedValueOnce({
+          rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 7,
+              username: "singer",
+              access_level: "user",
+              last_login_at: "2026-05-17T00:00:00Z",
+              song_count: 3,
+              tag_count: 2,
+              venue_count: 1,
+            },
+          ],
+        });
+
+      const token = signToken({ id: USER_ID, username: "mpburton", accessLevel: "admin" });
+      const res = await request(app)
+        .get("/api/admin/users")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.users).toEqual([
+        {
+          id: 7,
+          username: "singer",
+          accessLevel: "user",
+          lastLoginAt: "2026-05-17T00:00:00Z",
+          songCount: 3,
+          tagCount: 2,
+          venueCount: 1,
+        },
+      ]);
     });
   });
 

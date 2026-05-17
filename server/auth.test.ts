@@ -21,7 +21,7 @@ import {
 
 describe("auth helpers", () => {
   it("signs and verifies JWT payload", () => {
-    const token = signToken({ id: 7, username: "alice" });
+    const token = signToken({ id: 7, username: "alice", accessLevel: "user" });
     expect(verifyToken(token)).toMatchObject({ sub: 7, username: "alice" });
   });
 
@@ -54,10 +54,12 @@ describe("registerUser", () => {
   it("creates user and returns id and username", async () => {
     mockExecute
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: 5, username: "alice" }] });
+      .mockResolvedValueOnce({
+        rows: [{ id: 5, username: "alice", access_level: "user" }],
+      });
 
     const user = await registerUser("alice", "password123");
-    expect(user).toEqual({ id: 5, username: "alice" });
+    expect(user).toEqual({ id: 5, username: "alice", accessLevel: "user" });
     expect(mockExecute).toHaveBeenCalledTimes(2);
   });
 });
@@ -83,10 +85,10 @@ describe("loginUser", () => {
   it("accepts valid credentials", async () => {
     const hash = await bcrypt.hash("password123", 12);
     mockExecute.mockResolvedValueOnce({
-      rows: [{ id: 1, username: "alice", password_hash: hash }],
+      rows: [{ id: 1, username: "alice", password_hash: hash, access_level: "user" }],
     });
     const user = await loginUser("alice", "password123");
-    expect(user).toEqual({ id: 1, username: "alice" });
+    expect(user).toEqual({ id: 1, username: "alice", accessLevel: "user" });
   });
 });
 
@@ -109,12 +111,12 @@ describe("changePassword", () => {
     const hash = await bcrypt.hash("oldpass12", 12);
     mockExecute
       .mockResolvedValueOnce({
-        rows: [{ id: 3, username: "bob", password_hash: hash }],
+        rows: [{ id: 3, username: "bob", password_hash: hash, access_level: "user" }],
       })
       .mockResolvedValueOnce({ rowsAffected: 1 });
 
     const user = await changePassword(3, "oldpass12", "newpass123");
-    expect(user).toEqual({ id: 3, username: "bob" });
+    expect(user).toEqual({ id: 3, username: "bob", accessLevel: "user" });
     expect(mockExecute).toHaveBeenCalledTimes(2);
     const updateCall = mockExecute.mock.calls[1][0];
     expect(updateCall.sql).toMatch(/UPDATE users SET password_hash/);

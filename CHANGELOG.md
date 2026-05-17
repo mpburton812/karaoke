@@ -1,6 +1,9 @@
 # Changelog
 
 ## [2026-05-17]
+- Admin: Add protected administrative access layer and GOD MODE tab for admin users.
+- Admin: Grant `mpburton` admin access during database initialization.
+- Admin: GOD MODE shows user last login, song/tag/venue counts, password reset, account deletion, and performance history.
 - UI: Add Admin Health Dashboard cards and fold system/provider health into one panel.
 - UI: Add repertoire filter accordion and list/card view toggle.
 - UI: Add song detail data-source chips for lyrics, KaraFun, BPM/key, genre, and Spotify playlists.
