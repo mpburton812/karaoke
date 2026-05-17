@@ -111,12 +111,6 @@ const AdminAppReload: React.FC = () => {
         )}
       </Typography>
 
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Checks for a newer service worker, clears offline caches, unregisters the PWA worker, then
-        reloads so this tab pulls the latest JavaScript and assets from the server (same as after a
-        deploy). Your login stays in this browser unless something goes wrong.
-      </Typography>
-
       {message && (
         <Alert severity="info" sx={{ mb: 2 }}>
           {message}

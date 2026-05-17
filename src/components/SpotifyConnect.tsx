@@ -106,11 +106,6 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ currentUser }) => {
       <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: "bold" }}>
         SPOTIFY ACCOUNT
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Connect Spotify to sync playlists into your library. Tokens stay on the
-        server.
-      </Typography>
-
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}

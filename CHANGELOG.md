@@ -1,6 +1,11 @@
 # Changelog
 
 ## [2026-05-17]
+- UI: Add Admin Health Dashboard cards and fold system/provider health into one panel.
+- UI: Add repertoire filter accordion and list/card view toggle.
+- UI: Add song detail data-source chips for lyrics, KaraFun, BPM/key, genre, and Spotify playlists.
+- UI: Replace key Admin/Songs/Spotify browser confirms with in-app dialogs.
+- UI: Trim verbose Admin and Spotify helper copy.
 - Enrichment: Prefer Spotify audio features when available, then fall back to GetSongBPM for BPM/key and Last.fm tags for genre/mood when API keys are configured.
 - Admin: Add richer System Status and enrichment details, including warnings, timestamps, and progress counters.
 - Admin: Remove the visible Spotify diagnostics panel while retaining server-side diagnostics.

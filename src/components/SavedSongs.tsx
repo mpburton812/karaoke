@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { 
   Box, List, ListItem, ListItemText, ListItemAvatar, ListItemButton,
-  Avatar, Typography, Paper, Divider, Button, Grid, Chip, IconButton,
+  Avatar, Typography, Paper, Divider, Button, ButtonGroup, Grid, Chip, IconButton,
   CircularProgress, Alert, Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Select, MenuItem, FormControl, InputLabel, Checkbox,
+  Select, MenuItem, FormControl, InputLabel, Checkbox, Accordion,
+  AccordionSummary, AccordionDetails,
   Autocomplete, Rating, SvgIcon, Tooltip
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -16,6 +17,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import StarIcon from '@mui/icons-material/Star';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import YouTubeIcon from '@mui/icons-material/YouTube';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SongLookup from './SongLookup';
 import { db } from '../db';
 import { fetchLyrics } from '../utils/lyricsService';
@@ -105,6 +107,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [genreFilter, setGenreFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
+  const [pendingDeleteSong, setPendingDeleteSong] = useState<Song | null>(null);
 
   // Performance Dialog State
   const [perfDialogOpen, setPerfDialogOpen] = useState(false);
@@ -272,7 +276,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   };
 
   const handleRemove = async (id: number) => {
-    if (!window.confirm('Are you sure you want to remove this song?')) return;
     try {
       await db.execute({
         sql: "DELETE FROM songs WHERE id = ? AND user_id = ?",
@@ -280,6 +283,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
       });
       setSongs(songs.filter(s => s.id !== id));
       setSelectedSong(null);
+      setPendingDeleteSong(null);
     } catch (err) {
       console.error('Error deleting song:', err);
       alert('Failed to delete song.');
@@ -391,7 +395,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
           <Button startIcon={<ArrowBackIcon />} onClick={() => setSelectedSong(null)}>RETURN TO LIST</Button>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button variant="contained" color="primary" startIcon={<MicIcon />} onClick={handleOpenPerfDialog}>PERFORM</Button>
-            <Button variant="contained" color="error" startIcon={<DeleteIcon />} onClick={() => handleRemove(selectedSong.id)}>REMOVE FROM LIST</Button>
+            <Button variant="contained" color="error" startIcon={<DeleteIcon />} onClick={() => setPendingDeleteSong(selectedSong)}>REMOVE FROM LIST</Button>
           </Box>
         </Box>
 
@@ -465,6 +469,23 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
               </Box>
 
               <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>DATA SOURCES</Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
+                  <Chip label={selectedSong.lyrics ? 'Lyrics found' : 'Lyrics missing'} color={selectedSong.lyrics ? 'success' : 'default'} variant="outlined" />
+                  <Chip label={selectedSong.karafun_available ? 'KaraFun match' : 'No KaraFun match'} color={selectedSong.karafun_available ? 'success' : 'default'} variant="outlined" />
+                  <Chip label={selectedSong.bpm ? `BPM ${selectedSong.bpm}` : 'BPM missing'} color={selectedSong.bpm ? 'success' : 'warning'} variant="outlined" />
+                  <Chip label={selectedSong.key && selectedSong.key !== 'DNF' ? `Key ${selectedSong.key}` : 'Key missing'} color={selectedSong.key && selectedSong.key !== 'DNF' ? 'success' : 'warning'} variant="outlined" />
+                  <Chip label={selectedSong.genre ? `Genre ${selectedSong.genre}` : 'Genre missing'} color={selectedSong.genre ? 'success' : 'warning'} variant="outlined" />
+                  {selectedSong.spotify_source_playlist_name && (
+                    <Chip
+                      icon={<SpotifyGlyphIcon />}
+                      label={`Spotify playlists: ${selectedSong.spotify_source_playlist_name}`}
+                      variant="outlined"
+                      sx={{ borderColor: '#1DB954', color: '#1DB954', '& .MuiChip-icon': { color: '#1DB954' } }}
+                    />
+                  )}
+                </Box>
+
                 <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>SONG TAGS</Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
                   {selectedSongTags.map(tag => (
@@ -642,6 +663,24 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
             <Button onClick={() => setLyricsDialogOpen(false)}>Close</Button>
           </DialogActions>
         </Dialog>
+        <Dialog open={Boolean(pendingDeleteSong)} onClose={() => setPendingDeleteSong(null)}>
+          <DialogTitle>Remove song?</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2">
+              Remove “{pendingDeleteSong?.track_name}” from your repertoire? This cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setPendingDeleteSong(null)}>Cancel</Button>
+            <Button
+              color="error"
+              variant="contained"
+              onClick={() => pendingDeleteSong && void handleRemove(pendingDeleteSong.id)}
+            >
+              Remove
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     );
   }
@@ -659,54 +698,112 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
       {/* Repertoire Search & Filter */}
       <Box sx={{ mb: 2 }}>
         <Typography variant="h5" gutterBottom align="center">Your Repertoire</Typography>
-        <Paper sx={{ p: 2, mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-          <TextField 
-            size="small" 
-            placeholder="Search repertoire..." 
-            value={searchQuery} 
-            onChange={(e) => setSearchQuery(e.target.value)} 
-            sx={{ flexGrow: 1 }}
-            slotProps={{ input: { startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} /> } }}
-          />
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Genre</InputLabel>
-            <Select value={genreFilter} label="Genre" onChange={(e) => setGenreFilter(e.target.value)}>
-              {genres.map(g => <MenuItem key={g} value={g}>{g}</MenuItem>)}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 220 }}>
-            <InputLabel shrink>Status</InputLabel>
-            <Select
-              multiple
-              value={statusFilter}
-              label="Status"
-              onChange={(e) => {
-                const value = e.target.value;
-                setStatusFilter(typeof value === 'string' ? value.split(',') : value);
-              }}
-              renderValue={(selected) =>
-                selected.length === 0 ? (
-                  <Box component="span" sx={{ color: 'text.secondary' }}>
-                    All statuses
-                  </Box>
-                ) : selected.join(', ')
-              }
-              displayEmpty
-            >
-              {statusOptions.map(s => (
-                <MenuItem key={s} value={s}>
-                  <Checkbox checked={statusFilter.includes(s)} />
-                  <ListItemText primary={s} />
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Paper>
+        <Accordion defaultExpanded sx={{ mb: 3 }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography sx={{ fontWeight: 'bold' }}>Search, filters, and view</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+              <TextField
+                size="small"
+                placeholder="Search repertoire..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                sx={{ flexGrow: 1, minWidth: 220 }}
+                slotProps={{ input: { startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} /> } }}
+              />
+              <FormControl size="small" sx={{ minWidth: 140 }}>
+                <InputLabel>Genre</InputLabel>
+                <Select value={genreFilter} label="Genre" onChange={(e) => setGenreFilter(e.target.value)}>
+                  {genres.map(g => <MenuItem key={g} value={g}>{g}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: 220 }}>
+                <InputLabel shrink>Status</InputLabel>
+                <Select
+                  multiple
+                  value={statusFilter}
+                  label="Status"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setStatusFilter(typeof value === 'string' ? value.split(',') : value);
+                  }}
+                  renderValue={(selected) =>
+                    selected.length === 0 ? (
+                      <Box component="span" sx={{ color: 'text.secondary' }}>
+                        All statuses
+                      </Box>
+                    ) : selected.join(', ')
+                  }
+                  displayEmpty
+                >
+                  {statusOptions.map(s => (
+                    <MenuItem key={s} value={s}>
+                      <Checkbox checked={statusFilter.includes(s)} />
+                      <ListItemText primary={s} />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <ButtonGroup size="small" variant="outlined">
+                <Button
+                  variant={viewMode === 'list' ? 'contained' : 'outlined'}
+                  onClick={() => setViewMode('list')}
+                >
+                  List
+                </Button>
+                <Button
+                  variant={viewMode === 'cards' ? 'contained' : 'outlined'}
+                  onClick={() => setViewMode('cards')}
+                >
+                  Cards
+                </Button>
+              </ButtonGroup>
+            </Box>
+          </AccordionDetails>
+        </Accordion>
       </Box>
 
       {/* Song List */}
       {filteredSongs.length === 0 ? (
         <Typography align="center" color="textSecondary" sx={{ mt: 4 }}>No songs found matching your criteria.</Typography>
+      ) : viewMode === 'cards' ? (
+        <Grid container spacing={2}>
+          {filteredSongs.map((song) => (
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={song.id}>
+              <Paper
+                elevation={3}
+                sx={{ p: 2, height: '100%', cursor: 'pointer' }}
+                onClick={() => setSelectedSong(song)}
+              >
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Avatar variant="rounded" src={song.artwork_url} sx={{ width: 72, height: 72 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="subtitle1" noWrap sx={{ fontWeight: 'bold' }}>
+                      {song.track_name}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      {song.artist_name}
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 0.5, mt: 1, flexWrap: 'wrap' }}>
+                      <Chip size="small" label={song.vocal_status || 'Practicing'} />
+                      {song.spotify_source_playlist_name && (
+                        <Chip size="small" icon={<SpotifyGlyphIcon />} label="Spotify" />
+                      )}
+                      {song.vocal_status === 'Mastered' && (
+                        <Chip size="small" icon={<StarIcon />} label="Mastered" />
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
+                  <IconButton aria-label="perform" sx={{ color: '#1DB954' }} onClick={(e) => { e.stopPropagation(); handleDirectPerform(song); }}><MicIcon /></IconButton>
+                  <IconButton aria-label="delete" color="error" onClick={(e) => { e.stopPropagation(); setPendingDeleteSong(song); }}><DeleteIcon /></IconButton>
+                </Box>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
       ) : (
         <Paper elevation={3}>
           <List>
@@ -717,7 +814,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                   secondaryAction={
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <IconButton edge="end" aria-label="perform" sx={{ color: '#1DB954', mr: 1 }} onClick={(e) => { e.stopPropagation(); handleDirectPerform(song); }}><MicIcon /></IconButton>
-                      <IconButton edge="end" aria-label="delete" color="error" onClick={(e) => { e.stopPropagation(); handleRemove(song.id); }}><DeleteIcon /></IconButton>
+                      <IconButton edge="end" aria-label="delete" color="error" onClick={(e) => { e.stopPropagation(); setPendingDeleteSong(song); }}><DeleteIcon /></IconButton>
                     </Box>
                   }
                 >
@@ -776,6 +873,24 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
           </List>
         </Paper>
       )}
+      <Dialog open={Boolean(pendingDeleteSong)} onClose={() => setPendingDeleteSong(null)}>
+        <DialogTitle>Remove song?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Remove “{pendingDeleteSong?.track_name}” from your repertoire? This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingDeleteSong(null)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => pendingDeleteSong && void handleRemove(pendingDeleteSong.id)}
+          >
+            Remove
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

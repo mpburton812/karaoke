@@ -63,6 +63,7 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/enrichment/status",
       "/api/enrichment/run",
       "/api/karafun/sync",
+      "/api/admin/health",
     ],
     data: ["/api/execute", "/api/batch"],
     note: serveStatic
@@ -255,6 +256,28 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       const message =
         err instanceof Error ? err.message : "KaraFun catalog sync failed.";
       res.status(502).json({ error: message });
+    }
+  });
+
+  app.get("/api/admin/health", requireAuth, async (_req, res) => {
+    try {
+      res.json({
+        ok: true,
+        turso: tursoConfigured,
+        commit: process.env.RENDER_GIT_COMMIT || process.env.COMMIT_SHA || null,
+        branch: process.env.RENDER_GIT_BRANCH || process.env.BRANCH_NAME || null,
+        providers: {
+          spotifyOAuth: spotifyOAuthConfigured(),
+          spotifyClientId: Boolean(process.env.SPOTIFY_CLIENT_ID?.trim()),
+          spotifyClientSecret: Boolean(process.env.SPOTIFY_CLIENT_SECRET?.trim()),
+          getSongBpm: Boolean(process.env.GETSONGBPM_API_KEY?.trim()),
+          lastFm: Boolean(process.env.LASTFM_API_KEY?.trim()),
+        },
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to read admin health.";
+      res.status(500).json({ error: message });
     }
   });
 

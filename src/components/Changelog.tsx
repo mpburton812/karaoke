@@ -5,6 +5,11 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-17', description: 'UI: Add Admin Health Dashboard cards and consolidate system/provider health' },
+  { date: '2026-05-17', description: 'UI: Add repertoire filter accordion and list/card view toggle' },
+  { date: '2026-05-17', description: 'UI: Add song detail data-source chips for lyrics, KaraFun, BPM/key, genre, and Spotify playlists' },
+  { date: '2026-05-17', description: 'UI: Replace key Admin/Songs/Spotify browser confirms with in-app dialogs' },
+  { date: '2026-05-17', description: 'UI: Trim verbose Admin and Spotify helper copy' },
   { date: '2026-05-17', description: 'Enrichment: Prefer Spotify audio features when available; add GetSongBPM and Last.fm fallbacks when configured' },
   { date: '2026-05-17', description: 'Admin: Richer System Status and enrichment details with warnings, timestamps, and counters' },
   { date: '2026-05-17', description: 'Admin: Remove visible Spotify diagnostics panel while keeping server-side diagnostics' },

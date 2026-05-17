@@ -5,6 +5,10 @@ import {
   Button,
   CircularProgress,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   InputLabel,
   MenuItem,
@@ -46,6 +50,10 @@ const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
   const [linkedDuplicates, setLinkedDuplicates] = useState<
     Array<{ trackName: string; artistName: string }>
   >([]);
+  const [pendingRemoval, setPendingRemoval] = useState<{
+    spotifyPlaylistId: string;
+    label: string;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,14 +88,8 @@ const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
   };
 
   const handleClearImported = async (spotifyPlaylistId: string, label: string) => {
-    if (
-      !window.confirm(
-        `Remove the “${label}” Spotify playlist link? Songs also in another Spotify playlist stay in your library. Spotify-created songs with no remaining playlist links will be removed.`
-      )
-    ) {
-      return;
-    }
     setClearingId(spotifyPlaylistId);
+    setPendingRemoval(null);
     setError(null);
     try {
       const { deleted, unlinked } =
@@ -164,14 +166,6 @@ const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
   return (
     <Box sx={{ mt: 2 }}>
       <Divider sx={{ mb: 2 }} />
-      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: "bold" }}>
-        PLAYLIST SYNC
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Pull tracks from Spotify playlists into your library. Existing songs are
-        linked to the playlist instead of duplicated. Removing a playlist link
-        only deletes Spotify-created songs that are no longer linked anywhere.
-      </Typography>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -288,7 +282,10 @@ const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
                     variant="outlined"
                     disabled={busy}
                     onClick={() =>
-                      void handleClearImported(s.spotifyPlaylistId, label)
+                      setPendingRemoval({
+                        spotifyPlaylistId: s.spotifyPlaylistId,
+                        label,
+                      })
                     }
                   >
                     {busy ? "Removing…" : "Remove playlist link"}
@@ -299,6 +296,39 @@ const SpotifyPlaylistSync: React.FC<SpotifyPlaylistSyncProps> = ({
           </Box>
         </Box>
       )}
+
+      <Dialog
+        open={Boolean(pendingRemoval)}
+        onClose={() => !clearingId && setPendingRemoval(null)}
+      >
+        <DialogTitle>Remove playlist link?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Songs also in another Spotify playlist stay in your library.
+            Spotify-created songs with no remaining playlist links will be
+            removed.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingRemoval(null)} disabled={Boolean(clearingId)}>
+            Cancel
+          </Button>
+          <Button
+            color="warning"
+            variant="contained"
+            disabled={Boolean(clearingId) || !pendingRemoval}
+            onClick={() =>
+              pendingRemoval &&
+              void handleClearImported(
+                pendingRemoval.spotifyPlaylistId,
+                pendingRemoval.label
+              )
+            }
+          >
+            Remove link
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
