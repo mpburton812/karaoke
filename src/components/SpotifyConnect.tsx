@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   CircularProgress,
+  Divider,
   Paper,
   Typography,
 } from "@mui/material";
@@ -11,8 +12,10 @@ import InsertLinkIcon from "@mui/icons-material/InsertLink";
 import LinkOff from "@mui/icons-material/LinkOff";
 import {
   disconnectSpotify,
+  fetchSpotifyDiagnostics,
   fetchSpotifyStatus,
   getSpotifyConnectUrl,
+  type SpotifyDiagnosticEntry,
   type SpotifyStatusResponse,
 } from "../api/spotify";
 import SpotifyPlaylistSync from "./SpotifyPlaylistSync";
@@ -26,6 +29,9 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ currentUser }) => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<SpotifyDiagnosticEntry[]>([]);
+  const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null);
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,9 +47,27 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ currentUser }) => {
     }
   }, []);
 
+  const loadDiagnostics = useCallback(async () => {
+    setDiagnosticsLoading(true);
+    setDiagnosticsError(null);
+    try {
+      setDiagnostics(await fetchSpotifyDiagnostics());
+    } catch (err) {
+      setDiagnosticsError(
+        err instanceof Error ? err.message : "Failed to load Spotify diagnostics."
+      );
+    } finally {
+      setDiagnosticsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    void load();
-  }, [load]);
+    const id = window.setTimeout(() => {
+      void load();
+      void loadDiagnostics();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [load, loadDiagnostics]);
 
   useEffect(() => {
     const onVis = () => {
@@ -54,11 +78,14 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ currentUser }) => {
   }, [load]);
 
   useEffect(() => {
-    const onOAuthReturn = () => void load();
+    const onOAuthReturn = () => {
+      void load();
+      void loadDiagnostics();
+    };
     window.addEventListener("karaoke-spotify-oauth-return", onOAuthReturn);
     return () =>
       window.removeEventListener("karaoke-spotify-oauth-return", onOAuthReturn);
-  }, [load]);
+  }, [load, loadDiagnostics]);
 
   const handleConnect = async () => {
     setActionLoading(true);
@@ -85,6 +112,18 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ currentUser }) => {
       setError(err instanceof Error ? err.message : "Disconnect failed.");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const copyDiagnostics = async () => {
+    const text = JSON.stringify(diagnostics, null, 2);
+    try {
+      await navigator.clipboard.writeText(text);
+      setDiagnosticsError(null);
+    } catch {
+      setDiagnosticsError(
+        "Copy failed. Select the diagnostics text and copy it manually."
+      );
     }
   };
 
@@ -190,6 +229,63 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ currentUser }) => {
         >
           Disconnect
         </Button>
+      </Box>
+
+      <Divider sx={{ my: 2 }} />
+      <Box>
+        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: "bold" }}>
+          SPOTIFY DIAGNOSTICS
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Recent server-side Spotify events for this user. Copy these when
+          troubleshooting login or playlist sync problems.
+        </Typography>
+        {diagnosticsError && (
+          <Alert severity="warning" sx={{ mb: 1 }}>
+            {diagnosticsError}
+          </Alert>
+        )}
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 1 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={loadDiagnostics}
+            disabled={diagnosticsLoading}
+          >
+            {diagnosticsLoading ? "Loading…" : "Refresh diagnostics"}
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={copyDiagnostics}
+            disabled={diagnostics.length === 0}
+          >
+            Copy diagnostics
+          </Button>
+        </Box>
+        {diagnostics.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            No Spotify diagnostics recorded since the server last restarted.
+          </Typography>
+        ) : (
+          <Box
+            component="pre"
+            sx={{
+              bgcolor: "background.default",
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 1,
+              fontSize: "0.72rem",
+              maxHeight: 260,
+              overflow: "auto",
+              p: 1,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+            }}
+          >
+            {JSON.stringify(diagnostics, null, 2)}
+          </Box>
+        )}
       </Box>
 
       {status?.configured && status.linked && (

@@ -10,6 +10,30 @@ const SPOTIFY_SCOPES = [
   "playlist-read-collaborative",
 ].join(" ");
 
+export class SpotifyApiError extends Error {
+  operation: string;
+  status: number;
+  statusText: string;
+  response: Record<string, unknown>;
+
+  constructor(
+    message: string,
+    options: {
+      operation: string;
+      status: number;
+      statusText: string;
+      response: Record<string, unknown>;
+    }
+  ) {
+    super(message);
+    this.name = "SpotifyApiError";
+    this.operation = options.operation;
+    this.status = options.status;
+    this.statusText = options.statusText;
+    this.response = options.response;
+  }
+}
+
 /** Trimmed redirect URI from env (non-secret); must match Spotify Dashboard exactly. */
 export function getConfiguredSpotifyRedirectUri(): string | null {
   const u = process.env.SPOTIFY_REDIRECT_URI?.trim();
@@ -202,6 +226,20 @@ async function readSpotifyJson(
   return {};
 }
 
+function spotifyApiError(
+  operation: string,
+  res: Response,
+  data: Record<string, unknown>,
+  fallback: string
+): SpotifyApiError {
+  return new SpotifyApiError(spotifyErrorMessage(data, fallback), {
+    operation,
+    status: res.status,
+    statusText: res.statusText,
+    response: data,
+  });
+}
+
 function spotifyErrorMessage(
   data: Record<string, unknown>,
   fallback: string
@@ -256,7 +294,7 @@ export async function exchangeSpotifyCode(
     "Invalid token response from Spotify."
   );
   if (!res.ok) {
-    throw new Error(spotifyErrorMessage(data, "Token exchange failed."));
+    throw spotifyApiError("token_exchange", res, data, "Token exchange failed.");
   }
 
   const access_token = data.access_token as string | undefined;
@@ -298,7 +336,7 @@ export async function refreshSpotifyAccessToken(
     "Invalid refresh response from Spotify."
   );
   if (!res.ok) {
-    throw new Error(spotifyErrorMessage(data, "Refresh failed."));
+    throw spotifyApiError("refresh_token", res, data, "Refresh failed.");
   }
 
   const access_token = data.access_token as string | undefined;
@@ -329,7 +367,12 @@ export async function fetchSpotifyCurrentUser(accessToken: string): Promise<{
     "Invalid profile response from Spotify."
   );
   if (!res.ok) {
-    throw new Error(spotifyErrorMessage(data, "Failed to load Spotify profile."));
+    throw spotifyApiError(
+      "fetch_profile",
+      res,
+      data,
+      "Failed to load Spotify profile."
+    );
   }
   return {
     id: String(data.id ?? ""),

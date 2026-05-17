@@ -31,6 +31,11 @@ import {
   syncSpotifyPlaylist,
   deleteImportedSongsForSpotifyPlaylist,
 } from "./spotifyPlaylistSync.js";
+import {
+  listSpotifyDiagnostics,
+  recordSpotifyDiagnostic,
+  spotifyErrorDetails,
+} from "./spotifyDiagnostics.js";
 
 function apiIndexPayload(serveStatic: boolean) {
   return {
@@ -45,6 +50,7 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/spotify/callback",
       "/api/spotify/disconnect",
       "/api/spotify/status",
+      "/api/spotify/diagnostics",
       "/api/spotify/playlists",
       "/api/spotify/synced-playlists",
       "/api/spotify/sync-playlist",
@@ -225,6 +231,18 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     }
   });
 
+  app.get("/api/spotify/diagnostics", requireAuth, (req, res) => {
+    const userId = (req as express.Request & { userId: number }).userId;
+    const rawLimit =
+      typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
+    res.json({
+      diagnostics: listSpotifyDiagnostics({
+        userId,
+        limit: Number.isFinite(rawLimit) ? rawLimit : undefined,
+      }),
+    });
+  });
+
   app.post("/api/spotify/connect", requireAuth, (req, res) => {
     if (!spotifyOAuthConfigured()) {
       res.status(503).json({
@@ -245,10 +263,28 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
         browserOrigin
       );
       const url = buildSpotifyAuthorizeUrl(state, codeChallenge);
+      recordSpotifyDiagnostic({
+        level: "info",
+        event: "oauth.connect.created",
+        userId,
+        message: "Created Spotify authorization URL.",
+        details: {
+          browserOrigin,
+          redirectUri: getConfiguredSpotifyRedirectUri(),
+          userAgent: req.get("user-agent") ?? null,
+        },
+      });
       res.json({ url });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to start Spotify login.";
+      recordSpotifyDiagnostic({
+        level: "error",
+        event: "oauth.connect.failed",
+        userId: (req as express.Request & { userId: number }).userId,
+        message,
+        details: spotifyErrorDetails(err),
+      });
       res.status(500).json({ error: message });
     }
   });
@@ -262,7 +298,13 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     if (stateParam) {
       try {
         oauthContext = verifySpotifyOAuthState(stateParam);
-      } catch {
+      } catch (err) {
+        recordSpotifyDiagnostic({
+          level: "warn",
+          event: "oauth.callback.invalid_state",
+          message: "Spotify OAuth callback had an invalid state token.",
+          details: spotifyErrorDetails(err),
+        });
         oauthContext = null;
       }
     }
@@ -291,19 +333,61 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       const reason = desc
         ? `${oauthError}: ${desc}`.slice(0, 400)
         : oauthError;
+      recordSpotifyDiagnostic({
+        level: "warn",
+        event: "oauth.callback.spotify_error",
+        userId: oauthContext?.userId ?? null,
+        message: reason,
+        details: {
+          error: oauthError,
+          errorDescription: desc || null,
+          returnBase: baseForRedirect,
+          userAgent: req.get("user-agent") ?? null,
+        },
+      });
       redirectWith({ spotify: "error", reason });
       return;
     }
     if (!code || !state) {
+      recordSpotifyDiagnostic({
+        level: "warn",
+        event: "oauth.callback.missing_params",
+        userId: oauthContext?.userId ?? null,
+        message: "Spotify OAuth callback was missing code or state.",
+        details: {
+          hasCode: Boolean(code),
+          hasState: Boolean(state),
+          returnBase: baseForRedirect,
+        },
+      });
       redirectWith({ spotify: "error", reason: "missing_code_or_state" });
       return;
     }
     if (!spotifyOAuthConfigured()) {
+      recordSpotifyDiagnostic({
+        level: "error",
+        event: "oauth.callback.not_configured",
+        userId: oauthContext?.userId ?? null,
+        message: "Spotify OAuth callback reached an unconfigured server.",
+        details: {
+          env: getSpotifyEnvPresence(),
+          redirectUri: getConfiguredSpotifyRedirectUri(),
+        },
+      });
       redirectWith({ spotify: "error", reason: "not_configured" });
       return;
     }
 
     if (!oauthContext) {
+      recordSpotifyDiagnostic({
+        level: "warn",
+        event: "oauth.callback.invalid_state_redirect",
+        message: "Spotify OAuth callback could not be tied to a user.",
+        details: {
+          hasState: Boolean(state),
+          returnBase: baseForRedirect,
+        },
+      });
       redirectWith({ spotify: "error", reason: "invalid_state" });
       return;
     }
@@ -319,10 +403,27 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
         profile.id,
         profile.display_name
       );
+      recordSpotifyDiagnostic({
+        level: "info",
+        event: "oauth.callback.connected",
+        userId,
+        message: "Spotify account connected successfully.",
+        details: {
+          spotifyUserId: profile.id,
+          hasDisplayName: Boolean(profile.display_name),
+        },
+      });
       redirectWith({ spotify: "connected" });
     } catch (err) {
       const reason =
         err instanceof Error ? err.message : "token_exchange_failed";
+      recordSpotifyDiagnostic({
+        level: "error",
+        event: "oauth.callback.failed",
+        userId,
+        message: reason,
+        details: spotifyErrorDetails(err),
+      });
       redirectWith({
         spotify: "error",
         reason: reason.slice(0, 200),

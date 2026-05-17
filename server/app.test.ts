@@ -203,9 +203,36 @@ describe("API routes", () => {
       expect(res.status).toBe(200);
       expect(typeof res.body.url).toBe("string");
       expect(res.body.url).toContain("accounts.spotify.com/authorize");
+      expect(res.body.url).toContain("user-read-private");
       expect(res.body.url).toContain("playlist-read-private");
       expect(res.body.url).toContain("code_challenge_method=S256");
       expect(res.body.url).toContain("code_challenge=");
+    });
+
+    it("GET /api/spotify/diagnostics returns recent sanitized entries", async () => {
+      vi.stubEnv("SPOTIFY_CLIENT_ID", "test_client_id");
+      vi.stubEnv("SPOTIFY_CLIENT_SECRET", "test_secret");
+      vi.stubEnv(
+        "SPOTIFY_REDIRECT_URI",
+        "http://127.0.0.1:3001/api/spotify/callback"
+      );
+      vi.stubEnv("PUBLIC_APP_URL", "http://127.0.0.1:5173");
+
+      const token = signToken({ id: USER_ID, username: "tester" });
+      await request(app)
+        .post("/api/spotify/connect")
+        .set("Authorization", `Bearer ${token}`);
+
+      const res = await request(app)
+        .get("/api/spotify/diagnostics")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.diagnostics[0]).toMatchObject({
+        event: "oauth.connect.created",
+        userId: USER_ID,
+      });
+      expect(JSON.stringify(res.body.diagnostics)).not.toContain("test_secret");
     });
   });
 });

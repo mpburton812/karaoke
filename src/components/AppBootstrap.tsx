@@ -45,8 +45,13 @@ export default function AppBootstrap() {
   useEffect(() => {
     if (ready) return;
     const controller = new AbortController();
-    void connect(controller.signal);
-    return () => controller.abort();
+    const id = window.setTimeout(() => {
+      void connect(controller.signal);
+    }, 0);
+    return () => {
+      window.clearTimeout(id);
+      controller.abort();
+    };
   }, [connect, ready, retryKey]);
 
   if (ready) {

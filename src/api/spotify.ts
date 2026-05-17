@@ -28,6 +28,16 @@ export interface SpotifyStatusResponse {
   displayName: string | null;
 }
 
+export interface SpotifyDiagnosticEntry {
+  id: string;
+  at: string;
+  level: "info" | "warn" | "error";
+  event: string;
+  userId: number | null;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
 export async function fetchSpotifyStatus(): Promise<SpotifyStatusResponse> {
   const token = getToken();
   if (!token) {
@@ -76,6 +86,26 @@ export async function getSpotifyConnectUrl(): Promise<string> {
     throw new Error("Invalid response from server.");
   }
   return body.url;
+}
+
+export async function fetchSpotifyDiagnostics(): Promise<
+  SpotifyDiagnosticEntry[]
+> {
+  const token = getToken();
+  if (!token) {
+    throw new Error("Not authenticated.");
+  }
+  const res = await spotifyFetch(apiUrl("/api/spotify/diagnostics?limit=25"), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = (await res.json()) as {
+    diagnostics?: SpotifyDiagnosticEntry[];
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.error || "Failed to load Spotify diagnostics.");
+  }
+  return Array.isArray(body.diagnostics) ? body.diagnostics : [];
 }
 
 export async function disconnectSpotify(): Promise<void> {
