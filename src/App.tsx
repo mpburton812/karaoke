@@ -39,6 +39,17 @@ const AdminAppReload = lazy(() => import('./components/AdminAppReload'));
 const SpotifyConnect = lazy(() => import('./components/SpotifyConnect'));
 
 type ThemeMode = 'light' | 'dark' | 'trans';
+type SpotifySnackbarState = {
+  open: boolean;
+  message: string;
+  severity: "success" | "error" | "info";
+};
+const ADMIN_TAB_INDEX = 4;
+
+function getInitialTab(): number {
+  const params = new URLSearchParams(window.location.search);
+  return params.has("spotify") ? ADMIN_TAB_INDEX : 0;
+}
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -67,7 +78,7 @@ function CustomTabPanel(props: TabPanelProps) {
 }
 
 function App() {
-  const [value, setValue] = useState(0);
+  const [value, setValue] = useState(getInitialTab);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     return (localStorage.getItem('theme_mode') as ThemeMode) || 'dark';
   });
@@ -172,11 +183,11 @@ function App() {
     return () => setSessionExpiredHandler(null);
   }, []);
 
-  const [spotifySnackbar, setSpotifySnackbar] = useState<{
-    open: boolean;
-    message: string;
-    severity: "success" | "error" | "info";
-  }>({ open: false, message: "", severity: "success" });
+  const [spotifySnackbar, setSpotifySnackbar] = useState<SpotifySnackbarState>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   /** OAuth return: run once on load (not tied to React user state) so ?spotify= is never missed. */
   useEffect(() => {
@@ -188,28 +199,28 @@ function App() {
     const saved = localStorage.getItem("karaoke_user");
     const loggedIn = Boolean(token && saved);
 
-    setValue(4);
-
     const notifySpotifyListeners = () => {
       window.dispatchEvent(new Event("karaoke-spotify-oauth-return"));
     };
 
+    let nextSnackbar: SpotifySnackbarState | null = null;
+    let shouldNotifySpotifyListeners = false;
+
     if (spotify === "connected") {
       if (loggedIn) {
-        setSpotifySnackbar({
+        nextSnackbar = {
           open: true,
           message: "Spotify account connected.",
           severity: "success",
-        });
-        // Defer until after React commits Admin + SpotifyConnect (listeners miss same-tick dispatch).
-        window.setTimeout(notifySpotifyListeners, 0);
+        };
+        shouldNotifySpotifyListeners = true;
       } else {
-        setSpotifySnackbar({
+        nextSnackbar = {
           open: true,
           message:
             "Spotify approved the link. Sign in with the same account to use playlist features.",
           severity: "info",
-        });
+        };
       }
     } else if (spotify === "error") {
       const rawReason = params.get("reason") || "unknown";
@@ -219,13 +230,13 @@ function App() {
       } catch {
         /* use raw */
       }
-      setSpotifySnackbar({
+      nextSnackbar = {
         open: true,
         message: `Spotify connection failed: ${displayReason}`,
         severity: "error",
-      });
+      };
       if (loggedIn) {
-        window.setTimeout(notifySpotifyListeners, 0);
+        shouldNotifySpotifyListeners = true;
       }
     }
 
@@ -237,6 +248,16 @@ function App() {
       "",
       window.location.pathname + (q ? `?${q}` : "")
     );
+
+    window.setTimeout(() => {
+      if (nextSnackbar) {
+        setSpotifySnackbar(nextSnackbar);
+      }
+      // Defer until after React commits Admin + SpotifyConnect (listeners miss same-tick dispatch).
+      if (shouldNotifySpotifyListeners) {
+        notifySpotifyListeners();
+      }
+    }, 0);
   }, []);
 
   const handleLogin = (user: { id: number; username: string }) => {

@@ -5,6 +5,7 @@ import { db } from "./db.js";
 const JWT_SECRET = process.env.JWT_SECRET || "dev-insecure-change-me";
 
 const SPOTIFY_SCOPES = [
+  "user-read-private",
   "playlist-read-private",
   "playlist-read-collaborative",
 ].join(" ");
@@ -201,6 +202,27 @@ async function readSpotifyJson(
   return {};
 }
 
+function spotifyErrorMessage(
+  data: Record<string, unknown>,
+  fallback: string
+): string {
+  const desc = data.error_description;
+  if (typeof desc === "string" && desc.trim()) return desc.trim();
+
+  const err = data.error;
+  if (typeof err === "string" && err.trim()) return err.trim();
+  if (err && typeof err === "object") {
+    const o = err as { message?: unknown; reason?: unknown };
+    const message = typeof o.message === "string" ? o.message.trim() : "";
+    const reason = typeof o.reason === "string" ? o.reason.trim() : "";
+    if (message && reason) return `${message} (${reason})`;
+    if (message) return message;
+    if (reason) return reason;
+  }
+
+  return fallback;
+}
+
 export async function exchangeSpotifyCode(
   code: string,
   codeVerifier: string
@@ -234,13 +256,7 @@ export async function exchangeSpotifyCode(
     "Invalid token response from Spotify."
   );
   if (!res.ok) {
-    const msg =
-      typeof data.error_description === "string"
-        ? data.error_description
-        : typeof data.error === "string"
-          ? data.error
-          : "Token exchange failed.";
-    throw new Error(msg);
+    throw new Error(spotifyErrorMessage(data, "Token exchange failed."));
   }
 
   const access_token = data.access_token as string | undefined;
@@ -282,13 +298,7 @@ export async function refreshSpotifyAccessToken(
     "Invalid refresh response from Spotify."
   );
   if (!res.ok) {
-    const msg =
-      typeof data.error_description === "string"
-        ? data.error_description
-        : typeof data.error === "string"
-          ? data.error
-          : "Refresh failed.";
-    throw new Error(msg);
+    throw new Error(spotifyErrorMessage(data, "Refresh failed."));
   }
 
   const access_token = data.access_token as string | undefined;
@@ -319,12 +329,7 @@ export async function fetchSpotifyCurrentUser(accessToken: string): Promise<{
     "Invalid profile response from Spotify."
   );
   if (!res.ok) {
-    const errObj = data.error as { message?: string } | undefined;
-    const msg =
-      typeof errObj?.message === "string"
-        ? errObj.message
-        : "Failed to load Spotify profile.";
-    throw new Error(msg);
+    throw new Error(spotifyErrorMessage(data, "Failed to load Spotify profile."));
   }
   return {
     id: String(data.id ?? ""),

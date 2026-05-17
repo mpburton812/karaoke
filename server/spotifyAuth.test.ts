@@ -10,6 +10,8 @@ import {
   signSpotifyOAuthState,
   verifySpotifyOAuthState,
   exchangeSpotifyCode,
+  buildSpotifyAuthorizeUrl,
+  fetchSpotifyCurrentUser,
   isSpotifyRefreshTokenDeadError,
   normalizeWebOrigin,
   refreshSpotifyAccessToken,
@@ -109,6 +111,21 @@ describe("spotifyAuth state JWT", () => {
     );
     expect(() => verifySpotifyOAuthState(bad)).toThrow();
   });
+
+  it("requests profile scope needed by the /me lookup after OAuth", () => {
+    vi.stubEnv("SPOTIFY_CLIENT_ID", "cid");
+    vi.stubEnv(
+      "SPOTIFY_REDIRECT_URI",
+      "https://example.com/api/spotify/callback"
+    );
+
+    const url = new URL(buildSpotifyAuthorizeUrl("state", "challenge"));
+    const scopes = url.searchParams.get("scope")?.split(" ") ?? [];
+
+    expect(scopes).toContain("user-read-private");
+    expect(scopes).toContain("playlist-read-private");
+    expect(scopes).toContain("playlist-read-collaborative");
+  });
 });
 
 describe("refreshSpotifyAccessToken", () => {
@@ -169,6 +186,40 @@ describe("exchangeSpotifyCode", () => {
 
     await expect(exchangeSpotifyCode("code", "verifier")).rejects.toThrow(
       "The user is not registered in the Developer Dashboard."
+    );
+  });
+});
+
+describe("fetchSpotifyCurrentUser", () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("surfaces Spotify profile errors from string error responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse({ error: "insufficient_scope" }, 403))
+    );
+
+    await expect(fetchSpotifyCurrentUser("access")).rejects.toThrow(
+      "insufficient_scope"
+    );
+  });
+
+  it("surfaces Spotify profile errors from nested error responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({ error: { message: "Insufficient client scope" } }, 403)
+      )
+    );
+
+    await expect(fetchSpotifyCurrentUser("access")).rejects.toThrow(
+      "Insufficient client scope"
     );
   });
 });
