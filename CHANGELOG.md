@@ -1,6 +1,11 @@
 # Changelog
 
 ## [2026-05-17]
+- Admin: Add richer System Status and enrichment details, including warnings, timestamps, and progress counters.
+- Admin: Remove the visible Spotify diagnostics panel while retaining server-side diagnostics.
+- Fix: Add timeouts to backend enrichment lookups so one external provider cannot stall a run.
+- Fix: Improve KaraFun sync errors with source, warnings, parsed-line counts, and content previews when downloads are not CSV.
+- Fix: Prevent status multi-select label overlap before selection.
 - Fix: Move KaraFun catalog sync to the backend and show real sync errors inline instead of a generic browser alert.
 - Repertoire: Allow multi-select vocal status filtering; songs match any selected status.
 - Admin: Add backend song enrichment jobs with progress counters and an auto-check-all button.

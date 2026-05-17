@@ -5,6 +5,11 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-17', description: 'Admin: Richer System Status and enrichment details with warnings, timestamps, and counters' },
+  { date: '2026-05-17', description: 'Admin: Remove visible Spotify diagnostics panel while keeping server-side diagnostics' },
+  { date: '2026-05-17', description: 'Fix: Add timeouts to backend enrichment lookups to prevent stuck runs' },
+  { date: '2026-05-17', description: 'Fix: Improve KaraFun sync errors with source, warnings, parsed-line counts, and content previews' },
+  { date: '2026-05-17', description: 'Fix: Prevent status multi-select label overlap before selection' },
   { date: '2026-05-17', description: 'Fix: Backend KaraFun catalog sync with inline success/error messages' },
   { date: '2026-05-17', description: 'Repertoire: Multi-select vocal status filter includes songs matching any selected status' },
   { date: '2026-05-17', description: 'Admin: Backend song enrichment jobs with progress counter and auto-check button' },

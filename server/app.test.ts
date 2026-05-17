@@ -155,6 +155,7 @@ describe("API routes", () => {
       expect(res.status).toBe(200);
       expect(res.body.count).toBe(1);
       expect(res.body.source).toBe("direct");
+      expect(res.body.warnings).toEqual([]);
       expect(typeof res.body.updatedAt).toBe("string");
       expect(mockExecute).toHaveBeenCalledWith("DELETE FROM karafun_catalog");
       expect(mockBatch).toHaveBeenCalledTimes(1);
@@ -188,6 +189,7 @@ describe("API routes", () => {
       expect(res.status).toBe(200);
       expect(res.body.count).toBe(1);
       expect(res.body.source).toBe("proxy");
+      expect(res.body.warnings[0]).toContain("Direct KaraFun download failed");
       expect(mockBatch).toHaveBeenCalledTimes(1);
     });
   });

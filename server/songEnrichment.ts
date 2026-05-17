@@ -39,6 +39,7 @@ interface EnrichmentJob {
 }
 
 const jobs = new Map<number, EnrichmentJob>();
+const FETCH_TIMEOUT_MS = 10_000;
 
 function now(): string {
   return new Date().toISOString();
@@ -67,14 +68,46 @@ function emptyQualities() {
   };
 }
 
-async function fetchText(url: string, init?: RequestInit): Promise<string> {
-  const res = await fetch(url, init);
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit | undefined,
+  label: string
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(`${label} timed out after ${FETCH_TIMEOUT_MS / 1000}s`, {
+        cause: err,
+      });
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchText(
+  url: string,
+  init: RequestInit | undefined,
+  label: string
+): Promise<string> {
+  const res = await fetchWithTimeout(url, init, label);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.text();
 }
 
-async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
-  const res = await fetch(url, init);
+async function fetchJson(
+  url: string,
+  init: RequestInit | undefined,
+  label: string
+): Promise<unknown> {
+  const res = await fetchWithTimeout(url, init, label);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -98,12 +131,16 @@ async function checkKarafunAvailable(
 
   const searchQuery = `${cleanTitle} ${cleanArtist}`;
   const karafunSearchUrl = `https://www.karafun.com/search.html?query=${encodeURIComponent(searchQuery)}`;
-  const html = await fetchText(karafunSearchUrl, {
-    headers: {
-      "User-Agent": "KaraokeCompanion/1.0 (https://github.com/mpburton812/karaoke)",
-      Accept: "text/html",
+  const html = await fetchText(
+    karafunSearchUrl,
+    {
+      headers: {
+        "User-Agent": "KaraokeCompanion/1.0 (https://github.com/mpburton812/karaoke)",
+        Accept: "text/html",
+      },
     },
-  });
+    "KaraFun search"
+  );
   return (
     html.includes("song-list__item") ||
     html.includes("karaoke/") ||
@@ -118,7 +155,9 @@ async function fetchLyrics(
   const cleanArtist = cleanText(artistName);
   const cleanTitle = cleanText(trackName);
   const data = (await fetchJson(
-    `https://api.lyrics.ovh/v1/${encodeURIComponent(cleanArtist)}/${encodeURIComponent(cleanTitle)}`
+    `https://api.lyrics.ovh/v1/${encodeURIComponent(cleanArtist)}/${encodeURIComponent(cleanTitle)}`,
+    undefined,
+    "Lyrics lookup"
   )) as { lyrics?: unknown };
   return typeof data.lyrics === "string" && data.lyrics.trim()
     ? data.lyrics
@@ -131,17 +170,23 @@ async function fetchMusicalQualitiesForNames(
 ): Promise<ReturnType<typeof emptyQualities>> {
   const qualities = emptyQualities();
   const mbSearchUrl = `https://musicbrainz.org/ws/2/recording/?query=recording:${encodeURIComponent(trackName)} AND artist:${encodeURIComponent(artistName)}&fmt=json`;
-  const mbData = (await fetchJson(mbSearchUrl, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "KaraokeCompanion/1.0 (https://github.com/mpburton812/karaoke)",
+  const mbData = (await fetchJson(
+    mbSearchUrl,
+    {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "KaraokeCompanion/1.0 (https://github.com/mpburton812/karaoke)",
+      },
     },
-  })) as { recordings?: Array<{ id?: string }> };
+    "MusicBrainz lookup"
+  )) as { recordings?: Array<{ id?: string }> };
   const mbid = mbData.recordings?.[0]?.id;
   if (!mbid) return qualities;
 
   const abData = (await fetchJson(
-    `https://acousticbrainz.org/api/v1/${mbid}/high-level`
+    `https://acousticbrainz.org/api/v1/${mbid}/high-level`,
+    undefined,
+    "AcousticBrainz lookup"
   )) as {
     highlevel?: {
       tonal_atonal?: { all?: { tonal?: number } };

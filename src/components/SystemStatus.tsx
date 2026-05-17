@@ -24,8 +24,9 @@ const SystemStatus = () => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncNotice, setSyncNotice] = useState<{
-    severity: 'success' | 'error';
+    severity: 'success' | 'warning' | 'error';
     message: string;
+    warnings?: string[];
   } | null>(null);
 
   const checkStatus = useCallback(async () => {
@@ -62,8 +63,9 @@ const SystemStatus = () => {
       setLastUpdated(result.updatedAt);
       setKarafunCount(result.count);
       setSyncNotice({
-        severity: 'success',
+        severity: result.warnings.length > 0 ? 'warning' : 'success',
         message: `KaraFun catalog synced (${result.count.toLocaleString()} records via ${result.source}).`,
+        warnings: result.warnings,
       });
     } catch (err) {
       console.error("Sync failed:", err);
@@ -102,6 +104,13 @@ const SystemStatus = () => {
           onClose={() => setSyncNotice(null)}
         >
           {syncNotice.message}
+          {syncNotice.warnings && syncNotice.warnings.length > 0 && (
+            <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
+              {syncNotice.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </Box>
+          )}
         </Alert>
       )}
 

@@ -103,6 +103,15 @@ const EnrichmentAdmin: React.FC = () => {
         ? `${enriched} enriched, ${status.pending} remaining.`
         : status.message) ??
     "Idle";
+  const lastUpdated = status.updatedAt
+    ? new Date(status.updatedAt).toLocaleString()
+    : "Never";
+  const started = status.startedAt
+    ? new Date(status.startedAt).toLocaleString()
+    : "Not started";
+  const completed = status.completedAt
+    ? new Date(status.completedAt).toLocaleString()
+    : "Not completed";
 
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 3, textAlign: "left" }}>
@@ -141,6 +150,36 @@ const EnrichmentAdmin: React.FC = () => {
           {status.errors.slice(0, 3).join(" | ")}
         </Alert>
       )}
+
+      <Box
+        sx={{
+          border: 1,
+          borderColor: "divider",
+          borderRadius: 1,
+          p: 1,
+          mb: 2,
+          typography: "caption",
+          color: "text.secondary",
+        }}
+      >
+        <Typography variant="caption" component="div">
+          Total: {status.totalSongs} | Pending: {status.pending} | Requested:
+          {" "}{status.requested} | Processed: {status.processed}
+        </Typography>
+        <Typography variant="caption" component="div">
+          Succeeded: {status.succeeded} | Failed: {status.failed} | Skipped:
+          {" "}{status.skipped}
+        </Typography>
+        <Typography variant="caption" component="div">
+          Started: {started}
+        </Typography>
+        <Typography variant="caption" component="div">
+          Updated: {lastUpdated}
+        </Typography>
+        <Typography variant="caption" component="div">
+          Completed: {completed}
+        </Typography>
+      </Box>
 
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
         <Button

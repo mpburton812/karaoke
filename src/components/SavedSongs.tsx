@@ -674,8 +674,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
               {genres.map(g => <MenuItem key={g} value={g}>{g}</MenuItem>)}
             </Select>
           </FormControl>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Status</InputLabel>
+          <FormControl size="small" sx={{ minWidth: 220 }}>
+            <InputLabel shrink>Status</InputLabel>
             <Select
               multiple
               value={statusFilter}
@@ -685,7 +685,11 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
                 setStatusFilter(typeof value === 'string' ? value.split(',') : value);
               }}
               renderValue={(selected) =>
-                selected.length === 0 ? 'All statuses' : selected.join(', ')
+                selected.length === 0 ? (
+                  <Box component="span" sx={{ color: 'text.secondary' }}>
+                    All statuses
+                  </Box>
+                ) : selected.join(', ')
               }
               displayEmpty
             >

@@ -4,6 +4,12 @@ const KARA_URL =
   "https://www.karafun.com/cl/3107312/bc24526ef023397ecac1814014ca8f14/";
 const PROXY_URL = `https://api.allorigins.win/get?url=${encodeURIComponent(KARA_URL)}`;
 
+interface CatalogText {
+  csvText: string;
+  source: string;
+  warnings: string[];
+}
+
 function parseSemicolonCsvLine(line: string): string[] {
   const fields: string[] = [];
   let field = "";
@@ -64,15 +70,19 @@ async function fetchProxyCatalog(): Promise<string> {
   return contents;
 }
 
-async function fetchCatalogText(): Promise<{ csvText: string; source: string }> {
+async function fetchCatalogText(): Promise<CatalogText> {
   try {
-    return { csvText: await fetchDirectCatalog(), source: "direct" };
+    return { csvText: await fetchDirectCatalog(), source: "direct", warnings: [] };
   } catch (directErr) {
+    const directMessage =
+      directErr instanceof Error ? directErr.message : String(directErr);
     try {
-      return { csvText: await fetchProxyCatalog(), source: "proxy" };
+      return {
+        csvText: await fetchProxyCatalog(),
+        source: "proxy",
+        warnings: [`Direct KaraFun download failed: ${directMessage}`],
+      };
     } catch (proxyErr) {
-      const directMessage =
-        directErr instanceof Error ? directErr.message : String(directErr);
       const proxyMessage =
         proxyErr instanceof Error ? proxyErr.message : String(proxyErr);
       throw new Error(
@@ -83,12 +93,18 @@ async function fetchCatalogText(): Promise<{ csvText: string; source: string }> 
   }
 }
 
+function previewContent(text: string): string {
+  const compact = text.replace(/\s+/g, " ").trim();
+  return compact.length > 320 ? `${compact.slice(0, 320)}...` : compact;
+}
+
 export async function syncKarafunCatalog(): Promise<{
   count: number;
   updatedAt: string;
   source: string;
+  warnings: string[];
 }> {
-  const { csvText, source } = await fetchCatalogText();
+  const { csvText, source, warnings } = await fetchCatalogText();
   if (!csvText.trim()) {
     throw new Error("KaraFun download was empty.");
   }
@@ -118,7 +134,17 @@ export async function syncKarafunCatalog(): Promise<{
     );
 
   if (statements.length === 0) {
-    throw new Error("KaraFun download did not contain any catalog records.");
+    throw new Error(
+      [
+        `KaraFun ${source} download did not contain CSV catalog records.`,
+        `Parsed 0 records from ${lines.length} non-empty line(s).`,
+        `Existing catalog was not changed.`,
+        warnings.length ? `Warnings: ${warnings.join(" | ")}` : "",
+        `First content: ${previewContent(csvText) || "[empty]"}`,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    );
   }
 
   await db.execute("DELETE FROM karafun_catalog");
@@ -133,5 +159,5 @@ export async function syncKarafunCatalog(): Promise<{
     args: ["karafun_last_updated", updatedAt],
   });
 
-  return { count: statements.length, updatedAt, source };
+  return { count: statements.length, updatedAt, source, warnings };
 }

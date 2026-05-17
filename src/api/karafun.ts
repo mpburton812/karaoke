@@ -13,6 +13,7 @@ export interface KarafunSyncResult {
   count: number;
   updatedAt: string;
   source: string;
+  warnings: string[];
 }
 
 export async function syncKarafunCatalog(): Promise<KarafunSyncResult> {
@@ -29,6 +30,7 @@ export async function syncKarafunCatalog(): Promise<KarafunSyncResult> {
     count?: number;
     updatedAt?: string;
     source?: string;
+    warnings?: string[];
     error?: string;
   };
   if (!res.ok) {
@@ -41,5 +43,6 @@ export async function syncKarafunCatalog(): Promise<KarafunSyncResult> {
         ? body.updatedAt
         : new Date().toISOString(),
     source: typeof body.source === "string" ? body.source : "unknown",
+    warnings: Array.isArray(body.warnings) ? body.warnings : [],
   };
 }
