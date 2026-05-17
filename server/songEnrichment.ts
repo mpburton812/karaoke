@@ -1,4 +1,5 @@
 import { db } from "./db.js";
+import { getSpotifyAccessTokenForUser } from "./spotifyAuth.js";
 
 export interface EnrichmentStatus {
   running: boolean;
@@ -21,6 +22,8 @@ interface SongToEnrich {
   id: number;
   track_name: string;
   artist_name: string;
+  spotify_track_id: string | null;
+  genre: string | null;
 }
 
 interface EnrichmentJob {
@@ -68,6 +71,8 @@ function emptyQualities() {
   };
 }
 
+type MusicalQualities = ReturnType<typeof emptyQualities>;
+
 async function fetchWithTimeout(
   url: string,
   init: RequestInit | undefined,
@@ -110,6 +115,32 @@ async function fetchJson(
   const res = await fetchWithTimeout(url, init, label);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
+}
+
+function coerceNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) {
+    return Number(value);
+  }
+  return null;
+}
+
+function mergeQualities(
+  base: MusicalQualities,
+  incoming: Partial<MusicalQualities>
+): MusicalQualities {
+  return {
+    bpm: base.bpm ?? incoming.bpm ?? null,
+    key: base.key !== "DNF" ? base.key : incoming.key ?? "DNF",
+    energy: base.energy ?? incoming.energy ?? null,
+    danceability: base.danceability ?? incoming.danceability ?? null,
+    happiness: base.happiness ?? incoming.happiness ?? null,
+    acousticness: base.acousticness ?? incoming.acousticness ?? null,
+    instrumentalness: base.instrumentalness ?? incoming.instrumentalness ?? null,
+    liveness: base.liveness ?? incoming.liveness ?? null,
+    speechiness: base.speechiness ?? incoming.speechiness ?? null,
+    loudness: base.loudness ?? incoming.loudness ?? null,
+  };
 }
 
 async function checkKarafunAvailable(
@@ -220,7 +251,186 @@ async function fetchMusicalQualitiesForNames(
   };
 }
 
-async function enrichSong(userId: number, song: SongToEnrich): Promise<void> {
+const SPOTIFY_KEYS = [
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+] as const;
+
+async function fetchSpotifyAudioFeatures(
+  accessToken: string,
+  spotifyTrackId: string
+): Promise<Partial<MusicalQualities>> {
+  const data = (await fetchJson(
+    `https://api.spotify.com/v1/audio-features/${encodeURIComponent(spotifyTrackId)}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+    "Spotify audio features"
+  )) as Record<string, unknown>;
+  const keyNum = coerceNumber(data.key);
+  const mode = coerceNumber(data.mode);
+  const key =
+    keyNum !== null && keyNum >= 0 && keyNum < SPOTIFY_KEYS.length
+      ? `${SPOTIFY_KEYS[keyNum]}${mode === 0 ? "m" : ""}`
+      : undefined;
+  return {
+    bpm: coerceNumber(data.tempo),
+    key,
+    energy: coerceNumber(data.energy),
+    danceability: coerceNumber(data.danceability),
+    happiness: coerceNumber(data.valence),
+    acousticness: coerceNumber(data.acousticness),
+    instrumentalness: coerceNumber(data.instrumentalness),
+    liveness: coerceNumber(data.liveness),
+    speechiness: coerceNumber(data.speechiness),
+    loudness: coerceNumber(data.loudness),
+  };
+}
+
+function findFirstNumber(value: unknown, keys: string[]): number | null {
+  if (!value || typeof value !== "object") return null;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findFirstNumber(item, keys);
+      if (found !== null) return found;
+    }
+    return null;
+  }
+  const obj = value as Record<string, unknown>;
+  for (const key of keys) {
+    const n = coerceNumber(obj[key]);
+    if (n !== null) return n;
+  }
+  for (const child of Object.values(obj)) {
+    const found = findFirstNumber(child, keys);
+    if (found !== null) return found;
+  }
+  return null;
+}
+
+function findFirstString(value: unknown, keys: string[]): string | null {
+  if (!value || typeof value !== "object") return null;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findFirstString(item, keys);
+      if (found) return found;
+    }
+    return null;
+  }
+  const obj = value as Record<string, unknown>;
+  for (const key of keys) {
+    const raw = obj[key];
+    if (typeof raw === "string" && raw.trim()) return raw.trim();
+  }
+  for (const child of Object.values(obj)) {
+    const found = findFirstString(child, keys);
+    if (found) return found;
+  }
+  return null;
+}
+
+async function fetchGetSongBpmQualities(
+  trackName: string,
+  artistName: string
+): Promise<Partial<MusicalQualities>> {
+  const apiKey = process.env.GETSONGBPM_API_KEY?.trim();
+  if (!apiKey) return {};
+  const params = new URLSearchParams({
+    api_key: apiKey,
+    type: "song",
+    lookup: `${trackName} ${artistName}`,
+    limit: "1",
+  });
+  const search = await fetchJson(
+    `https://api.getsongbpm.com/search/?${params.toString()}`,
+    undefined,
+    "GetSongBPM search"
+  );
+  const songId =
+    findFirstString(search, ["id", "song_id"]) ??
+    String(findFirstNumber(search, ["id", "song_id"]) ?? "");
+  const detail = songId
+    ? await fetchJson(
+        `https://api.getsongbpm.com/song/?${new URLSearchParams({
+          api_key: apiKey,
+          id: songId,
+        }).toString()}`,
+        undefined,
+        "GetSongBPM song"
+      )
+    : search;
+  const bpm = findFirstNumber(detail, ["tempo", "bpm"]);
+  const key = findFirstString(detail, ["key_of", "key", "camelot"]);
+  return {
+    bpm,
+    key: key ?? undefined,
+  };
+}
+
+function readLastFmTags(data: unknown): string[] {
+  const tags = (data as { track?: { toptags?: { tag?: unknown } } })?.track
+    ?.toptags?.tag;
+  if (!Array.isArray(tags)) return [];
+  return tags
+    .map((tag) => {
+      const name = (tag as { name?: unknown }).name;
+      return typeof name === "string" ? name.toLowerCase().trim() : "";
+    })
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
+function inferQualitiesFromTags(tags: string[]): Partial<MusicalQualities> {
+  const has = (...needles: string[]) =>
+    tags.some((tag) => needles.some((needle) => tag.includes(needle)));
+  return {
+    energy: has("rock", "metal", "punk", "dance", "edm", "party") ? 0.75 : null,
+    danceability: has("dance", "disco", "funk", "edm", "house") ? 0.75 : null,
+    happiness: has("happy", "party", "pop", "feel good") ? 0.7 : null,
+    acousticness: has("acoustic", "folk", "singer-songwriter") ? 0.75 : null,
+    instrumentalness: has("instrumental") ? 0.8 : null,
+  };
+}
+
+async function fetchLastFmMetadata(
+  trackName: string,
+  artistName: string
+): Promise<{ genre: string | null; qualities: Partial<MusicalQualities> }> {
+  const apiKey = process.env.LASTFM_API_KEY?.trim();
+  if (!apiKey) return { genre: null, qualities: {} };
+  const params = new URLSearchParams({
+    method: "track.getInfo",
+    api_key: apiKey,
+    artist: artistName,
+    track: trackName,
+    autocorrect: "1",
+    format: "json",
+  });
+  const data = await fetchJson(
+    `https://ws.audioscrobbler.com/2.0/?${params.toString()}`,
+    undefined,
+    "Last.fm track info"
+  );
+  const tags = readLastFmTags(data);
+  return {
+    genre: tags[0] ?? null,
+    qualities: inferQualitiesFromTags(tags),
+  };
+}
+
+async function enrichSong(
+  userId: number,
+  song: SongToEnrich,
+  spotifyAccessToken: string | null
+): Promise<void> {
   let kf = false;
   try {
     kf = await checkKarafunAvailable(song.track_name, song.artist_name);
@@ -236,11 +446,40 @@ async function enrichSong(userId: number, song: SongToEnrich): Promise<void> {
   }
 
   let qualities = emptyQualities();
+  let genre = song.genre;
+  if (spotifyAccessToken && song.spotify_track_id) {
+    try {
+      qualities = mergeQualities(
+        qualities,
+        await fetchSpotifyAudioFeatures(spotifyAccessToken, song.spotify_track_id)
+      );
+    } catch {
+      /* Spotify audio features may be unavailable for some apps */
+    }
+  }
+
   try {
-    qualities = await fetchMusicalQualitiesForNames(
+    qualities = mergeQualities(
+      qualities,
+      await fetchGetSongBpmQualities(song.track_name, song.artist_name)
+    );
+  } catch {
+    /* optional */
+  }
+
+  try {
+    const lastFm = await fetchLastFmMetadata(song.track_name, song.artist_name);
+    genre = genre || lastFm.genre;
+    qualities = mergeQualities(qualities, lastFm.qualities);
+  } catch {
+    /* optional */
+  }
+
+  try {
+    qualities = mergeQualities(qualities, await fetchMusicalQualitiesForNames(
       song.track_name,
       song.artist_name
-    );
+    ));
   } catch {
     /* optional */
   }
@@ -251,6 +490,7 @@ async function enrichSong(userId: number, song: SongToEnrich): Promise<void> {
       lyrics = COALESCE(?, lyrics),
       key = ?, bpm = ?, energy = ?, danceability = ?, happiness = ?,
       acousticness = ?, instrumentalness = ?, liveness = ?, speechiness = ?, loudness = ?,
+      genre = COALESCE(?, genre),
       enriched_at = datetime('now')
       WHERE id = ? AND user_id = ?`,
     args: [
@@ -266,6 +506,7 @@ async function enrichSong(userId: number, song: SongToEnrich): Promise<void> {
       qualities.liveness,
       qualities.speechiness,
       qualities.loudness,
+      genre && genre.trim() ? genre.trim() : null,
       song.id,
       userId,
     ],
@@ -298,7 +539,7 @@ async function loadSongsForJob(
     if (uniqueIds.length === 0) return [];
     const placeholders = uniqueIds.map(() => "?").join(",");
     const res = await db.execute({
-      sql: `SELECT id, track_name, artist_name FROM songs
+      sql: `SELECT id, track_name, artist_name, spotify_track_id, genre FROM songs
             WHERE user_id = ? AND id IN (${placeholders})
             ORDER BY id ASC`,
       args: [userId, ...uniqueIds],
@@ -307,7 +548,7 @@ async function loadSongsForJob(
   }
 
   const res = await db.execute({
-    sql: `SELECT id, track_name, artist_name FROM songs
+    sql: `SELECT id, track_name, artist_name, spotify_track_id, genre FROM songs
           WHERE user_id = ? AND enriched_at IS NULL
           ORDER BY id ASC`,
     args: [userId],
@@ -318,6 +559,9 @@ async function loadSongsForJob(
 async function runJob(userId: number, songs: SongToEnrich[]) {
   const job = jobs.get(userId);
   if (!job) return;
+  const spotifyAccessToken = await getSpotifyAccessTokenForUser(userId).catch(
+    () => null
+  );
 
   for (let i = 0; i < songs.length; i++) {
     const song = songs[i]!;
@@ -325,7 +569,7 @@ async function runJob(userId: number, songs: SongToEnrich[]) {
     job.updatedAt = now();
     try {
       if (i > 0) await sleep(1100);
-      await enrichSong(userId, song);
+      await enrichSong(userId, song, spotifyAccessToken);
       job.succeeded += 1;
     } catch (err) {
       job.failed += 1;

@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-17', description: 'Enrichment: Prefer Spotify audio features when available; add GetSongBPM and Last.fm fallbacks when configured' },
   { date: '2026-05-17', description: 'Admin: Richer System Status and enrichment details with warnings, timestamps, and counters' },
   { date: '2026-05-17', description: 'Admin: Remove visible Spotify diagnostics panel while keeping server-side diagnostics' },
   { date: '2026-05-17', description: 'Fix: Add timeouts to backend enrichment lookups to prevent stuck runs' },

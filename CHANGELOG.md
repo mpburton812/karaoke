@@ -1,6 +1,7 @@
 # Changelog
 
 ## [2026-05-17]
+- Enrichment: Prefer Spotify audio features when available, then fall back to GetSongBPM for BPM/key and Last.fm tags for genre/mood when API keys are configured.
 - Admin: Add richer System Status and enrichment details, including warnings, timestamps, and progress counters.
 - Admin: Remove the visible Spotify diagnostics panel while retaining server-side diagnostics.
 - Fix: Add timeouts to backend enrichment lookups so one external provider cannot stall a run.

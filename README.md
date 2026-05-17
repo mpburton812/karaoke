@@ -45,6 +45,8 @@ cp .env.example .env
 | `SPOTIFY_CLIENT_SECRET` | No | Spotify OAuth (server only) |
 | `SPOTIFY_REDIRECT_URI` | No | e.g. `http://127.0.0.1:3001/api/spotify/callback` |
 | `PUBLIC_APP_URL` | No | SPA origin after OAuth, e.g. `http://127.0.0.1:5173` |
+| `GETSONGBPM_API_KEY` | No | Optional enrichment provider for BPM/key |
+| `LASTFM_API_KEY` | No | Optional enrichment provider for genre/mood tags |
 
 **Never commit `.env` or put Turso tokens in `VITE_*` variables.**
 
@@ -145,6 +147,20 @@ Used by **Admin → Spotify account** to link a Spotify user for playlist access
 4. In the app, log in → **Admin** → **Connect Spotify** → approve on Spotify → you should land back on the app with a success message.
 
 Scopes requested: `playlist-read-private`, `playlist-read-collaborative`. Refresh tokens are stored in Turso on the `users` row.
+
+### Optional enrichment providers
+
+Song enrichment always checks local KaraFun, lyrics, and MusicBrainz. If these
+optional keys are present on the API service, enrichment also uses:
+
+| Variable | Provider | Used for |
+|----------|----------|----------|
+| `GETSONGBPM_API_KEY` | GetSongBPM | BPM and key fallback |
+| `LASTFM_API_KEY` | Last.fm | Genre/tag and mood-style fallback |
+
+If a song has a Spotify track id and the user has connected Spotify, the server
+also tries Spotify audio features first. Some Spotify apps may not have access
+to that endpoint; enrichment continues with the other providers when blocked.
 
 ### Split deploy (API + static frontend on different hosts)
 
