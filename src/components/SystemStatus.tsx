@@ -63,7 +63,7 @@ const SystemStatus = () => {
       setKarafunCount(result.count);
       setSyncNotice({
         severity: 'success',
-        message: `KaraFun catalog synced (${result.count.toLocaleString()} records).`,
+        message: `KaraFun catalog synced (${result.count.toLocaleString()} records via ${result.source}).`,
       });
     } catch (err) {
       console.error("Sync failed:", err);

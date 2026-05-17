@@ -154,8 +154,40 @@ describe("API routes", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.count).toBe(1);
+      expect(res.body.source).toBe("direct");
       expect(typeof res.body.updatedAt).toBe("string");
       expect(mockExecute).toHaveBeenCalledWith("DELETE FROM karafun_catalog");
+      expect(mockBatch).toHaveBeenCalledTimes(1);
+    });
+
+    it("falls back to the proxy when direct KaraFun download returns 404", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn()
+          .mockResolvedValueOnce(new Response("not found", { status: 404 }))
+          .mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({
+                contents:
+                  'id;title;artist;duration;year;foo;bar;styles\n2;"Fallback";"Singer";200;;;;"Rock"',
+              }),
+              { status: 200, headers: { "content-type": "application/json" } }
+            )
+          )
+      );
+      mockExecute
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
+      mockBatch.mockResolvedValueOnce([{ rows: [] }]);
+
+      const token = signToken({ id: USER_ID, username: "tester" });
+      const res = await request(app)
+        .post("/api/karafun/sync")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.count).toBe(1);
+      expect(res.body.source).toBe("proxy");
       expect(mockBatch).toHaveBeenCalledTimes(1);
     });
   });

@@ -2,6 +2,7 @@ import { db } from "./db.js";
 
 const KARA_URL =
   "https://www.karafun.com/cl/3107312/bc24526ef023397ecac1814014ca8f14/";
+const PROXY_URL = `https://api.allorigins.win/get?url=${encodeURIComponent(KARA_URL)}`;
 
 function parseSemicolonCsvLine(line: string): string[] {
   const fields: string[] = [];
@@ -32,10 +33,7 @@ function parseSemicolonCsvLine(line: string): string[] {
   return fields;
 }
 
-export async function syncKarafunCatalog(): Promise<{
-  count: number;
-  updatedAt: string;
-}> {
+async function fetchDirectCatalog(): Promise<string> {
   const res = await fetch(KARA_URL, {
     headers: {
       Accept: "text/csv,text/plain,*/*",
@@ -43,10 +41,54 @@ export async function syncKarafunCatalog(): Promise<{
     },
   });
   if (!res.ok) {
-    throw new Error(`KaraFun download failed (HTTP ${res.status}).`);
+    throw new Error(`direct HTTP ${res.status}`);
   }
+  return res.text();
+}
 
-  const csvText = await res.text();
+async function fetchProxyCatalog(): Promise<string> {
+  const res = await fetch(PROXY_URL, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "KaraokeCompanion/1.0 (https://github.com/mpburton812/karaoke)",
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`proxy HTTP ${res.status}`);
+  }
+  const data = (await res.json()) as { contents?: unknown; status?: unknown };
+  const contents = typeof data.contents === "string" ? data.contents : "";
+  if (!contents.trim()) {
+    throw new Error("proxy returned empty contents");
+  }
+  return contents;
+}
+
+async function fetchCatalogText(): Promise<{ csvText: string; source: string }> {
+  try {
+    return { csvText: await fetchDirectCatalog(), source: "direct" };
+  } catch (directErr) {
+    try {
+      return { csvText: await fetchProxyCatalog(), source: "proxy" };
+    } catch (proxyErr) {
+      const directMessage =
+        directErr instanceof Error ? directErr.message : String(directErr);
+      const proxyMessage =
+        proxyErr instanceof Error ? proxyErr.message : String(proxyErr);
+      throw new Error(
+        `KaraFun download failed (${directMessage}; ${proxyMessage}).`,
+        { cause: proxyErr }
+      );
+    }
+  }
+}
+
+export async function syncKarafunCatalog(): Promise<{
+  count: number;
+  updatedAt: string;
+  source: string;
+}> {
+  const { csvText, source } = await fetchCatalogText();
   if (!csvText.trim()) {
     throw new Error("KaraFun download was empty.");
   }
@@ -91,5 +133,5 @@ export async function syncKarafunCatalog(): Promise<{
     args: ["karafun_last_updated", updatedAt],
   });
 
-  return { count: statements.length, updatedAt };
+  return { count: statements.length, updatedAt, source };
 }

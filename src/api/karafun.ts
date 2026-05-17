@@ -12,6 +12,7 @@ function getToken(): string | null {
 export interface KarafunSyncResult {
   count: number;
   updatedAt: string;
+  source: string;
 }
 
 export async function syncKarafunCatalog(): Promise<KarafunSyncResult> {
@@ -27,6 +28,7 @@ export async function syncKarafunCatalog(): Promise<KarafunSyncResult> {
   const body = (await res.json().catch(() => ({}))) as {
     count?: number;
     updatedAt?: string;
+    source?: string;
     error?: string;
   };
   if (!res.ok) {
@@ -38,5 +40,6 @@ export async function syncKarafunCatalog(): Promise<KarafunSyncResult> {
       typeof body.updatedAt === "string"
         ? body.updatedAt
         : new Date().toISOString(),
+    source: typeof body.source === "string" ? body.source : "unknown",
   };
 }
