@@ -118,6 +118,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const [perfRating, setPerfRating] = useState<number | null>(3);
   const [selectedPerfTags, setSelectedPerfTags] = useState<number[]>([]);
   const [savingPerf, setSavingPerf] = useState(false);
+  const [perfCheckExpanded, setPerfCheckExpanded] = useState(false);
+  const [perfCheckLoading, setPerfCheckLoading] = useState(false);
 
   // Notes Dialog State
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
@@ -297,7 +299,19 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     setPerfNotes('');
     setPerfRating(3);
     setSelectedPerfTags([]);
+    setPerfCheckExpanded(false);
     setPerfDialogOpen(true);
+  };
+
+  const handlePerfCheck = async () => {
+    if (!selectedSong) return;
+    setPerfCheckLoading(true);
+    try {
+      await fetchPerformances(selectedSong.id);
+      setPerfCheckExpanded(true);
+    } finally {
+      setPerfCheckLoading(false);
+    }
   };
 
   const handleSavePerformance = async () => {
@@ -320,6 +334,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
       }
 
       setPerfDialogOpen(false);
+      setPerfCheckExpanded(false);
       fetchPerformances(selectedSong.id);
     } catch (err) {
       console.error('Error saving performance:', err);
@@ -597,7 +612,17 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
           </Box>
         )}
 
-        <Dialog open={perfDialogOpen} onClose={() => !savingPerf && setPerfDialogOpen(false)} fullWidth maxWidth="xs">
+        <Dialog
+          open={perfDialogOpen}
+          onClose={() => {
+            if (!savingPerf) {
+              setPerfDialogOpen(false);
+              setPerfCheckExpanded(false);
+            }
+          }}
+          fullWidth
+          maxWidth="xs"
+        >
           <DialogTitle>Record Performance</DialogTitle>
           <DialogContent>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
@@ -635,10 +660,49 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
               </FormControl>
 
               <TextField label="Notes" placeholder="How did it go?" multiline rows={3} value={perfNotes} onChange={(e) => setPerfNotes(e.target.value)} fullWidth />
+
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={() => void handlePerfCheck()}
+                disabled={savingPerf || perfCheckLoading}
+              >
+                {perfCheckLoading ? <CircularProgress size={22} /> : 'CHECK'}
+              </Button>
+
+              {perfCheckExpanded && (
+                <Box
+                  sx={{
+                    maxHeight: 220,
+                    overflow: 'auto',
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    px: 1,
+                  }}
+                >
+                  {performances.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+                      No performances recorded for this song yet.
+                    </Typography>
+                  ) : (
+                    <List dense disablePadding>
+                      {performances.map((p) => (
+                        <ListItem key={p.id} disablePadding sx={{ py: 0.5 }}>
+                          <ListItemText
+                            primary={new Date(p.date).toLocaleDateString()}
+                            secondary={p.location?.trim() ? p.location : '—'}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                </Box>
+              )}
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setPerfDialogOpen(false)} disabled={savingPerf}>Cancel</Button>
+            <Button onClick={() => { setPerfDialogOpen(false); setPerfCheckExpanded(false); }} disabled={savingPerf}>Cancel</Button>
             <Button onClick={handleSavePerformance} variant="contained" disabled={savingPerf}>{savingPerf ? <CircularProgress size={24} /> : 'Save'}</Button>
           </DialogActions>
         </Dialog>

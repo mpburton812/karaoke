@@ -13,10 +13,16 @@ import {
   Alert,
   Autocomplete,
   Chip,
-  Grid
+  Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import HistoryIcon from '@mui/icons-material/History';
 import { db } from '../db';
 
 interface Location {
@@ -36,6 +42,11 @@ interface LocationStats {
   topSongs: { track_name: string; count: number }[];
 }
 
+interface VenueSongRow {
+  track_name: string;
+  date: string;
+}
+
 interface LocationManagerProps {
   currentUser: { id: number; username: string };
 }
@@ -47,6 +58,10 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [locationTagsMap, setLocationTagsMap] = useState<Record<number, Tag[]>>({});
   const [locationStatsMap, setLocationStatsMap] = useState<Record<number, LocationStats>>({});
+  const [venueSongsOpen, setVenueSongsOpen] = useState(false);
+  const [venueSongsTitle, setVenueSongsTitle] = useState('');
+  const [venueSongsRows, setVenueSongsRows] = useState<VenueSongRow[]>([]);
+  const [venueSongsLoading, setVenueSongsLoading] = useState(false);
 
   const fetchLocationStats = useCallback(async (location: Location) => {
     try {
@@ -183,6 +198,28 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
     }
   };
 
+  const openVenueSongHistory = async (loc: Location) => {
+    setVenueSongsTitle(loc.name);
+    setVenueSongsOpen(true);
+    setVenueSongsLoading(true);
+    setVenueSongsRows([]);
+    try {
+      const res = await db.execute({
+        sql: `SELECT s.track_name AS track_name, p.date AS date
+              FROM performances p
+              JOIN songs s ON p.song_id = s.id
+              WHERE p.user_id = ? AND p.location = ?
+              ORDER BY p.date DESC, p.id DESC`,
+        args: [currentUser.id, loc.name],
+      });
+      setVenueSongsRows(res.rows as unknown as VenueSongRow[]);
+    } catch (err) {
+      console.error('Error loading songs for venue:', err);
+    } finally {
+      setVenueSongsLoading(false);
+    }
+  };
+
   const handleRemoveTag = async (locationId: number, tagId: number) => {
     try {
       await db.execute({
@@ -301,6 +338,16 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
                         )}
                       </Box>
                     )}
+
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<HistoryIcon />}
+                      sx={{ mt: 2 }}
+                      onClick={() => void openVenueSongHistory(loc)}
+                    >
+                      Songs sung here
+                    </Button>
                   </Box>
                 </ListItem>
                 {index < locations.length - 1 && <Divider />}
@@ -309,6 +356,33 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
           )}
         </List>
       </Paper>
+
+      <Dialog open={venueSongsOpen} onClose={() => !venueSongsLoading && setVenueSongsOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Songs at {venueSongsTitle}</DialogTitle>
+        <DialogContent dividers>
+          {venueSongsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={32} />
+            </Box>
+          ) : venueSongsRows.length === 0 ? (
+            <Typography color="text.secondary">No performances recorded at this venue yet.</Typography>
+          ) : (
+            <List dense disablePadding>
+              {venueSongsRows.map((row, idx) => (
+                <ListItem key={`${row.track_name}-${row.date}-${idx}`} divider={idx < venueSongsRows.length - 1}>
+                  <ListItemText
+                    primary={row.track_name}
+                    secondary={new Date(row.date).toLocaleDateString()}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setVenueSongsOpen(false)} disabled={venueSongsLoading}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
