@@ -150,13 +150,30 @@ export const initDb = async () => {
       ON spotify_playlist_songs(user_id, spotify_playlist_id, spotify_track_id)
       WHERE spotify_track_id IS NOT NULL
     `);
+    // spotify_playlist_songs FK requires a row in spotify_synced_playlists; songs may
+    // have spotify_sync_playlist_id without that parent (e.g. legacy / partial sync).
+    await db.execute(`
+      INSERT OR IGNORE INTO spotify_synced_playlists (
+        user_id, spotify_playlist_id, playlist_name, snapshot_id, last_synced_at
+      )
+      SELECT DISTINCT s.user_id, s.spotify_sync_playlist_id, NULL, NULL, NULL
+      FROM songs s
+      WHERE s.spotify_sync_playlist_id IS NOT NULL
+        AND s.user_id IS NOT NULL
+        AND EXISTS (SELECT 1 FROM users u WHERE u.id = s.user_id)
+    `);
     await db.execute(`
       INSERT OR IGNORE INTO spotify_playlist_songs (
         user_id, spotify_playlist_id, song_id, spotify_track_id, track_name, artist_name
       )
-      SELECT user_id, spotify_sync_playlist_id, id, spotify_track_id, track_name, artist_name
-      FROM songs
-      WHERE spotify_sync_playlist_id IS NOT NULL
+      SELECT s.user_id, s.spotify_sync_playlist_id, s.id, s.spotify_track_id, s.track_name, s.artist_name
+      FROM songs s
+      WHERE s.spotify_sync_playlist_id IS NOT NULL
+        AND s.user_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM spotify_synced_playlists p
+          WHERE p.user_id = s.user_id AND p.spotify_playlist_id = s.spotify_sync_playlist_id
+        )
     `);
 
     await db.execute(`
