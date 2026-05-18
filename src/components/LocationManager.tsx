@@ -65,38 +65,37 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
 
   const fetchLocationStats = useCallback(async (location: Location) => {
     try {
-      // Fetch days and total songs
-      const basicStatsRes = await db.execute({
-        sql: `SELECT COUNT(DISTINCT date) as days, COUNT(*) as total 
-              FROM performances 
-              WHERE user_id = ? AND location = ?`,
-        args: [currentUser.id, location.name]
-      });
-      
+      const [basicStatsRes, topSongsRes] = await Promise.all([
+        db.execute({
+          sql: `SELECT COUNT(DISTINCT date) as days, COUNT(*) as total 
+                FROM performances 
+                WHERE user_id = ? AND location = ?`,
+          args: [currentUser.id, location.name],
+        }),
+        db.execute({
+          sql: `SELECT s.track_name, COUNT(*) as count 
+                FROM performances p 
+                JOIN songs s ON p.song_id = s.id 
+                WHERE p.user_id = ? AND p.location = ? 
+                GROUP BY p.song_id 
+                ORDER BY count DESC 
+                LIMIT 3`,
+          args: [currentUser.id, location.name],
+        }),
+      ]);
+
       const days = Number(basicStatsRes.rows[0].days) || 0;
       const total = Number(basicStatsRes.rows[0].total) || 0;
       const avg = days > 0 ? parseFloat((total / days).toFixed(1)) : 0;
-
-      // Fetch top 3 songs
-      const topSongsRes = await db.execute({
-        sql: `SELECT s.track_name, COUNT(*) as count 
-              FROM performances p 
-              JOIN songs s ON p.song_id = s.id 
-              WHERE p.user_id = ? AND p.location = ? 
-              GROUP BY p.song_id 
-              ORDER BY count DESC 
-              LIMIT 3`,
-        args: [currentUser.id, location.name]
-      });
 
       const stats: LocationStats = {
         daysSung: days,
         totalSongs: total,
         avgSongsPerDay: avg,
-        topSongs: topSongsRes.rows as unknown as { track_name: string; count: number }[]
+        topSongs: topSongsRes.rows as unknown as { track_name: string; count: number }[],
       };
 
-      setLocationStatsMap(prev => ({ ...prev, [location.id]: stats }));
+      setLocationStatsMap((prev) => ({ ...prev, [location.id]: stats }));
     } catch (err) {
       console.error(`Error fetching stats for ${location.name}:`, err);
     }
@@ -124,12 +123,13 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
       });
       const fetchedLocations = result.rows as unknown as Location[];
       setLocations(fetchedLocations);
-      
-      // Fetch tags and stats for each location
-      for (const loc of fetchedLocations) {
-        fetchLocationTags(loc.id);
-        fetchLocationStats(loc);
-      }
+
+      await Promise.all(
+        fetchedLocations.flatMap((loc) => [
+          fetchLocationTags(loc.id),
+          fetchLocationStats(loc),
+        ])
+      );
     } catch (err) {
       console.error('Error fetching locations:', err);
     }
@@ -148,10 +148,7 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
   }, [currentUser.id]);
 
   useEffect(() => {
-    Promise.resolve().then(() => {
-      fetchLocations();
-      fetchAvailableTags();
-    });
+    void Promise.all([fetchLocations(), fetchAvailableTags()]);
   }, [fetchLocations, fetchAvailableTags]);
 
   const handleAddLocation = async () => {

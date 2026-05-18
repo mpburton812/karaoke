@@ -129,8 +129,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
   const [lyricsDialogOpen, setLyricsDialogOpen] = useState(false);
   const [loadingLyrics, setLoadingLyrics] = useState(false);
 
-  const fetchSongs = useCallback(async () => {
-    setLoading(true);
+  const fetchSongs = useCallback(async (skipLoading?: boolean) => {
+    if (!skipLoading) setLoading(true);
     try {
       const result = await db.execute({
         sql: `SELECT s.*, sp.spotify_source_playlist_name
@@ -153,22 +153,23 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
       console.error('Error fetching songs:', err);
       setError('Failed to load saved songs.');
     } finally {
-      setLoading(false);
+      if (!skipLoading) setLoading(false);
     }
   }, [currentUser.id]);
 
   const fetchTagsAndLocations = useCallback(async () => {
     try {
-      const tagsRes = await db.execute({
-        sql: "SELECT * FROM tags WHERE user_id = ? ORDER BY name ASC",
-        args: [currentUser.id]
-      });
+      const [tagsRes, locRes] = await Promise.all([
+        db.execute({
+          sql: "SELECT * FROM tags WHERE user_id = ? ORDER BY name ASC",
+          args: [currentUser.id],
+        }),
+        db.execute({
+          sql: "SELECT * FROM locations WHERE user_id = ? ORDER BY name ASC",
+          args: [currentUser.id],
+        }),
+      ]);
       setAvailableTags(tagsRes.rows as unknown as Tag[]);
-
-      const locRes = await db.execute({
-        sql: "SELECT * FROM locations WHERE user_id = ? ORDER BY name ASC",
-        args: [currentUser.id]
-      });
       setLocations(locRes.rows as unknown as Location[]);
     } catch (err) {
       console.error(err);
@@ -177,8 +178,13 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
 
   useEffect(() => {
     const loadData = async () => {
-      await fetchSongs();
-      await fetchTagsAndLocations();
+      setLoading(true);
+      setError(null);
+      try {
+        await Promise.all([fetchSongs(true), fetchTagsAndLocations()]);
+      } finally {
+        setLoading(false);
+      }
     };
     loadData();
   }, [fetchSongs, fetchTagsAndLocations]);

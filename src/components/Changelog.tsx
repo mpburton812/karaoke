@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Paper, Typography, Box 
+  TableHead, TableRow, Paper, Typography, Box, Link
 } from '@mui/material';
 
 const changelogData = [
@@ -55,7 +55,13 @@ const changelogData = [
   { date: '2026-05-11', description: 'Enhance Admin tools and enrich song detail metadata' },
 ];
 
+const PREVIEW_COUNT = 5;
+
 const Changelog: React.FC = () => {
+  const [showAll, setShowAll] = useState(false);
+  const rows = showAll ? changelogData : changelogData.slice(0, PREVIEW_COUNT);
+  const hasMore = changelogData.length > PREVIEW_COUNT;
+
   return (
     <Box sx={{ mt: 4 }}>
       <Typography variant="h6" gutterBottom align="center">Update History</Typography>
@@ -68,8 +74,8 @@ const Changelog: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {changelogData.map((row, index) => (
-              <TableRow key={index}>
+            {rows.map((row, index) => (
+              <TableRow key={`${row.date}-${index}-${row.description.slice(0, 24)}`}>
                 <TableCell>{row.date}</TableCell>
                 <TableCell>{row.description}</TableCell>
               </TableRow>
@@ -77,6 +83,31 @@ const Changelog: React.FC = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      {hasMore && (
+        <Box sx={{ mt: 1.5, textAlign: 'center' }}>
+          {!showAll ? (
+            <Link
+              component="button"
+              type="button"
+              variant="body2"
+              onClick={() => setShowAll(true)}
+              sx={{ cursor: 'pointer', fontWeight: 'medium' }}
+            >
+              Show all {changelogData.length} updates
+            </Link>
+          ) : (
+            <Link
+              component="button"
+              type="button"
+              variant="body2"
+              onClick={() => setShowAll(false)}
+              sx={{ cursor: 'pointer', fontWeight: 'medium' }}
+            >
+              Show last {PREVIEW_COUNT} updates only
+            </Link>
+          )}
+        </Box>
+      )}
     </Box>
   );
 };

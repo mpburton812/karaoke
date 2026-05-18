@@ -66,10 +66,11 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    const uid = currentUser.id;
     try {
-      // Fetch Tags with counts
-      const tagsRes = await db.execute({
-        sql: `
+      const [tagsRes, genresRes, locsRes] = await Promise.all([
+        db.execute({
+          sql: `
           SELECT t.id, t.name, COUNT(st.song_id) as count 
           FROM tags t 
           LEFT JOIN song_tags st ON t.id = st.tag_id 
@@ -77,37 +78,36 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
           GROUP BY t.id 
           ORDER BY t.name ASC
         `,
-        args: [currentUser.id]
-      });
+          args: [uid],
+        }),
+        db.execute({
+          sql: "SELECT DISTINCT genre FROM songs WHERE user_id = ? AND genre IS NOT NULL ORDER BY genre ASC",
+          args: [uid],
+        }),
+        db.execute({
+          sql: `SELECT l.id, l.name, group_concat(lt.tag_id) AS tag_ids
+              FROM locations l
+              LEFT JOIN location_tags lt ON lt.location_id = l.id
+              WHERE l.user_id = ?
+              GROUP BY l.id, l.name
+              ORDER BY l.name ASC`,
+          args: [uid],
+        }),
+      ]);
+
       setTags(tagsRes.rows as unknown as Tag[]);
+      setGenres(genresRes.rows.map((r) => r.genre as string));
 
-      // Fetch Genres
-      const genresRes = await db.execute({
-        sql: "SELECT DISTINCT genre FROM songs WHERE user_id = ? AND genre IS NOT NULL ORDER BY genre ASC",
-        args: [currentUser.id]
-      });
-      setGenres(genresRes.rows.map(r => r.genre as string));
-
-      // Fetch Locations and their tags
-      const locsRes = await db.execute({
-        sql: "SELECT * FROM locations WHERE user_id = ? ORDER BY name ASC",
-        args: [currentUser.id]
-      });
-      const locs = locsRes.rows as unknown as { id: number; name: string }[];
-      
-      const locsWithTags: Location[] = [];
-      for (const loc of locs) {
-        const tagRes = await db.execute({
-          sql: "SELECT tag_id FROM location_tags WHERE location_id = ?",
-          args: [loc.id]
-        });
-        locsWithTags.push({
-          ...loc,
-          tagIds: tagRes.rows.map(r => r.tag_id as number)
-        });
-      }
+      const locsWithTags: Location[] = (locsRes.rows as unknown as { id: number; name: string; tag_ids: string | null }[]).map(
+        (row) => ({
+          id: row.id,
+          name: row.name,
+          tagIds: row.tag_ids
+            ? row.tag_ids.split(",").map((id) => Number(id)).filter((n) => !Number.isNaN(n))
+            : [],
+        })
+      );
       setLocations(locsWithTags);
-
     } catch (err) {
       console.error('Error fetching tags data:', err);
     } finally {

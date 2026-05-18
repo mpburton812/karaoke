@@ -62,75 +62,68 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
+    const uid = currentUser.id;
     try {
-      // 1. Global Stats
-      const globalRes = await db.execute({
-        sql: `SELECT 
-                (SELECT COUNT(*) FROM songs WHERE user_id = ?) as totalSongs,
-                (SELECT COUNT(*) FROM performances WHERE user_id = ?) as totalPerformances,
-                (SELECT AVG(rating) FROM performances WHERE user_id = ?) as avgRating,
-                (SELECT COUNT(DISTINCT location) FROM performances WHERE user_id = ?) as uniqueVenues`,
-        args: [currentUser.id, currentUser.id, currentUser.id, currentUser.id]
-      });
-      
+      const [globalRes, artistRes, songRes, genreRes, venueRes] = await Promise.all([
+        db.execute({
+          sql: `SELECT 
+                  (SELECT COUNT(*) FROM songs WHERE user_id = ?) as totalSongs,
+                  (SELECT COUNT(*) FROM performances WHERE user_id = ?) as totalPerformances,
+                  (SELECT AVG(rating) FROM performances WHERE user_id = ?) as avgRating,
+                  (SELECT COUNT(DISTINCT location) FROM performances WHERE user_id = ?) as uniqueVenues`,
+          args: [uid, uid, uid, uid],
+        }),
+        db.execute({
+          sql: `SELECT artist_name, COUNT(*) as count 
+                FROM performances p 
+                JOIN songs s ON p.song_id = s.id 
+                WHERE p.user_id = ? 
+                GROUP BY s.artist_name 
+                ORDER BY count DESC 
+                LIMIT 5`,
+          args: [uid],
+        }),
+        db.execute({
+          sql: `SELECT s.id, s.track_name, s.artist_name, s.artwork_url, COUNT(*) as count 
+                FROM performances p 
+                JOIN songs s ON p.song_id = s.id 
+                WHERE p.user_id = ? 
+                GROUP BY s.id 
+                ORDER BY count DESC 
+                LIMIT 5`,
+          args: [uid],
+        }),
+        db.execute({
+          sql: `SELECT genre, COUNT(*) as count 
+                FROM songs 
+                WHERE user_id = ? AND genre IS NOT NULL
+                GROUP BY genre 
+                ORDER BY count DESC 
+                LIMIT 8`,
+          args: [uid],
+        }),
+        db.execute({
+          sql: `SELECT location, COUNT(*) as count, AVG(rating) as avgRating 
+                FROM performances 
+                WHERE user_id = ? AND location != ''
+                GROUP BY location 
+                ORDER BY count DESC 
+                LIMIT 5`,
+          args: [uid],
+        }),
+      ]);
+
       const g = globalRes.rows[0];
       setStats({
         totalSongs: Number(g.totalSongs),
         totalPerformances: Number(g.totalPerformances),
         avgRating: Number(g.avgRating) || 0,
-        uniqueVenues: Number(g.uniqueVenues)
-      });
-
-      // 2. Top Artists
-      const artistRes = await db.execute({
-        sql: `SELECT artist_name, COUNT(*) as count 
-              FROM performances p 
-              JOIN songs s ON p.song_id = s.id 
-              WHERE p.user_id = ? 
-              GROUP BY s.artist_name 
-              ORDER BY count DESC 
-              LIMIT 5`,
-        args: [currentUser.id]
+        uniqueVenues: Number(g.uniqueVenues),
       });
       setTopArtists(artistRes.rows as unknown as TopArtist[]);
-
-      // 3. Top Songs
-      const songRes = await db.execute({
-        sql: `SELECT s.id, s.track_name, s.artist_name, s.artwork_url, COUNT(*) as count 
-              FROM performances p 
-              JOIN songs s ON p.song_id = s.id 
-              WHERE p.user_id = ? 
-              GROUP BY s.id 
-              ORDER BY count DESC 
-              LIMIT 5`,
-        args: [currentUser.id]
-      });
       setTopSongs(songRes.rows as unknown as TopSong[]);
-
-      // 4. Genres
-      const genreRes = await db.execute({
-        sql: `SELECT genre, COUNT(*) as count 
-              FROM songs 
-              WHERE user_id = ? AND genre IS NOT NULL
-              GROUP BY genre 
-              ORDER BY count DESC 
-              LIMIT 8`,
-        args: [currentUser.id]
-      });
       setGenres(genreRes.rows as unknown as GenreStat[]);
-
-      // 5. Venue Rankings
-      const venueRes = await db.execute({
-        sql: `SELECT location, COUNT(*) as count, AVG(rating) as avgRating 
-              FROM performances 
-              WHERE user_id = ? AND location != ''
-              GROUP BY location 
-              ORDER BY count DESC 
-              LIMIT 5`,
-        args: [currentUser.id]
-      });
       setVenues(venueRes.rows as unknown as VenueStat[]);
-
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
     } finally {
