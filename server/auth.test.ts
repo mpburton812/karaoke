@@ -56,11 +56,15 @@ describe("registerUser", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{ id: 5, username: "alice", access_level: "user" }],
-      });
+      })
+      .mockResolvedValueOnce({ rows: [], rowsAffected: 1 });
 
     const user = await registerUser("alice", "password123");
     expect(user).toEqual({ id: 5, username: "alice", accessLevel: "user" });
-    expect(mockExecute).toHaveBeenCalledTimes(2);
+    expect(mockExecute).toHaveBeenCalledTimes(3);
+    expect(mockExecute.mock.calls[2][0]).toMatchObject({
+      sql: expect.stringContaining("last_login_at"),
+    });
   });
 });
 

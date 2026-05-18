@@ -272,6 +272,7 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
           u.username,
           COALESCE(u.access_level, 'user') AS access_level,
           u.last_login_at,
+          (SELECT MAX(p.date) FROM performances p WHERE p.user_id = u.id) AS last_performance_at,
           COUNT(DISTINCT s.id) AS song_count,
           COUNT(DISTINCT t.id) AS tag_count,
           COUNT(DISTINCT l.id) AS venue_count
@@ -291,6 +292,10 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
             accessLevel: o.access_level === "admin" ? "admin" : "user",
             lastLoginAt:
               typeof o.last_login_at === "string" ? o.last_login_at : null,
+            lastPerformanceAt:
+              typeof o.last_performance_at === "string"
+                ? o.last_performance_at
+                : null,
             songCount: Number(o.song_count ?? 0),
             tagCount: Number(o.tag_count ?? 0),
             venueCount: Number(o.venue_count ?? 0),

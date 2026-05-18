@@ -68,6 +68,10 @@ export async function registerUser(
     username: string;
     access_level?: string;
   };
+  await db.execute({
+    sql: "UPDATE users SET last_login_at = datetime('now') WHERE id = ?",
+    args: [row.id],
+  });
   return {
     id: row.id,
     username: row.username,

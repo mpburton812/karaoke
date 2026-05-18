@@ -5,6 +5,12 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-18', description: 'God Mode: last sign-in on registration; list latest performance date; clearer column labels' },
+  { date: '2026-05-18', description: 'Fix: Turso startup migration for Spotify playlist rows (foreign key backfill before backfill insert)' },
+  { date: '2026-05-18', description: 'Perf: parallel /api/execute loads (Stats, TagManager, LocationManager, Songs tab); remove Tag Manager location N+1' },
+  { date: '2026-05-18', description: 'Places: “Songs sung here” lists performances at that venue; Record Performance dialog adds CHECK for past dates and venues' },
+  { date: '2026-05-18', description: 'UI: scrollable main tabs on small screens; mobile login shows CREATE ACCOUNT without clipping' },
+  { date: '2026-05-18', description: 'Admin: Update History shows five entries with link to expand; static GetSongBPM/Last.fm links in index.html for provider verification' },
   { date: '2026-05-17', description: 'Admin: Add protected GOD MODE access layer for admin users' },
   { date: '2026-05-17', description: 'Admin: GOD MODE user metrics, password reset, account deletion, and performance history' },
   { date: '2026-05-17', description: 'Admin: Grant mpburton administrative access during database initialization' },

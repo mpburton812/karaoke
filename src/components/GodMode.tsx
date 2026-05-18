@@ -146,7 +146,8 @@ const GodMode: React.FC = () => {
               <TableRow>
                 <TableCell>User</TableCell>
                 <TableCell>Access</TableCell>
-                <TableCell>Last login</TableCell>
+                <TableCell>Last sign-in</TableCell>
+                <TableCell>Latest performance</TableCell>
                 <TableCell align="right">Songs</TableCell>
                 <TableCell align="right">Tags</TableCell>
                 <TableCell align="right">Venues</TableCell>
@@ -165,6 +166,7 @@ const GodMode: React.FC = () => {
                     />
                   </TableCell>
                   <TableCell>{fmtDate(user.lastLoginAt)}</TableCell>
+                  <TableCell>{fmtDate(user.lastPerformanceAt)}</TableCell>
                   <TableCell align="right">{user.songCount}</TableCell>
                   <TableCell align="right">{user.tagCount}</TableCell>
                   <TableCell align="right">{user.venueCount}</TableCell>

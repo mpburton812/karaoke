@@ -28,6 +28,8 @@ export interface GodModeUser {
   username: string;
   accessLevel: "user" | "admin";
   lastLoginAt: string | null;
+  /** Latest performance date (YYYY-MM-DD); independent of password sign-in. */
+  lastPerformanceAt: string | null;
   songCount: number;
   tagCount: number;
   venueCount: number;
