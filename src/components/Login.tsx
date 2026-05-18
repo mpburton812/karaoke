@@ -54,11 +54,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, sessionNotice }) => {
   return (
     <Box 
       sx={{ 
-        minHeight: '100vh',
-        width: '100vw',
+        minHeight: '100dvh',
+        width: '100%',
         position: 'fixed',
         top: 0,
         left: 0,
+        right: 0,
+        bottom: 0,
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
         backgroundImage: `url(${background})`,
         backgroundSize: 'auto 100%',
         backgroundPosition: 'center',
@@ -66,23 +70,39 @@ const Login: React.FC<LoginProps> = ({ onLogin, sessionNotice }) => {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        zIndex: 0
+        zIndex: 0,
+        pb: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
-      <Container maxWidth="xs" sx={{ position: 'relative', zIndex: 2, mt: 8 }}>
+      <Container
+        maxWidth="xs"
+        sx={{
+          position: 'relative',
+          zIndex: 2,
+          mt: { xs: 2, sm: 4, md: 8 },
+          mb: { xs: 10, sm: 12 },
+          px: { xs: 2, sm: 3 },
+          py: 2,
+          flex: '0 0 auto',
+        }}
+      >
         <Paper 
           elevation={3} 
           sx={{ 
-            p: 4, 
+            p: { xs: 2, sm: 3, md: 4 },
             textAlign: 'center', 
             backgroundColor: (theme) => alpha(theme.palette.background.paper, 0.8),
             backdropFilter: 'blur(4px)'
           }}
         >
-          <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
+          <Typography
+            variant="h4"
+            gutterBottom
+            sx={{ fontWeight: 'bold', fontSize: { xs: '1.5rem', sm: '2.125rem' } }}
+          >
             Karaoke Companion
           </Typography>
-          <Typography variant="subtitle1" gutterBottom sx={{ mb: 3 }}>
+          <Typography variant="subtitle1" gutterBottom sx={{ mb: { xs: 2, sm: 3 } }}>
             {isCreating ? "Create a new account" : "Log in to your account"}
           </Typography>
 
@@ -93,7 +113,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, sessionNotice }) => {
           )}
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2 } }}>
             <TextField
               fullWidth
               label="Username"
@@ -123,13 +143,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, sessionNotice }) => {
                   variant="contained" 
                   color="primary" 
                   size="large"
+                  fullWidth
                   onClick={submit}
                   disabled={loading || !username || !password}
                 >
                   {loading ? <CircularProgress size={24} /> : "CREATE ACCOUNT"}
                 </Button>
                 <Button 
-                  variant="text" 
+                  variant="outlined"
+                  color="primary"
+                  size="large"
+                  fullWidth
                   onClick={() => { setIsCreating(false); setError(null); setPassword(''); }}
                   disabled={loading}
                 >
@@ -142,22 +166,22 @@ const Login: React.FC<LoginProps> = ({ onLogin, sessionNotice }) => {
                   variant="contained" 
                   color="primary" 
                   size="large"
+                  fullWidth
                   onClick={submit}
                   disabled={loading || !username || !password}
                 >
                   {loading ? <CircularProgress size={24} /> : "LOGIN"}
                 </Button>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  Don't have an account?{" "}
-                  <Button 
-                    variant="text" 
-                    size="small" 
-                    onClick={() => { setIsCreating(true); setError(null); setPassword(''); }}
-                    disabled={loading}
-                  >
-                    CREATE ACCOUNT
-                  </Button>
-                </Typography>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  size="large"
+                  fullWidth
+                  onClick={() => { setIsCreating(true); setError(null); setPassword(''); }}
+                  disabled={loading}
+                >
+                  CREATE ACCOUNT
+                </Button>
               </>
             )}
           </Box>
@@ -167,11 +191,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, sessionNotice }) => {
       <Box 
         sx={{ 
           position: 'fixed', 
-          bottom: 16, 
+          bottom: { xs: 8, sm: 16 },
           left: '50%', 
           transform: 'translateX(-50%)', 
-          width: '50vw',
-          zIndex: 1
+          width: { xs: '40vw', sm: '50vw' },
+          maxWidth: 280,
+          zIndex: 1,
+          pointerEvents: 'none',
         }}
       >
         <img 
