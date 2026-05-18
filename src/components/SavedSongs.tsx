@@ -23,6 +23,28 @@ import { db } from '../db';
 import { fetchLyrics } from '../utils/lyricsService';
 import { KARAOKE_SONGS_REFRESH_EVENT } from '../lib/karaokeEvents';
 
+/** Shared SELECT for repertoire rows (Spotify playlist name join). */
+const REPERTOIRE_SONG_SELECT = `
+  SELECT s.*, sp.spotify_source_playlist_name
+  FROM songs s
+  LEFT JOIN (
+    SELECT ps.user_id, ps.song_id, group_concat(p.playlist_name, ', ') AS spotify_source_playlist_name
+    FROM spotify_playlist_songs ps
+    JOIN spotify_synced_playlists p
+      ON p.user_id = ps.user_id
+     AND p.spotify_playlist_id = ps.spotify_playlist_id
+    GROUP BY ps.user_id, ps.song_id
+  ) sp
+    ON s.user_id = sp.user_id AND s.id = sp.song_id
+`;
+
+interface SavedSongsProps {
+  currentUser: { id: number; username: string };
+  /** When set (e.g. from Tags explorer), load this song and show detail view. */
+  songIdToOpen?: number | null;
+  onSongIdOpenConsumed?: () => void;
+}
+
 interface Song {
   id: number;
   itunes_id: number | null;
@@ -76,10 +98,6 @@ interface Location {
   name: string;
 }
 
-interface SavedSongsProps {
-  currentUser: { id: number; username: string };
-}
-
 function SpotifyGlyphIcon() {
   return (
     <SvgIcon viewBox="0 0 24 24" fontSize="small" sx={{ color: "#1DB954" }}>
@@ -91,7 +109,11 @@ function SpotifyGlyphIcon() {
   );
 }
 
-const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
+const SavedSongs: React.FC<SavedSongsProps> = ({
+  currentUser,
+  songIdToOpen = null,
+  onSongIdOpenConsumed,
+}) => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
@@ -133,17 +155,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     if (!skipLoading) setLoading(true);
     try {
       const result = await db.execute({
-        sql: `SELECT s.*, sp.spotify_source_playlist_name
-              FROM songs s
-              LEFT JOIN (
-                SELECT ps.user_id, ps.song_id, group_concat(p.playlist_name, ', ') AS spotify_source_playlist_name
-                FROM spotify_playlist_songs ps
-                JOIN spotify_synced_playlists p
-                  ON p.user_id = ps.user_id
-                 AND p.spotify_playlist_id = ps.spotify_playlist_id
-                GROUP BY ps.user_id, ps.song_id
-              ) sp
-                ON s.user_id = sp.user_id AND s.id = sp.song_id
+        sql: `${REPERTOIRE_SONG_SELECT}
               WHERE s.user_id = ?
               ORDER BY s.id DESC`,
         args: [currentUser.id]
@@ -196,6 +208,36 @@ const SavedSongs: React.FC<SavedSongsProps> = ({ currentUser }) => {
     window.addEventListener(KARAOKE_SONGS_REFRESH_EVENT, onRefresh);
     return () => window.removeEventListener(KARAOKE_SONGS_REFRESH_EVENT, onRefresh);
   }, [fetchSongs]);
+
+  useEffect(() => {
+    if (songIdToOpen == null || songIdToOpen <= 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await db.execute({
+          sql: `${REPERTOIRE_SONG_SELECT}
+                WHERE s.user_id = ? AND s.id = ?`,
+          args: [currentUser.id, songIdToOpen],
+        });
+        if (cancelled) return;
+        const row = result.rows[0] as unknown as Song | undefined;
+        if (row) {
+          setSelectedSong(row);
+          setSongs((prev) => {
+            if (prev.some((s) => s.id === row.id)) return prev;
+            return [row, ...prev];
+          });
+        }
+      } catch (err) {
+        console.error("Error opening song from explorer:", err);
+      } finally {
+        if (!cancelled) onSongIdOpenConsumed?.();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [songIdToOpen, currentUser.id, onSongIdOpenConsumed]);
 
   const fetchSongTags = useCallback(async (songId: number) => {
     try {

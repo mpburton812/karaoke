@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy, useMemo, useEffect } from 'react';
+import React, { useState, Suspense, lazy, useMemo, useEffect, useCallback } from 'react';
 import { 
   Container, 
   Box, 
@@ -24,6 +24,10 @@ import TransgenderIcon from '@mui/icons-material/Transgender';
 import { db } from './db';
 import { clearSession, fetchCurrentUser, type AuthUser } from './api/auth';
 import { setSessionExpiredHandler } from './api/session';
+import {
+  KARAOKE_OPEN_SONG_EVENT,
+  type KaraokeOpenSongDetail,
+} from './lib/karaokeEvents';
 
 // Lazy load tab components
 const SavedSongs = lazy(() => import('./components/SavedSongs'));
@@ -47,6 +51,7 @@ type SpotifySnackbarState = {
   severity: "success" | "error" | "info";
 };
 const ADMIN_TAB_INDEX = 4;
+const SONGS_TAB_INDEX = 0;
 
 function getInitialTab(): number {
   const params = new URLSearchParams(window.location.search);
@@ -81,6 +86,7 @@ function CustomTabPanel(props: TabPanelProps) {
 
 function App() {
   const [value, setValue] = useState(getInitialTab);
+  const [songIdToOpenFromExplorer, setSongIdToOpenFromExplorer] = useState<number | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     return (localStorage.getItem('theme_mode') as ThemeMode) || 'dark';
   });
@@ -323,6 +329,24 @@ function App() {
     setValue(newValue);
   };
 
+  const handleSongIdOpenConsumed = useCallback(() => {
+    setSongIdToOpenFromExplorer(null);
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<KaraokeOpenSongDetail>;
+      const id = ce.detail?.songId;
+      if (typeof id !== "number" || !Number.isFinite(id) || id <= 0) return;
+      setSongIdToOpenFromExplorer(id);
+      setValue(SONGS_TAB_INDEX);
+    };
+    window.addEventListener(KARAOKE_OPEN_SONG_EVENT, handler as EventListener);
+    return () =>
+      window.removeEventListener(KARAOKE_OPEN_SONG_EVENT, handler as EventListener);
+  }, [currentUser]);
+
   if (!currentUser) {
     return (
       <ThemeProvider theme={theme}>
@@ -379,7 +403,11 @@ function App() {
         </Box>
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>}>
           <CustomTabPanel value={value} index={0}>
-            <SavedSongs currentUser={currentUser} />
+            <SavedSongs
+              currentUser={currentUser}
+              songIdToOpen={songIdToOpenFromExplorer}
+              onSongIdOpenConsumed={handleSongIdOpenConsumed}
+            />
           </CustomTabPanel>
           <CustomTabPanel value={value} index={1}>
             <LocationManager currentUser={currentUser} />

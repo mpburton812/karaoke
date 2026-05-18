@@ -23,6 +23,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { db } from '../db';
+import { KARAOKE_OPEN_SONG_EVENT, type KaraokeOpenSongDetail } from '../lib/karaokeEvents';
 
 interface Tag {
   id: number;
@@ -240,6 +241,14 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
     setFilterLogic('AND');
   };
 
+  const openSongOnSongsTab = (songId: number) => {
+    window.dispatchEvent(
+      new CustomEvent<KaraokeOpenSongDetail>(KARAOKE_OPEN_SONG_EVENT, {
+        detail: { songId },
+      })
+    );
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
@@ -428,7 +437,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
                 {filteredSongs.map((song) => (
                   <React.Fragment key={song.id}>
                     <ListItem disablePadding>
-                      <ListItemButton>
+                      <ListItemButton onClick={() => openSongOnSongsTab(song.id)}>
                         <ListItemAvatar>
                           <Avatar variant="rounded" src={song.artwork_url} />
                         </ListItemAvatar>
