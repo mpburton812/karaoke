@@ -3,15 +3,27 @@ import type { Express } from "express";
 import request from "supertest";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockExecute, mockBatch } = vi.hoisted(() => ({
-  mockExecute: vi.fn(),
-  mockBatch: vi.fn(),
-}));
+const { mockExecute, mockBatch, mockAdminReenrichAll, mockScheduleAdminBg } =
+  vi.hoisted(() => ({
+    mockExecute: vi.fn(),
+    mockBatch: vi.fn(),
+    mockAdminReenrichAll: vi.fn(),
+    mockScheduleAdminBg: vi.fn(),
+  }));
 
 vi.mock("./db.js", () => ({
   db: { execute: mockExecute, batch: mockBatch },
   tursoConfigured: true,
 }));
+
+vi.mock("./songEnrichment.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./songEnrichment.js")>();
+  return {
+    ...actual,
+    adminReenrichAllUsersSequentially: mockAdminReenrichAll,
+    scheduleAdminReenrichAllUsersBackground: mockScheduleAdminBg,
+  };
+});
 
 import { createApp } from "./app.js";
 import { signToken } from "./auth.js";
@@ -27,6 +39,9 @@ describe("API routes", () => {
   beforeEach(() => {
     mockExecute.mockReset();
     mockBatch.mockReset();
+    mockAdminReenrichAll.mockReset();
+    mockScheduleAdminBg.mockReset();
+    mockScheduleAdminBg.mockReturnValue(true);
   });
 
   describe("GET /api/health", () => {
@@ -199,6 +214,103 @@ describe("API routes", () => {
       expect(res.status).toBe(200);
       expect(res.body.running).toBe(false);
       expect(res.body.message).toBe("No songs need enrichment.");
+    });
+  });
+
+  describe("POST /api/admin/enrichment/rebuild-all", () => {
+    it("requires authentication", async () => {
+      const res = await request(app).post("/api/admin/enrichment/rebuild-all").send({});
+      expect(res.status).toBe(401);
+    });
+
+    it("rejects non-admin users", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [{ id: USER_ID, username: "tester", access_level: "user" }],
+      });
+
+      const token = signToken({ id: USER_ID, username: "tester", accessLevel: "user" });
+      const res = await request(app)
+        .post("/api/admin/enrichment/rebuild-all")
+        .set("Authorization", `Bearer ${token}`)
+        .send({});
+
+      expect(res.status).toBe(403);
+      expect(mockAdminReenrichAll).not.toHaveBeenCalled();
+    });
+
+    it("runs synchronously for admins and returns summary", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+      });
+      mockAdminReenrichAll.mockResolvedValueOnce({
+        usersInLibrary: 2,
+        usersProcessed: 2,
+        totalSongsRequested: 5,
+        perUser: [
+          {
+            userId: 1,
+            requested: 3,
+            succeeded: 3,
+            failed: 0,
+            message: "Enrichment complete.",
+          },
+          {
+            userId: 2,
+            requested: 2,
+            succeeded: 2,
+            failed: 0,
+            message: "Enrichment complete.",
+          },
+        ],
+      });
+
+      const token = signToken({ id: USER_ID, username: "mpburton", accessLevel: "admin" });
+      const res = await request(app)
+        .post("/api/admin/enrichment/rebuild-all")
+        .set("Authorization", `Bearer ${token}`)
+        .send({});
+
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
+      expect(res.body.async).toBe(false);
+      expect(res.body.totalSongsRequested).toBe(5);
+      expect(mockAdminReenrichAll).toHaveBeenCalledTimes(1);
+      expect(mockScheduleAdminBg).not.toHaveBeenCalled();
+    });
+
+    it("accepts async=1 and returns 202 when a background run is scheduled", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+      });
+      mockScheduleAdminBg.mockReturnValueOnce(true);
+
+      const token = signToken({ id: USER_ID, username: "mpburton", accessLevel: "admin" });
+      const res = await request(app)
+        .post("/api/admin/enrichment/rebuild-all?async=1")
+        .set("Authorization", `Bearer ${token}`)
+        .send({});
+
+      expect(res.status).toBe(202);
+      expect(res.body.started).toBe(true);
+      expect(res.body.async).toBe(true);
+      expect(mockScheduleAdminBg).toHaveBeenCalledTimes(1);
+      expect(mockAdminReenrichAll).not.toHaveBeenCalled();
+    });
+
+    it("returns 409 when async scheduling is rejected", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+      });
+      mockScheduleAdminBg.mockReturnValueOnce(false);
+
+      const token = signToken({ id: USER_ID, username: "mpburton", accessLevel: "admin" });
+      const res = await request(app)
+        .post("/api/admin/enrichment/rebuild-all?async=1")
+        .set("Authorization", `Bearer ${token}`)
+        .send({});
+
+      expect(res.status).toBe(409);
+      expect(res.body.error).toMatch(/already in progress/i);
     });
   });
 

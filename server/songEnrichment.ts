@@ -44,6 +44,29 @@ interface EnrichmentJob {
 const jobs = new Map<number, EnrichmentJob>();
 const FETCH_TIMEOUT_MS = 10_000;
 
+/** Prevents overlapping full-library admin rebuilds (sync or background). */
+let adminFullLibraryReenrichLocked = false;
+
+export interface StartEnrichmentJobOptions {
+  /** When true, include songs that already have `enriched_at` set (full re-run). */
+  force?: boolean;
+}
+
+export interface AdminReenrichUserSummary {
+  userId: number;
+  requested: number;
+  succeeded: number;
+  failed: number;
+  message: string | null;
+}
+
+export interface AdminReenrichAllUsersResult {
+  usersInLibrary: number;
+  usersProcessed: number;
+  totalSongsRequested: number;
+  perUser: AdminReenrichUserSummary[];
+}
+
 function now(): string {
   return new Date().toISOString();
 }
@@ -532,7 +555,8 @@ export async function countSongsNeedingEnrichment(userId: number): Promise<numbe
 
 async function loadSongsForJob(
   userId: number,
-  songIds?: number[]
+  songIds: number[] | undefined,
+  force: boolean
 ): Promise<SongToEnrich[]> {
   if (songIds && songIds.length > 0) {
     const uniqueIds = [...new Set(songIds)].filter(Number.isFinite);
@@ -547,16 +571,17 @@ async function loadSongsForJob(
     return res.rows as unknown as SongToEnrich[];
   }
 
+  const pendingOnly = force ? "" : " AND enriched_at IS NULL";
   const res = await db.execute({
     sql: `SELECT id, track_name, artist_name, spotify_track_id, genre FROM songs
-          WHERE user_id = ? AND enriched_at IS NULL
+          WHERE user_id = ?${pendingOnly}
           ORDER BY id ASC`,
     args: [userId],
   });
   return res.rows as unknown as SongToEnrich[];
 }
 
-async function runJob(userId: number, songs: SongToEnrich[]) {
+async function runJob(userId: number, songs: SongToEnrich[]): Promise<void> {
   const job = jobs.get(userId);
   if (!job) return;
   const spotifyAccessToken = await getSpotifyAccessTokenForUser(userId).catch(
@@ -594,15 +619,20 @@ async function runJob(userId: number, songs: SongToEnrich[]) {
 
 export async function startEnrichmentJob(
   userId: number,
-  songIds?: number[]
+  songIds?: number[],
+  options?: StartEnrichmentJobOptions
 ): Promise<EnrichmentStatus> {
   const active = jobs.get(userId);
   if (active?.running) {
     return getEnrichmentStatus(userId);
   }
 
-  const songs = await loadSongsForJob(userId, songIds);
+  const force = options?.force === true;
+  const songs = await loadSongsForJob(userId, songIds, force);
   const timestamp = now();
+  const emptyMessage = force
+    ? "No songs in library."
+    : "No songs need enrichment.";
   jobs.set(userId, {
     running: songs.length > 0,
     requested: songs.length,
@@ -614,7 +644,7 @@ export async function startEnrichmentJob(
     startedAt: timestamp,
     updatedAt: timestamp,
     completedAt: songs.length > 0 ? null : timestamp,
-    message: songs.length > 0 ? "Enrichment started." : "No songs need enrichment.",
+    message: songs.length > 0 ? "Enrichment started." : emptyMessage,
     errors: [],
   });
 
@@ -623,6 +653,99 @@ export async function startEnrichmentJob(
   }
 
   return getEnrichmentStatus(userId);
+}
+
+async function runAdminReenrichAllUsersCore(): Promise<AdminReenrichAllUsersResult> {
+  const perUser: AdminReenrichUserSummary[] = [];
+  let totalSongsRequested = 0;
+  const distinct = await db.execute({
+    sql: `SELECT DISTINCT user_id FROM songs ORDER BY user_id`,
+    args: [],
+  });
+  const usersInLibrary = distinct.rows.length;
+
+  for (const row of distinct.rows) {
+    const uid = Number((row as { user_id: unknown }).user_id);
+    if (!Number.isFinite(uid) || uid <= 0) continue;
+
+    while (jobs.get(uid)?.running) {
+      await sleep(500);
+    }
+
+    const songs = await loadSongsForJob(uid, undefined, true);
+    if (songs.length === 0) continue;
+
+    totalSongsRequested += songs.length;
+    const timestamp = now();
+    jobs.set(uid, {
+      running: true,
+      requested: songs.length,
+      processed: 0,
+      succeeded: 0,
+      failed: 0,
+      skipped: 0,
+      currentSong: null,
+      startedAt: timestamp,
+      updatedAt: timestamp,
+      completedAt: null,
+      message: "Admin full library re-enrichment.",
+      errors: [],
+    });
+
+    await runJob(uid, songs);
+
+    const finished = jobs.get(uid);
+    perUser.push({
+      userId: uid,
+      requested: songs.length,
+      succeeded: finished?.succeeded ?? 0,
+      failed: finished?.failed ?? 0,
+      message: finished?.message ?? null,
+    });
+  }
+
+  return {
+    usersInLibrary,
+    usersProcessed: perUser.length,
+    totalSongsRequested,
+    perUser,
+  };
+}
+
+/**
+ * Re-runs backend enrichment for every song row, for every user that has songs.
+ * Processes one user at a time (awaiting each job) to respect external API rate limits.
+ */
+export async function adminReenrichAllUsersSequentially(): Promise<AdminReenrichAllUsersResult> {
+  if (adminFullLibraryReenrichLocked) {
+    throw new Error("Full-library re-enrichment is already in progress.");
+  }
+  adminFullLibraryReenrichLocked = true;
+  try {
+    return await runAdminReenrichAllUsersCore();
+  } finally {
+    adminFullLibraryReenrichLocked = false;
+  }
+}
+
+/**
+ * Queues full-library re-enrichment without blocking the caller. Returns false if a run is already active.
+ */
+export function scheduleAdminReenrichAllUsersBackground(): boolean {
+  if (adminFullLibraryReenrichLocked) {
+    return false;
+  }
+  adminFullLibraryReenrichLocked = true;
+  void (async () => {
+    try {
+      await runAdminReenrichAllUsersCore();
+    } catch (err) {
+      console.error("[songEnrichment] admin rebuild-all failed:", err);
+    } finally {
+      adminFullLibraryReenrichLocked = false;
+    }
+  })();
+  return true;
 }
 
 export async function getEnrichmentStatus(

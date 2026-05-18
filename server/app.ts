@@ -40,7 +40,9 @@ import {
   spotifyErrorDetails,
 } from "./spotifyDiagnostics.js";
 import {
+  adminReenrichAllUsersSequentially,
   getEnrichmentStatus,
+  scheduleAdminReenrichAllUsersBackground,
   startEnrichmentJob,
 } from "./songEnrichment.js";
 import { syncKarafunCatalog } from "./karafunSync.js";
@@ -70,6 +72,7 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/spotify/delete-imported-songs",
       "/api/enrichment/status",
       "/api/enrichment/run",
+      "/api/admin/enrichment/rebuild-all",
       "/api/karafun/sync",
       "/api/admin/health",
     ],
@@ -453,6 +456,43 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       res.status(500).json({ error: message });
     }
   });
+
+  app.post(
+    "/api/admin/enrichment/rebuild-all",
+    requireAuth,
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const asyncMode = String(req.query.async) === "1";
+        if (asyncMode) {
+          const started = scheduleAdminReenrichAllUsersBackground();
+          if (!started) {
+            res.status(409).json({
+              error: "Full-library re-enrichment is already in progress.",
+            });
+            return;
+          }
+          res.status(202).json({
+            ok: true,
+            started: true,
+            async: true,
+            message:
+              "Full library re-enrichment started in the background for every user with songs. This may take a long time; check server logs or run per-user enrichment status after it finishes.",
+          });
+          return;
+        }
+        const result = await adminReenrichAllUsersSequentially();
+        res.json({ ok: true, started: false, async: false, ...result });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to rebuild enrichment.";
+        const conflict =
+          typeof message === "string" &&
+          message.includes("already in progress");
+        res.status(conflict ? 409 : 500).json({ error: message });
+      }
+    }
+  );
 
   app.post("/api/karafun/sync", requireAuth, async (_req, res) => {
     try {

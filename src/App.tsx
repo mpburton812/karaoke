@@ -463,7 +463,7 @@ function App() {
               </Box>
 
               <SpotifyConnect currentUser={currentUser} />
-              <EnrichmentAdmin />
+              <EnrichmentAdmin isAdmin={isAdmin} />
 
               <SystemStatus />
               <Divider sx={{ my: 4 }} />

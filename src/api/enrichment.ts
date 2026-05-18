@@ -57,3 +57,39 @@ export function startEnrichmentRun(songIds?: number[]): Promise<EnrichmentStatus
     body: JSON.stringify(songIds?.length ? { songIds } : {}),
   });
 }
+
+export interface AdminReenrichUserSummaryRow {
+  userId: number;
+  requested: number;
+  succeeded: number;
+  failed: number;
+  message: string | null;
+}
+
+export type AdminRebuildAllEnrichmentResponse =
+  | {
+      ok: true;
+      started: true;
+      async: true;
+      message: string;
+    }
+  | {
+      ok: true;
+      started: false;
+      async: false;
+      usersInLibrary: number;
+      usersProcessed: number;
+      totalSongsRequested: number;
+      perUser: AdminReenrichUserSummaryRow[];
+    };
+
+export function startAdminRebuildAllEnrichment(options?: {
+  /** When true, returns immediately (HTTP 202) while the server processes all users in the background. */
+  async?: boolean;
+}): Promise<AdminRebuildAllEnrichmentResponse> {
+  const q = options?.async ? "?async=1" : "";
+  return enrichmentFetch<AdminRebuildAllEnrichmentResponse>(
+    `/api/admin/enrichment/rebuild-all${q}`,
+    { method: "POST", body: JSON.stringify({}) }
+  );
+}
