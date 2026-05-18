@@ -353,16 +353,20 @@ function App() {
       </AppBar>
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Box sx={{ width: '100%', borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs 
-            value={value} 
-            onChange={handleChange} 
-            centered 
-            textColor="primary" 
+          <Tabs
+            value={value}
+            onChange={handleChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            textColor="primary"
             indicatorColor="primary"
             sx={{
-              '& .MuiTabs-flexContainer': {
-                flexWrap: 'wrap',
-              }
+              /* Many tabs + narrow width: default scroller clips; scrollable keeps every tab reachable. */
+              '& .MuiTab-root': {
+                minWidth: { xs: 'auto', sm: 90 },
+                px: { xs: 1.25, sm: 2 },
+              },
             }}
           >
             <Tab label="Songs" />
