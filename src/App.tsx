@@ -5,7 +5,6 @@ import {
   Tabs, 
   Tab, 
   Typography, 
-  createTheme, 
   ThemeProvider, 
   CssBaseline,
   AppBar,
@@ -27,6 +26,7 @@ import {
 import { lazyRetry } from './lib/lazyRetry';
 import AppConfigDialog from './components/AppConfigDialog';
 import { logUserAction } from './api/eventLog';
+import { createAppTheme, type ThemeMode } from './theme';
 
 // Lazy load tab components (retry once on chunk load failure after deploy)
 const SavedSongs = lazyRetry(() => import('./components/SavedSongs'));
@@ -37,7 +37,6 @@ const Stats = lazyRetry(() => import('./components/Stats'));
 const EventLogViewer = lazyRetry(() => import('./components/EventLogViewer'));
 const GodMode = lazyRetry(() => import('./components/GodMode'));
 
-type ThemeMode = 'light' | 'dark' | 'trans';
 type SpotifySnackbarState = {
   open: boolean;
   message: string;
@@ -82,74 +81,7 @@ function App() {
     return (localStorage.getItem('theme_mode') as ThemeMode) || 'dark';
   });
 
-  const theme = useMemo(() => {
-    if (themeMode === 'trans') {
-      return createTheme({
-        palette: {
-          mode: 'light',
-          primary: {
-            main: '#5BCEFA', // Trans Light Blue
-          },
-          secondary: {
-            main: '#F5A9B8', // Trans Pink
-          },
-          background: {
-            default: '#FFFFFF',
-            paper: '#F5A9B822', // Very faint pink
-          },
-          text: {
-            primary: '#5BCEFA',
-            secondary: '#F5A9B8',
-          }
-        },
-        typography: {
-          fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-        },
-        components: {
-          MuiAppBar: {
-            styleOverrides: {
-              root: {
-                background: 'linear-gradient(45deg, #5BCEFA 30%, #F5A9B8 90%)',
-                color: '#FFFFFF'
-              }
-            }
-          },
-          MuiButton: {
-            styleOverrides: {
-              root: ({ ownerState }) => ({
-                ...(ownerState.variant === 'contained' && ownerState.color === 'primary' && {
-                  color: '#FFFFFF',
-                }),
-              }),
-            }
-          }
-        }
-      });
-    }
-
-    return createTheme({
-      palette: {
-        mode: themeMode,
-        primary: {
-          main: '#1DB954', // Spotify-ish green
-        },
-        ...(themeMode === 'dark' ? {
-          background: {
-            default: '#121212',
-            paper: '#1e1e1e',
-          }
-        } : {
-          background: {
-            default: '#f5f5f5',
-            paper: '#ffffff',
-          }
-        })
-      },
-      typography: {
-        fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-      },
-    });
-  }, [themeMode]);
+  const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
 
   const handleThemeChange = (mode: ThemeMode) => {
     setThemeMode(mode);
@@ -364,7 +296,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AppBar position="static" color={themeMode === 'trans' ? 'primary' : 'transparent'} elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+      <AppBar position="static" elevation={0}>
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
             {currentUser.username}

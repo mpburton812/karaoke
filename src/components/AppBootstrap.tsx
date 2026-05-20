@@ -8,18 +8,12 @@ import {
   LinearProgress,
   ThemeProvider,
   Typography,
-  createTheme,
 } from "@mui/material";
 import App from "../App";
 import { waitForApi } from "../db";
+import { createAppTheme } from "../theme";
 
-const bootTheme = createTheme({
-  palette: {
-    mode: "dark",
-    primary: { main: "#1DB954" },
-    background: { default: "#121212", paper: "#1e1e1e" },
-  },
-});
+const bootTheme = createAppTheme("dark");
 
 export default function AppBootstrap() {
   const [ready, setReady] = useState(false);

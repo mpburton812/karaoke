@@ -23,8 +23,7 @@ import DataPortability from "./DataPortability";
 import EnrichmentAdmin from "./EnrichmentAdmin";
 import SpotifyConnect from "./SpotifyConnect";
 import SystemStatus from "./SystemStatus";
-
-type ThemeMode = "light" | "dark" | "trans";
+import { transTokens, type ThemeMode } from "../theme";
 
 interface AppConfigDialogProps {
   open: boolean;
@@ -112,8 +111,13 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
                 sx={
                   themeMode === "trans"
                     ? {
-                        background: "linear-gradient(45deg, #5BCEFA 30%, #F5A9B8 90%)",
+                        background: transTokens.activeButtonGradient,
                         borderColor: "transparent",
+                        color: "#fff",
+                        "&:hover": {
+                          background: transTokens.activeButtonGradient,
+                          opacity: 0.92,
+                        },
                       }
                     : {}
                 }
