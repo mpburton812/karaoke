@@ -129,9 +129,14 @@ export function buildComponentOverrides(mode: ThemeMode): Components<Omit<Theme,
     MuiTabs: {
       styleOverrides: {
         root: {
-          minHeight: 48,
+          minHeight: 52,
+          overflow: "visible",
           "& .MuiTabs-flexContainer": {
             gap: 8,
+          },
+          "& .MuiTabs-scroller": {
+            overflowX: "auto",
+            overflowY: "visible",
           },
         },
         indicator: {
@@ -148,6 +153,7 @@ export function buildComponentOverrides(mode: ThemeMode): Components<Omit<Theme,
           minHeight: 40,
           px: 2.5,
           py: 1,
+          overflow: "visible",
           transition: theme.transitions.create(["background-color", "color", "box-shadow"], {
             duration: theme.transitions.duration.short,
           }),
@@ -159,6 +165,8 @@ export function buildComponentOverrides(mode: ThemeMode): Components<Omit<Theme,
             color: theme.palette.primary.main,
             backgroundColor: alpha(theme.palette.primary.main, 0.18),
             boxShadow: mode === "light" ? "none" : karaokeTokens.glowPink,
+            position: "relative",
+            zIndex: 1,
           },
         }),
       },

@@ -334,7 +334,17 @@ function App() {
         </Toolbar>
       </AppBar>
       <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Box sx={{ width: '100%', borderBottom: 1, borderColor: 'divider', py: 1, px: { xs: 0.5, sm: 1 } }}>
+        <Box
+          sx={{
+            width: '100%',
+            borderBottom: 1,
+            borderColor: 'divider',
+            pt: 1.5,
+            pb: 2.5,
+            px: { xs: 0.5, sm: 1 },
+            overflow: 'visible',
+          }}
+        >
           <Tabs
             value={value}
             onChange={handleChange}
@@ -342,7 +352,12 @@ function App() {
             scrollButtons="auto"
             allowScrollButtonsMobile
             sx={{
+              overflow: 'visible',
               /* Scrollable pill tabs — every tab stays reachable on narrow widths. */
+              '& .MuiTabs-scroller': {
+                overflowX: 'auto',
+                overflowY: 'visible',
+              },
               '& .MuiTab-root': {
                 minWidth: { xs: 'auto', sm: 88 },
               },
