@@ -129,15 +129,16 @@ export function buildComponentOverrides(mode: ThemeMode): Components<Omit<Theme,
     MuiTabs: {
       styleOverrides: {
         root: {
-          minHeight: 52,
-          overflow: "visible",
-          "& .MuiTabs-flexContainer": {
-            gap: 8,
-          },
-          "& .MuiTabs-scroller": {
-            overflowX: "auto",
-            overflowY: "visible",
-          },
+          minHeight: 56,
+          overflow: "visible !important",
+        },
+        scroller: {
+          marginBottom: "0 !important",
+        },
+        list: {
+          gap: 8,
+          paddingTop: 20,
+          paddingBottom: 18,
         },
         indicator: {
           display: "none",
@@ -153,20 +154,38 @@ export function buildComponentOverrides(mode: ThemeMode): Components<Omit<Theme,
           minHeight: 40,
           px: 2.5,
           py: 1,
-          overflow: "visible",
-          transition: theme.transitions.create(["background-color", "color", "box-shadow"], {
-            duration: theme.transitions.duration.short,
-          }),
+          boxSizing: "border-box",
+          border: "1px solid transparent",
+          transition: theme.transitions.create(
+            ["background-color", "color", "box-shadow", "border-color"],
+            { duration: theme.transitions.duration.short }
+          ),
           "&:focus-visible": {
             outline: `2px solid ${theme.palette.secondary.main}`,
             outlineOffset: 2,
           },
           "&.Mui-selected": {
             color: theme.palette.primary.main,
-            backgroundColor: alpha(theme.palette.primary.main, 0.18),
-            boxShadow: mode === "light" ? "none" : karaokeTokens.glowPink,
+            backgroundColor: alpha(theme.palette.primary.main, 0.2),
             position: "relative",
             zIndex: 1,
+            ...(mode === "light"
+              ? {
+                  borderColor: alpha(theme.palette.primary.main, 0.35),
+                  boxShadow: [
+                    `inset 0 3px 14px ${alpha(theme.palette.primary.main, 0.35)}`,
+                    `inset 0 -2px 10px ${alpha(theme.palette.primary.main, 0.15)}`,
+                    `inset 0 0 18px ${alpha(theme.palette.primary.main, 0.22)}`,
+                  ].join(", "),
+                }
+              : {
+                  borderColor: alpha(theme.palette.primary.main, 0.45),
+                  boxShadow: [
+                    `inset 0 4px 18px ${alpha(theme.palette.primary.main, 0.75)}`,
+                    `inset 0 -2px 12px ${alpha(theme.palette.primary.main, 0.35)}`,
+                    `inset 0 0 24px ${alpha(theme.palette.primary.main, 0.5)}`,
+                  ].join(", "),
+                }),
           },
         }),
       },

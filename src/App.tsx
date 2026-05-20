@@ -333,18 +333,8 @@ function App() {
           </Box>
         </Toolbar>
       </AppBar>
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Box
-          sx={{
-            width: '100%',
-            borderBottom: 1,
-            borderColor: 'divider',
-            pt: 1.5,
-            pb: 2.5,
-            px: { xs: 0.5, sm: 1 },
-            overflow: 'visible',
-          }}
-        >
+      <Container maxWidth="lg" sx={{ mt: 3 }}>
+        <Box sx={{ width: '100%', overflow: 'visible', pt: 0.5, px: { xs: 0.5, sm: 1 } }}>
           <Tabs
             value={value}
             onChange={handleChange}
@@ -352,11 +342,11 @@ function App() {
             scrollButtons="auto"
             allowScrollButtonsMobile
             sx={{
-              overflow: 'visible',
-              /* Scrollable pill tabs — every tab stays reachable on narrow widths. */
-              '& .MuiTabs-scroller': {
-                overflowX: 'auto',
-                overflowY: 'visible',
+              overflow: 'visible !important',
+              '& .MuiTabs-list': {
+                paddingTop: '20px',
+                paddingBottom: '18px',
+                gap: 1,
               },
               '& .MuiTab-root': {
                 minWidth: { xs: 'auto', sm: 88 },
@@ -369,6 +359,7 @@ function App() {
             <Tab label="Stats" />
             {isAdmin && <Tab label="God mode" />}
           </Tabs>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider' }} />
         </Box>
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>}>
           <CustomTabPanel value={value} index={0}>
