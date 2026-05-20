@@ -144,7 +144,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
   return (
     <Box sx={{ pb: 4 }}>
       <Typography variant="h4" align="center" gutterBottom sx={{ fontWeight: 'bold', mb: 4 }}>
-        Your Karaoke Journey
+        Your karaoke journey
       </Typography>
 
       {/* Hero Stats */}
@@ -171,7 +171,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
           <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
               <EmojiEventsIcon sx={{ color: karaokeTokens.starGold }} />
-              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>All-Time Greatest Hits</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>All-time greatest hits</Typography>
             </Box>
             <List>
               {topSongs.map((song, i) => (
@@ -202,7 +202,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
             <Paper elevation={2} sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
                 <TrendingUpIcon color="primary" />
-                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Top Artists</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Top artists</Typography>
               </Box>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {topArtists.map((artist, i) => (
@@ -217,7 +217,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
             </Paper>
 
             <Paper elevation={2} sx={{ p: 3, flexGrow: 1 }}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Genre DNA</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Genre mix</Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {genres.map((g, i) => (
                   <Box key={i} sx={{ width: '100%', mb: 1 }}>
@@ -245,7 +245,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
           <Paper elevation={2} sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 1 }}>
               <PlaceIcon color="error" />
-              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Venue Power Ranking</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Venue power ranking</Typography>
             </Box>
             <Grid container spacing={2}>
               {venues.map((v, i) => (

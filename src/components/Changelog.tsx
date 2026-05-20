@@ -5,22 +5,22 @@ import {
 } from '@mui/material';
 
 const changelogData = [
-  { date: '2026-05-20', description: 'God Mode: Restore tab with event log viewer (C/W/I, last 10 + show more); Settings keeps health and enrichment' },
+  { date: '2026-05-20', description: 'God mode: Restore tab with event log viewer (C/W/I, last 10 + show more); Settings keeps health and enrichment' },
   { date: '2026-05-20', description: 'Ops: Structured event log in Turso and logs/application-events.jsonl (auth, SQL audit, API warnings, process crashes)' },
   { date: '2026-05-20', description: 'UI: Replace Admin tab with settings (gear) dialog; Restart and update at top; logout is icon-only' },
   { date: '2026-05-20', description: 'Account: Change username from Settings (password required); new POST /api/auth/change-username' },
   { date: '2026-05-20', description: 'Admin: Health dashboard, song enrichment, and user administration live under Settings for admins' },
   { date: '2026-05-18', description: 'Admin: Full-library re-enrichment for all users (sync or background) after GetSongBPM and Last.fm setup' },
-  { date: '2026-05-18', description: 'God Mode: last sign-in on registration; list latest performance date; clearer column labels' },
+  { date: '2026-05-18', description: 'God mode: last sign-in on registration; list latest performance date; clearer column labels' },
   { date: '2026-05-18', description: 'Fix: Turso startup migration for Spotify playlist rows (foreign key backfill before backfill insert)' },
   { date: '2026-05-18', description: 'Perf: parallel /api/execute loads (Stats, TagManager, LocationManager, Songs tab); remove Tag Manager location N+1' },
   { date: '2026-05-18', description: 'Places: “Songs sung here” lists performances at that venue; Record Performance dialog adds CHECK for past dates and venues' },
-  { date: '2026-05-18', description: 'UI: scrollable main tabs on small screens; mobile login shows CREATE ACCOUNT without clipping' },
+  { date: '2026-05-18', description: 'UI: scrollable main tabs on small screens; mobile login shows Create account without clipping' },
   { date: '2026-05-18', description: 'Admin: Update History shows five entries with link to expand; static GetSongBPM/Last.fm links in index.html for provider verification' },
-  { date: '2026-05-17', description: 'Admin: Add protected GOD MODE access layer for admin users' },
-  { date: '2026-05-17', description: 'Admin: GOD MODE user metrics, password reset, account deletion, and performance history' },
+  { date: '2026-05-17', description: 'Admin: Add protected God mode access layer for admin users' },
+  { date: '2026-05-17', description: 'Admin: God mode user metrics, password reset, account deletion, and performance history' },
   { date: '2026-05-17', description: 'Admin: Grant mpburton administrative access during database initialization' },
-  { date: '2026-05-17', description: 'UI: Add Admin Health Dashboard cards and consolidate system/provider health' },
+  { date: '2026-05-17', description: 'UI: Add Admin health dashboard cards and consolidate system/provider health' },
   { date: '2026-05-17', description: 'UI: Add repertoire filter accordion and list/card view toggle' },
   { date: '2026-05-17', description: 'UI: Add song detail data-source chips for lyrics, KaraFun, BPM/key, genre, and Spotify playlists' },
   { date: '2026-05-17', description: 'UI: Replace key Admin/Songs/Spotify browser confirms with in-app dialogs' },
@@ -56,9 +56,9 @@ const changelogData = [
   { date: '2026-05-13', description: 'Feature: Implement dynamic theme selection (Light, Dark, and Trans modes)' },
   { date: '2026-05-13', description: 'Feature: Implement new STATS tab with performance dashboards' },
   { date: '2026-05-13', description: 'Feature: Add detailed performance statistics for Favorite Locations' },
-  { date: '2026-05-13', description: "Feature: Add 'FETCH LYRICS' for repertoire songs and refactor to shared service" },
+  { date: '2026-05-13', description: "Feature: Add 'Fetch lyrics' for repertoire songs and refactor to shared service" },
   { date: '2026-05-13', description: "UI: Stylize Tag/Genre cloud header and rename 'Add New Songs' section" },
-  { date: '2026-05-13', description: 'Tags: Add TAG CLOUD for multi-tag repertoire exploration' },
+  { date: '2026-05-13', description: 'Tags: Add Tag cloud for multi-tag repertoire exploration' },
   { date: '2026-05-13', description: 'Feature: Implement 1-5 star Performance Rating and remove Setlists' },
   { date: '2026-05-13', description: 'Admin: Synchronize repository CHANGELOG with Admin Update History' },
   { date: '2026-05-13', description: 'Optimize: Implement manual chunking and React.lazy code splitting' },
@@ -76,7 +76,7 @@ const Changelog: React.FC = () => {
 
   return (
     <Box sx={{ mt: 4 }}>
-      <Typography variant="h6" gutterBottom align="center">Update History</Typography>
+      <Typography variant="h6" gutterBottom align="center">Update history</Typography>
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>

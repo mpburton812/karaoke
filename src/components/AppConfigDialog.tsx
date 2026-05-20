@@ -157,7 +157,7 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
             }}
           >
             <Typography variant="h6" color="error" gutterBottom>
-              Danger Zone
+              Danger zone
             </Typography>
             <Typography variant="body2" sx={{ mb: 2 }}>
               Clearing your configuration will delete all personal data associated with your

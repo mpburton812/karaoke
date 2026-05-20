@@ -326,7 +326,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
 
       {/* Detail Dialog */}
       <Dialog open={!!selectedSong} onClose={() => !saving && setSelectedSong(null)} fullWidth maxWidth="xs">
-        <DialogTitle>Song Details</DialogTitle>
+        <DialogTitle>Song details</DialogTitle>
         <DialogContent dividers>
           {selectedSong && (
             <Box sx={{ textAlign: 'center' }}>
@@ -339,7 +339,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
               <Typography variant="body1" color="textSecondary" gutterBottom>{selectedSong.artistName}</Typography>
               
               <Box sx={{ mt: 3, mb: 2, p: 2, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="subtitle2" gutterBottom align="left" color="primary">Data Sources</Typography>
+                <Typography variant="subtitle2" gutterBottom align="left" color="primary">Data sources</Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   {[
                     { key: 'karafun', label: 'KaraFun Catalog' },

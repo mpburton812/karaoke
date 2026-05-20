@@ -66,7 +66,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onUserUpdated }) => {
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, justifyContent: 'center' }}>
         <LockIcon color="primary" />
         <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-          Change Password
+          Change password
         </Typography>
       </Box>
 
@@ -114,7 +114,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onUserUpdated }) => {
           disabled={loading}
           fullWidth
         >
-          {loading ? <CircularProgress size={24} /> : 'UPDATE PASSWORD'}
+          {loading ? <CircularProgress size={24} /> : 'Update password'}
         </Button>
       </Box>
     </Paper>

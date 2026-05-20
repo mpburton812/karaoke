@@ -63,7 +63,7 @@ const ChangeUsername: React.FC<ChangeUsernameProps> = ({
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, justifyContent: "center" }}>
         <PersonIcon color="primary" />
         <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
-          Change Username
+          Change username
         </Typography>
       </Box>
 
@@ -102,7 +102,7 @@ const ChangeUsername: React.FC<ChangeUsernameProps> = ({
           }}
         />
         <Button variant="contained" onClick={() => void handleSubmit()} disabled={loading} fullWidth>
-          {loading ? <CircularProgress size={24} /> : "UPDATE USERNAME"}
+          {loading ? <CircularProgress size={24} /> : "Update username"}
         </Button>
       </Box>
     </Paper>

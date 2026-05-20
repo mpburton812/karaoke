@@ -116,7 +116,7 @@ const DataPortability: React.FC<DataPortabilityProps> = ({ currentUser, onDataCh
 
   return (
     <Box sx={{ mt: 4 }}>
-      <Typography variant="h5" gutterBottom align="center">Data Portability</Typography>
+      <Typography variant="h5" gutterBottom align="center">Data portability</Typography>
       <Typography variant="body2" color="textSecondary" align="center" sx={{ mb: 3 }}>
         Export your data to CSV or import from a previous backup.
       </Typography>

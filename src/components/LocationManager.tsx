@@ -298,7 +298,7 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
                         size="small"
                         options={availableTags.filter(t => !(locationTagsMap[loc.id] || []).find(lt => lt.id === t.id))}
                         getOptionLabel={(option) => option.name}
-                        renderInput={(params) => <TextField {...params} label="Search Tags" sx={{ maxWidth: 200 }} />}
+                        renderInput={(params) => <TextField {...params} label="Search tags" sx={{ maxWidth: 200 }} />}
                         onChange={(_, value) => value && handleAddTag(loc.id, value.id)}
                         value={null}
                         blurOnSelect
@@ -310,22 +310,22 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
                       <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider' }}>
                         <Grid container spacing={2}>
                           <Grid size={{ xs: 4 }}>
-                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Days Sung</Typography>
+                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Days sung</Typography>
                             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{locationStatsMap[loc.id].daysSung}</Typography>
                           </Grid>
                           <Grid size={{ xs: 4 }}>
-                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Total Songs</Typography>
+                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Total songs</Typography>
                             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{locationStatsMap[loc.id].totalSongs}</Typography>
                           </Grid>
                           <Grid size={{ xs: 4 }}>
-                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Avg Songs/Day</Typography>
+                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Avg songs/day</Typography>
                             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{locationStatsMap[loc.id].avgSongsPerDay}</Typography>
                           </Grid>
                         </Grid>
                         
                         {locationStatsMap[loc.id].topSongs.length > 0 && (
                           <Box sx={{ mt: 2 }}>
-                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 0.5 }}>Top Songs</Typography>
+                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 0.5 }}>Top songs</Typography>
                             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                               {locationStatsMap[loc.id].topSongs.map((song, i) => (
                                 <Chip 

@@ -8,7 +8,7 @@ Events are stored in Turso (`event_logs`) and mirrored here as **JSON Lines** fo
 |------|----------|-------------|
 | **C** | Critical | Unhandled failures, process instability, or errors that break core app behavior |
 | **W** | Warning | Handled errors, degraded features, or unavailable external APIs |
-| **I** | Informational | Normal audit trail (sign-in, data changes, performances) |
+| **I** | Informational | Normal audit trail (sign-in, data changes, performances, deploys, client build loads) |
 
 ## JSONL format
 

@@ -269,12 +269,12 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
         {/* Left Side: Tag Management */}
         <Grid size={{ xs: 12, md: 4 }}>
           <Paper sx={{ p: 3, mb: 4 }}>
-            <Typography variant="h6" gutterBottom>Create New Tag</Typography>
+            <Typography variant="h6" gutterBottom>Create new tag</Typography>
             <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
               <TextField 
                 fullWidth 
                 size="small" 
-                label="Tag Name" 
+                label="Tag name" 
                 value={newTagName} 
                 onChange={(e) => setNewTagName(e.target.value)}
                 onKeyPress={(e) => {
@@ -294,7 +294,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
 
             <Divider sx={{ my: 2 }} />
             
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>All Universal Tags</Typography>
+            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>All tags</Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
               {tags.length === 0 ? (
                 <Typography variant="body2" color="textSecondary">No tags yet.</Typography>
@@ -344,21 +344,21 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
             
             <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
               {filterLogic === 'OR' 
-                ? 'Select any tags (+) to broad search.' 
-                : 'Select specific tags (-) to narrow search (matches ALL).'}
+                ? 'Select any tags (+) for a broad search.' 
+                : 'Select specific tags (−) for a narrow search (matches all).'}
               {selectedTagIds.length > 0 || selectedGenres.length > 0 ? ` Showing matches.` : ` Select options below.`}
             </Typography>
 
             {/* Venue Shortcut */}
             <Box sx={{ mb: 4 }}>
               <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
-                Venue Shortcut
+                Venue shortcut
               </Typography>
               <FormControl fullWidth size="small">
-                <InputLabel>Select Venue (Apply Venue Tags)</InputLabel>
+                <InputLabel>Select venue (apply venue tags)</InputLabel>
                 <Select
                   value={selectedVenueId}
-                  label="Select Venue (Apply Venue Tags)"
+                  label="Select venue (apply venue tags)"
                   onChange={(e) => handleVenueChange(e.target.value as number)}
                 >
                   <MenuItem value=""><em>None (Clear Venue Tags)</em></MenuItem>

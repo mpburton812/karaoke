@@ -518,9 +518,9 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
               <Typography variant="h4" color="textSecondary" gutterBottom>{selectedSong.artist_name}</Typography>
               
               <Box sx={{ mt: 2, mb: 3, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Chip label={selectedSong.genre || 'Unknown Genre'} color="secondary" variant="outlined" />
-                <Chip label={selectedSong.release_year || 'Unknown Year'} variant="outlined" />
-                <Chip label={selectedSong.karafun_available ? "KaraFun Available" : "Not on KaraFun"} color={selectedSong.karafun_available ? "success" : "default"} variant="outlined" />
+                <Chip label={selectedSong.genre || 'Unknown genre'} color="secondary" variant="outlined" />
+                <Chip label={selectedSong.release_year || 'Unknown year'} variant="outlined" />
+                <Chip label={selectedSong.karafun_available ? "KaraFun available" : "Not on KaraFun"} color={selectedSong.karafun_available ? "success" : "default"} variant="outlined" />
                 {selectedSong.spotify_source_playlist_name && (
                   <Chip
                     icon={<SpotifyGlyphIcon />}
@@ -562,7 +562,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                     size="small"
                     options={availableTags.filter(t => !selectedSongTags.find(st => st.id === t.id))}
                     getOptionLabel={(option) => option.name}
-                    renderInput={(params) => <TextField {...params} label="Search Tags" sx={{ maxWidth: 200 }} />}
+                    renderInput={(params) => <TextField {...params} label="Search tags" sx={{ maxWidth: 200 }} />}
                     onChange={(_, value) => value && handleAddSongTag(value.id)}
                     value={null}
                     blurOnSelect
@@ -576,8 +576,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
               <Grid container spacing={3}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl fullWidth>
-                    <InputLabel>Personal Key</InputLabel>
-                    <Select value={selectedSong.personal_key || '0'} label="Personal Key" onChange={(e) => handleUpdateSongProperty(selectedSong.id, 'personal_key', e.target.value)}>
+                    <InputLabel>Personal key</InputLabel>
+                    <Select value={selectedSong.personal_key || '0'} label="Personal key" onChange={(e) => handleUpdateSongProperty(selectedSong.id, 'personal_key', e.target.value)}>
                       {['-3', '-2', '-1', '0', '1', '2', '3'].map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
                     </Select>
                   </FormControl>
@@ -593,7 +593,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
               </Grid>
 
               <Box sx={{ mt: 4 }}>
-                <Typography variant="h6" gutterBottom>Musical Qualities</Typography>
+                <Typography variant="h6" gutterBottom>Musical qualities</Typography>
                 <Grid container spacing={1}>
                   {[
                     { label: 'Energy', value: selectedSong.energy },
@@ -621,7 +621,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                     <strong>Album:</strong> {selectedSong.album}<br />
                     <strong>Duration:</strong> {Math.floor(selectedSong.duration_ms / 60000)}:{( (selectedSong.duration_ms % 60000) / 1000).toFixed(0).padStart(2, '0')}<br />
                     <strong>Popularity:</strong> {selectedSong.popularity ? `${selectedSong.popularity}/100` : "DNF"} | <strong>Loudness:</strong> {selectedSong.loudness !== null ? `${selectedSong.loudness} dB` : "DNF"}<br />
-                    <strong>Release Date:</strong> {new Date(selectedSong.release_date).toLocaleDateString()}
+                    <strong>Release date:</strong> {new Date(selectedSong.release_date).toLocaleDateString()}
                   </Typography>
                 </Box>
               </Box>
@@ -631,7 +631,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
 
         {performances.length > 0 && (
           <Box sx={{ mt: 4 }}>
-            <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>Performance History</Typography>
+            <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>Performance history</Typography>
             <TableContainer component={Paper} elevation={3}>
               <Table>
                 <TableHead>
@@ -672,7 +672,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
           fullWidth
           maxWidth="xs"
         >
-          <DialogTitle>Record Performance</DialogTitle>
+          <DialogTitle>Record performance</DialogTitle>
           <DialogContent>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
               <TextField label="Date" type="date" value={perfDate} onChange={(e) => setPerfDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth />
@@ -716,7 +716,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                 onClick={() => void handlePerfCheck()}
                 disabled={savingPerf || perfCheckLoading}
               >
-                {perfCheckLoading ? <CircularProgress size={22} /> : 'CHECK'}
+                {perfCheckLoading ? <CircularProgress size={22} /> : 'Check'}
               </Button>
 
               {perfCheckExpanded && (
@@ -757,7 +757,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
         </Dialog>
 
         <Dialog open={notesDialogOpen} onClose={() => setNotesDialogOpen(false)} fullWidth maxWidth="xs">
-          <DialogTitle>Performance Notes</DialogTitle>
+          <DialogTitle>Performance notes</DialogTitle>
           <DialogContent dividers><Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{activeNotes}</Typography></DialogContent>
           <DialogActions><Button onClick={() => setNotesDialogOpen(false)}>Close</Button></DialogActions>
         </Dialog>

@@ -143,7 +143,7 @@ const SystemStatus = () => {
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Cloud DB</Typography>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Cloud database</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
             {dbConnected === null ? <CircularProgress size={20} /> : (
               dbConnected ? <CheckCircleIcon color="success" /> : <ErrorIcon color="error" />
@@ -153,7 +153,7 @@ const SystemStatus = () => {
         </Grid>
 
         <Grid size={{ xs: 12, sm: 4 }}>
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>KaraFun Records</Typography>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>KaraFun records</Typography>
           <Typography variant="h6" sx={{ mt: 0.5 }}>
             {karafunCount.toLocaleString()}
             {karafunCount === 0 && <Chip label="Empty" size="small" color="error" sx={{ ml: 1 }} />}
@@ -161,7 +161,7 @@ const SystemStatus = () => {
         </Grid>
 
         <Grid size={{ xs: 12, sm: 4 }}>
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Last KaraFun Catalog Update</Typography>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Last KaraFun catalog update</Typography>
           <Typography variant="body1" sx={{ mt: 0.5, fontWeight: 'medium' }}>
             {lastUpdated === 'Never' ? lastUpdated : new Date(lastUpdated!).toLocaleDateString() + ' ' + new Date(lastUpdated!).toLocaleTimeString()}
           </Typography>
@@ -185,7 +185,7 @@ const SystemStatus = () => {
         </Grid>
 
         <Grid size={{ xs: 12, sm: 4 }}>
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Enrichment Queue</Typography>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Enrichment queue</Typography>
           <Typography variant="h6" sx={{ mt: 0.5 }}>
             {enrichment ? `${enrichment.pending}/${enrichment.totalSongs}` : '—'}
           </Typography>
@@ -210,7 +210,7 @@ const SystemStatus = () => {
           fullWidth
           sx={{ maxWidth: 300 }}
         >
-          {syncing ? 'Syncing…' : 'Sync KaraFun Catalog'}
+          {syncing ? 'Syncing…' : 'Sync KaraFun catalog'}
         </Button>
         <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }}>
           Automatically fetches the latest library from KaraFun.com
