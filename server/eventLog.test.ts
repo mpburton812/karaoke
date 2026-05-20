@@ -1,0 +1,73 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { mockExecute, mockAppendFile, mockMkdir } = vi.hoisted(() => ({
+  mockExecute: vi.fn(),
+  mockAppendFile: vi.fn(),
+  mockMkdir: vi.fn(),
+}));
+
+vi.mock("./db.js", () => ({
+  db: { execute: mockExecute },
+  tursoConfigured: true,
+}));
+
+vi.mock("fs/promises", () => ({
+  appendFile: mockAppendFile,
+  mkdir: mockMkdir,
+}));
+
+import { listEventLogs, logEvent } from "./eventLog.js";
+
+describe("eventLog", () => {
+  beforeEach(() => {
+    mockExecute.mockReset();
+    mockAppendFile.mockReset();
+    mockMkdir.mockReset();
+    mockAppendFile.mockResolvedValue(undefined);
+    mockMkdir.mockResolvedValue(undefined);
+  });
+
+  it("persists informational events to the database and JSONL", async () => {
+    mockExecute.mockResolvedValue({ rows: [] });
+    logEvent({
+      level: "I",
+      userId: 7,
+      username: "singer",
+      message: "User signed in",
+      category: "auth",
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(mockExecute).toHaveBeenCalled();
+    const insert = mockExecute.mock.calls.find((c) =>
+      String(c[0]?.sql).includes("INSERT INTO event_logs")
+    );
+    expect(insert).toBeDefined();
+    expect(insert![0].args).toContain("I");
+    expect(insert![0].args).toContain("User signed in");
+    expect(mockAppendFile).toHaveBeenCalled();
+  });
+
+  it("lists events newest first with pagination", async () => {
+    mockExecute
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 2,
+            occurred_at: "2026-05-20T10:00:00.000Z",
+            level: "W",
+            user_id: 1,
+            username: "admin",
+            message: "Spotify API unavailable",
+            category: "spotify",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ c: 5 }] });
+
+    const { events, total } = await listEventLogs({ limit: 10, offset: 0 });
+    expect(total).toBe(5);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.level).toBe("W");
+    expect(events[0]?.message).toContain("Spotify");
+  });
+});

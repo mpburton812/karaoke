@@ -26,6 +26,7 @@ import {
 } from './lib/karaokeEvents';
 import { lazyRetry } from './lib/lazyRetry';
 import AppConfigDialog from './components/AppConfigDialog';
+import { logUserAction } from './api/eventLog';
 
 // Lazy load tab components (retry once on chunk load failure after deploy)
 const SavedSongs = lazyRetry(() => import('./components/SavedSongs'));
@@ -33,6 +34,8 @@ const TagManager = lazyRetry(() => import('./components/TagManager'));
 const LocationManager = lazyRetry(() => import('./components/LocationManager'));
 const Login = lazyRetry(() => import('./components/Login'));
 const Stats = lazyRetry(() => import('./components/Stats'));
+const EventLogViewer = lazyRetry(() => import('./components/EventLogViewer'));
+const GodMode = lazyRetry(() => import('./components/GodMode'));
 
 type ThemeMode = 'light' | 'dark' | 'trans';
 type SpotifySnackbarState = {
@@ -41,6 +44,7 @@ type SpotifySnackbarState = {
   severity: "success" | "error" | "info";
 };
 const SONGS_TAB_INDEX = 0;
+const GOD_MODE_TAB_INDEX = 4;
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -287,6 +291,9 @@ function App() {
   }, []);
 
   const handleLogout = () => {
+    if (currentUser) {
+      logUserAction("User signed out", "auth");
+    }
     setCurrentUser(null);
     setSessionNotice(null);
     clearSession();
@@ -300,6 +307,7 @@ function App() {
     );
     
     if (confirmed) {
+      logUserAction("User cleared all personal configuration (nuke)", "data");
       try {
         await db.batch([
           { sql: "DELETE FROM performance_tags WHERE performance_id IN (SELECT id FROM performances WHERE user_id = ?)", args: [currentUser.id] },
@@ -397,6 +405,7 @@ function App() {
             <Tab label="Places" />
             <Tab label="Tags" />
             <Tab label="Stats" />
+            {isAdmin && <Tab label="GOD MODE" />}
           </Tabs>
         </Box>
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>}>
@@ -416,6 +425,12 @@ function App() {
           <CustomTabPanel value={value} index={3}>
             <Stats currentUser={currentUser} />
           </CustomTabPanel>
+          {isAdmin && (
+            <CustomTabPanel value={value} index={GOD_MODE_TAB_INDEX}>
+              <EventLogViewer />
+              <GodMode />
+            </CustomTabPanel>
+          )}
         </Suspense>
       </Container>
 

@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { createApp } from "./app.js";
+import { createApp, registerProcessEventHandlers } from "./app.js";
 import { tursoConfigured } from "./db.js";
 import { initDb } from "./initDb.js";
 import { attachStaticFrontend } from "./static.js";
@@ -9,6 +9,8 @@ const serveStatic =
   process.env.SERVE_STATIC === "true" || process.env.NODE_ENV === "production";
 
 async function start() {
+  registerProcessEventHandlers();
+
   if (!tursoConfigured) {
     console.error("Cannot start API: Turso credentials missing.");
     process.exit(1);

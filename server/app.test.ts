@@ -3,13 +3,19 @@ import type { Express } from "express";
 import request from "supertest";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockExecute, mockBatch, mockAdminReenrichAll, mockScheduleAdminBg } =
-  vi.hoisted(() => ({
-    mockExecute: vi.fn(),
-    mockBatch: vi.fn(),
-    mockAdminReenrichAll: vi.fn(),
-    mockScheduleAdminBg: vi.fn(),
-  }));
+const {
+  mockExecute,
+  mockBatch,
+  mockAdminReenrichAll,
+  mockScheduleAdminBg,
+  mockListEventLogs,
+} = vi.hoisted(() => ({
+  mockExecute: vi.fn(),
+  mockBatch: vi.fn(),
+  mockAdminReenrichAll: vi.fn(),
+  mockScheduleAdminBg: vi.fn(),
+  mockListEventLogs: vi.fn().mockResolvedValue({ events: [], total: 0 }),
+}));
 
 vi.mock("./db.js", () => ({
   db: { execute: mockExecute, batch: mockBatch },
@@ -24,6 +30,14 @@ vi.mock("./songEnrichment.js", async (importOriginal) => {
     scheduleAdminReenrichAllUsersBackground: mockScheduleAdminBg,
   };
 });
+
+vi.mock("./eventLog.js", () => ({
+  logEvent: vi.fn(),
+  logApiWarning: vi.fn(),
+  logApiCritical: vi.fn(),
+  auditSqlMutation: vi.fn(),
+  listEventLogs: mockListEventLogs,
+}));
 
 import { createApp } from "./app.js";
 import { signToken } from "./auth.js";
@@ -246,6 +260,51 @@ describe("API routes", () => {
     });
   });
 
+  describe("GET /api/admin/event-logs", () => {
+    it("rejects non-admin users", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [{ id: USER_ID, username: "tester", access_level: "user" }],
+      });
+
+      const token = signToken({ id: USER_ID, username: "tester", accessLevel: "user" });
+      const res = await request(app)
+        .get("/api/admin/event-logs")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(403);
+    });
+
+    it("returns paginated events for admins", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+      });
+      mockListEventLogs.mockResolvedValueOnce({
+        total: 1,
+        events: [
+          {
+            id: 1,
+            occurredAt: "2026-05-20T12:00:00.000Z",
+            level: "I",
+            userId: 7,
+            username: "singer",
+            message: "User signed in",
+            category: "auth",
+          },
+        ],
+      });
+
+      const token = signToken({ id: USER_ID, username: "mpburton", accessLevel: "admin" });
+      const res = await request(app)
+        .get("/api/admin/event-logs?limit=10&offset=0")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.total).toBe(1);
+      expect(res.body.events[0].level).toBe("I");
+      expect(res.body.events[0].message).toBe("User signed in");
+    });
+  });
+
   describe("POST /api/admin/enrichment/rebuild-all", () => {
     it("requires authentication", async () => {
       const res = await request(app).post("/api/admin/enrichment/rebuild-all").send({});
@@ -268,9 +327,13 @@ describe("API routes", () => {
     });
 
     it("runs synchronously for admins and returns summary", async () => {
-      mockExecute.mockResolvedValueOnce({
-        rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
-      });
+      mockExecute
+        .mockResolvedValueOnce({
+          rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+        });
       mockAdminReenrichAll.mockResolvedValueOnce({
         usersInLibrary: 2,
         usersProcessed: 2,
@@ -308,9 +371,13 @@ describe("API routes", () => {
     });
 
     it("accepts async=1 and returns 202 when a background run is scheduled", async () => {
-      mockExecute.mockResolvedValueOnce({
-        rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
-      });
+      mockExecute
+        .mockResolvedValueOnce({
+          rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+        });
       mockScheduleAdminBg.mockReturnValueOnce(true);
 
       const token = signToken({ id: USER_ID, username: "mpburton", accessLevel: "admin" });
@@ -327,9 +394,13 @@ describe("API routes", () => {
     });
 
     it("returns 409 when async scheduling is rejected", async () => {
-      mockExecute.mockResolvedValueOnce({
-        rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
-      });
+      mockExecute
+        .mockResolvedValueOnce({
+          rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+        });
       mockScheduleAdminBg.mockReturnValueOnce(false);
 
       const token = signToken({ id: USER_ID, username: "mpburton", accessLevel: "admin" });

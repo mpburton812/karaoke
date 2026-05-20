@@ -5,7 +5,9 @@ import {
 } from '@mui/material';
 
 const changelogData = [
-  { date: '2026-05-20', description: 'UI: Replace Admin and God Mode tabs with a header settings (gear) dialog; logout is icon-only' },
+  { date: '2026-05-20', description: 'God Mode: Restore tab with event log viewer (C/W/I, last 10 + show more); Settings keeps health and enrichment' },
+  { date: '2026-05-20', description: 'Ops: Structured event log in Turso and logs/application-events.jsonl (auth, SQL audit, API warnings, process crashes)' },
+  { date: '2026-05-20', description: 'UI: Replace Admin tab with settings (gear) dialog; Restart and update at top; logout is icon-only' },
   { date: '2026-05-20', description: 'Account: Change username from Settings (password required); new POST /api/auth/change-username' },
   { date: '2026-05-20', description: 'Admin: Health dashboard, song enrichment, and user administration live under Settings for admins' },
   { date: '2026-05-18', description: 'Admin: Full-library re-enrichment for all users (sync or background) after GetSongBPM and Last.fm setup' },

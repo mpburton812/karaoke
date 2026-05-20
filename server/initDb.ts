@@ -410,6 +410,23 @@ export const initDb = async () => {
       console.error("Could not create Spotify songs unique index:", error);
     }
 
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS event_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        occurred_at TEXT NOT NULL,
+        level TEXT NOT NULL CHECK (level IN ('C', 'W', 'I')),
+        user_id INTEGER,
+        username TEXT,
+        message TEXT NOT NULL,
+        category TEXT,
+        details TEXT,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+      )
+    `);
+    await db.execute(
+      `CREATE INDEX IF NOT EXISTS idx_event_logs_occurred ON event_logs (occurred_at DESC, id DESC)`
+    );
+
   } catch (error) {
     console.error("Error initializing database:", error);
   }

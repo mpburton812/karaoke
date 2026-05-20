@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Box, Button, Paper, Typography } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { logClientCritical } from '../api/eventLog';
 import { forceAppReload, isChunkLoadError } from '../lib/forceAppReload';
 
 interface Props {
@@ -29,6 +30,12 @@ class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('ErrorBoundary caught:', error, info.componentStack);
+    if (!isChunkLoadError(error.message)) {
+      logClientCritical(
+        `Client crash: ${error.message}`.slice(0, 500),
+        'client'
+      );
+    }
   }
 
   handleReload = () => {

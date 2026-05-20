@@ -21,7 +21,6 @@ import ChangeUsername from "./ChangeUsername";
 import Changelog from "./Changelog";
 import DataPortability from "./DataPortability";
 import EnrichmentAdmin from "./EnrichmentAdmin";
-import GodMode from "./GodMode";
 import SpotifyConnect from "./SpotifyConnect";
 import SystemStatus from "./SystemStatus";
 
@@ -72,7 +71,9 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
             Account, appearance, integrations, and data tools.
           </Typography>
 
-          <Box sx={{ mb: 4 }}>
+          <AdminAppReload />
+
+          <Box sx={{ mb: 4, mt: 3 }}>
             <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: "bold", mb: 2 }}>
               ACCOUNT
             </Typography>
@@ -122,8 +123,6 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
             </ButtonGroup>
           </Box>
 
-          <AdminAppReload />
-
           <SpotifyConnect currentUser={currentUser} />
 
           <Divider sx={{ my: 4 }} />
@@ -140,7 +139,6 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
               </Typography>
               <SystemStatus />
               <EnrichmentAdmin />
-              <GodMode />
             </>
           )}
 

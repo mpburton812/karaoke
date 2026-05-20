@@ -1,5 +1,6 @@
 import { db } from "./db.js";
 import { getSpotifyAccessTokenForUser } from "./spotifyAuth.js";
+import { logApiWarning, logEvent } from "./eventLog.js";
 
 export interface EnrichmentStatus {
   running: boolean;
@@ -599,6 +600,10 @@ async function runJob(userId: number, songs: SongToEnrich[]): Promise<void> {
     } catch (err) {
       job.failed += 1;
       const message = err instanceof Error ? err.message : String(err);
+      logApiWarning(`Enrichment failed for ${song.track_name}: ${message}`, {
+        userId,
+        category: "enrichment",
+      });
       job.errors.unshift(`${song.track_name}: ${message}`);
       job.errors.splice(10);
     } finally {
@@ -649,7 +654,17 @@ export async function startEnrichmentJob(
   });
 
   if (songs.length > 0) {
-    void runJob(userId, songs);
+    void runJob(userId, songs).then(() => {
+      const finished = jobs.get(userId);
+      if (finished && finished.failed > 0) {
+        logEvent({
+          level: "W",
+          userId,
+          message: `Enrichment job finished with ${finished.failed} failed song(s)`,
+          category: "enrichment",
+        });
+      }
+    });
   }
 
   return getEnrichmentStatus(userId);
@@ -740,6 +755,10 @@ export function scheduleAdminReenrichAllUsersBackground(): boolean {
     try {
       await runAdminReenrichAllUsersCore();
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logApiWarning(`Admin full-library re-enrichment failed: ${message}`, {
+        category: "enrichment",
+      });
       console.error("[songEnrichment] admin rebuild-all failed:", err);
     } finally {
       adminFullLibraryReenrichLocked = false;

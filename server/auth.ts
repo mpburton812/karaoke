@@ -237,7 +237,7 @@ export async function getAuthUserById(userId: number): Promise<AuthUser | null> 
     sql: "SELECT id, username, access_level FROM users WHERE id = ?",
     args: [userId],
   });
-  const row = result.rows[0] as
+  const row = result?.rows?.[0] as
     | { id: number; username: string; access_level?: string | null }
     | undefined;
   if (!row) return null;

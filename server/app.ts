@@ -47,6 +47,13 @@ import {
   startEnrichmentJob,
 } from "./songEnrichment.js";
 import { syncKarafunCatalog } from "./karafunSync.js";
+import {
+  auditSqlMutation,
+  listEventLogs,
+  logApiCritical,
+  logApiWarning,
+  logEvent,
+} from "./eventLog.js";
 
 function apiIndexPayload(serveStatic: boolean) {
   return {
@@ -77,6 +84,8 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/admin/enrichment/rebuild-all",
       "/api/karafun/sync",
       "/api/admin/health",
+      "/api/admin/event-logs",
+      "/api/events/log",
     ],
     data: ["/api/execute", "/api/batch"],
     note: serveStatic
@@ -129,9 +138,17 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       }
       const user = await registerUser(username, password);
       const token = signToken(user);
+      logEvent({
+        level: "I",
+        userId: user.id,
+        username: user.username,
+        message: "New account registered",
+        category: "auth",
+      });
       res.json({ user, token });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Registration failed.";
+      logApiWarning(message, { category: "auth" });
       res.status(400).json({ error: message });
     }
   });
@@ -148,9 +165,17 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       }
       const user = await loginUser(username, password);
       const token = signToken(user);
+      logEvent({
+        level: "I",
+        userId: user.id,
+        username: user.username,
+        message: "User signed in",
+        category: "auth",
+      });
       res.json({ user, token });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed.";
+      logApiWarning(message, { category: "auth" });
       res.status(401).json({ error: message });
     }
   });
@@ -245,9 +270,17 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
 
       const user = await changePassword(userId, currentPassword, newPassword);
       const token = signToken(user);
+      logEvent({
+        level: "I",
+        userId: user.id,
+        username: user.username,
+        message: "User changed password",
+        category: "auth",
+      });
       res.json({ user, token });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Password change failed.";
+      logApiWarning(message, { userId, category: "auth" });
       const status = message.includes("incorrect") ? 401 : 400;
       res.status(status).json({ error: message });
     }
@@ -270,12 +303,49 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
 
       const user = await changeUsername(userId, currentPassword, newUsername);
       const token = signToken(user);
+      logEvent({
+        level: "I",
+        userId: user.id,
+        username: user.username,
+        message: "User changed username",
+        category: "auth",
+      });
       res.json({ user, token });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Username change failed.";
+      logApiWarning(message, { userId, category: "auth" });
       const status = message.includes("incorrect") ? 401 : 400;
       res.status(status).json({ error: message });
+    }
+  });
+
+  app.post("/api/events/log", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as express.Request & { userId: number }).userId;
+      const { message, category, level: rawLevel } = req.body as {
+        message?: string;
+        category?: string;
+        level?: string;
+      };
+      const text = typeof message === "string" ? message.trim() : "";
+      if (!text || text.length > 500) {
+        res.status(400).json({ error: "message is required (max 500 characters)." });
+        return;
+      }
+      const level = rawLevel === "C" ? "C" : "I";
+      const user = await getAuthUserById(userId);
+      logEvent({
+        level,
+        userId,
+        username: user?.username ?? null,
+        message: text,
+        category: typeof category === "string" ? category.slice(0, 64) : "client",
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to log event.";
+      res.status(500).json({ error: message });
     }
   });
 
@@ -355,11 +425,22 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
           res.status(400).json({ error: "newPassword is required." });
           return;
         }
+        const target = await getAuthUserById(targetUserId);
         await adminSetUserPassword(targetUserId, newPassword);
+        const actorId = (req as express.Request & { userId: number }).userId;
+        const actor = await getAuthUserById(actorId);
+        logEvent({
+          level: "I",
+          userId: actorId,
+          username: actor?.username ?? null,
+          message: `Admin reset password for ${target?.username ?? `user #${targetUserId}`}`,
+          category: "godmode",
+        });
         res.json({ ok: true });
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to change user password.";
+        logApiWarning(message, { category: "godmode" });
         res.status(400).json({ error: message });
       }
     }
@@ -381,6 +462,8 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
           res.status(400).json({ error: "You cannot delete your own account." });
           return;
         }
+        const target = await getAuthUserById(targetUserId);
+        const actor = await getAuthUserById(actorUserId);
         await db.batch([
           {
             sql: "DELETE FROM performance_tags WHERE performance_id IN (SELECT id FROM performances WHERE user_id = ?)",
@@ -404,10 +487,39 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
           { sql: "DELETE FROM locations WHERE user_id = ?", args: [targetUserId] },
           { sql: "DELETE FROM users WHERE id = ?", args: [targetUserId] },
         ]);
+        logEvent({
+          level: "I",
+          userId: actorUserId,
+          username: actor?.username ?? null,
+          message: `Admin deleted account ${target?.username ?? `#${targetUserId}`}`,
+          category: "godmode",
+        });
         res.json({ ok: true });
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to delete user.";
+        logApiWarning(message, { category: "godmode" });
+        res.status(500).json({ error: message });
+      }
+    }
+  );
+
+  app.get(
+    "/api/admin/event-logs",
+    requireAuth,
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const limit = Math.min(
+          100,
+          Math.max(1, Number(req.query.limit) || 10)
+        );
+        const offset = Math.max(0, Number(req.query.offset) || 0);
+        const result = await listEventLogs({ limit, offset });
+        res.json(result);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to list event logs.";
         res.status(500).json({ error: message });
       }
     }
@@ -477,10 +589,20 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
             .map((v) => (typeof v === "number" ? v : Number(v)))
             .filter((v) => Number.isFinite(v) && v > 0)
         : undefined;
+      logEvent({
+        level: "I",
+        userId,
+        message: "Started song enrichment job",
+        category: "enrichment",
+      });
       res.json(await startEnrichmentJob(userId, songIds));
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to start enrichment.";
+      logApiWarning(message, {
+        userId: (req as express.Request & { userId: number }).userId,
+        category: "enrichment",
+      });
       res.status(500).json({ error: message });
     }
   });
@@ -491,6 +613,8 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     requireAdmin,
     async (req, res) => {
       try {
+        const actorId = (req as express.Request & { userId: number }).userId;
+        const actor = await getAuthUserById(actorId);
         const asyncMode = String(req.query.async) === "1";
         if (asyncMode) {
           const started = scheduleAdminReenrichAllUsersBackground();
@@ -500,6 +624,13 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
             });
             return;
           }
+          logEvent({
+            level: "I",
+            userId: actorId,
+            username: actor?.username ?? null,
+            message: "Started full-library re-enrichment (background)",
+            category: "enrichment",
+          });
           res.status(202).json({
             ok: true,
             started: true,
@@ -510,10 +641,18 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
           return;
         }
         const result = await adminReenrichAllUsersSequentially();
+        logEvent({
+          level: "I",
+          userId: actorId,
+          username: actor?.username ?? null,
+          message: `Completed full-library re-enrichment (${result.totalSongsRequested} songs)`,
+          category: "enrichment",
+        });
         res.json({ ok: true, started: false, async: false, ...result });
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to rebuild enrichment.";
+        logApiWarning(message, { category: "enrichment" });
         const conflict =
           typeof message === "string" &&
           message.includes("already in progress");
@@ -522,12 +661,21 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     }
   );
 
-  app.post("/api/karafun/sync", requireAuth, async (_req, res) => {
+  app.post("/api/karafun/sync", requireAuth, async (req, res) => {
+    const userId = (req as express.Request & { userId: number }).userId;
     try {
-      res.json(await syncKarafunCatalog());
+      const result = await syncKarafunCatalog();
+      logEvent({
+        level: "I",
+        userId,
+        message: `KaraFun catalog synced (${result.count} tracks)`,
+        category: "karafun",
+      });
+      res.json(result);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "KaraFun catalog sync failed.";
+      logApiWarning(message, { userId, category: "karafun" });
       res.status(502).json({ error: message });
     }
   });
@@ -894,6 +1042,8 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
 
       assertSqlAllowed(sql, userId, args);
       const result = await db.execute({ sql, args });
+      const user = await getAuthUserById(userId);
+      auditSqlMutation(userId, sql, user?.username);
       res.json(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Query failed.";
@@ -901,6 +1051,12 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
         message.includes("not allowed") || message.includes("user_id")
           ? 403
           : 500;
+      if (status >= 500) {
+        logApiWarning(message, {
+          userId: (req as express.Request & { userId: number }).userId,
+          category: "sql",
+        });
+      }
       res.status(status).json({ error: message });
     }
   });
@@ -928,6 +1084,11 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       });
 
       const results = await db.batch(normalized);
+      const user = await getAuthUserById(userId);
+      for (const s of normalized) {
+        const sqlText = typeof s === "string" ? s : s.sql;
+        auditSqlMutation(userId, sqlText, user?.username);
+      }
       res.json({ results });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Batch failed.";
@@ -935,9 +1096,53 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
         message.includes("not allowed") || message.includes("user_id")
           ? 403
           : 500;
+      if (status >= 500) {
+        logApiWarning(message, {
+          userId: (req as express.Request & { userId: number }).userId,
+          category: "sql",
+        });
+      }
       res.status(status).json({ error: message });
     }
   });
 
+  app.use(
+    (
+      err: unknown,
+      req: express.Request,
+      res: express.Response,
+      _next: express.NextFunction
+    ) => {
+      const message =
+        err instanceof Error ? err.message : "Unhandled server error";
+      logApiCritical(`Unhandled error on ${req.method} ${req.path}: ${message}`, {
+        category: "http",
+        details: { path: req.path, method: req.method },
+      });
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Internal server error." });
+      }
+    }
+  );
+
   return app;
+}
+
+export function registerProcessEventHandlers(): void {
+  process.on("uncaughtException", (err) => {
+    logApiCritical(`Uncaught exception: ${err.message}`, {
+      category: "process",
+      details: { name: err.name, stack: err.stack?.slice(0, 500) },
+    });
+    console.error(err);
+  });
+
+  process.on("unhandledRejection", (reason) => {
+    const message =
+      reason instanceof Error ? reason.message : String(reason ?? "unknown");
+    logApiCritical(`Unhandled promise rejection: ${message}`, {
+      category: "process",
+    });
+    console.error("Unhandled rejection:", reason);
+  });
 }

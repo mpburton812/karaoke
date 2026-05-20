@@ -1,0 +1,18 @@
+{"at":"2026-05-20T17:29:46.991Z","level":"I","user":"tester","message":"User signed in","category":"auth"}
+{"at":"2026-05-20T17:29:47.487Z","level":"I","user":"newname","message":"User changed username","category":"auth"}
+{"at":"2026-05-20T17:29:48.189Z","level":"I","user":"tester","message":"User changed password","category":"auth"}
+{"at":"2026-05-20T17:29:48.216Z","level":"I","user":null,"message":"Started song enrichment job","category":"enrichment"}
+{"at":"2026-05-20T17:29:48.268Z","level":"W","user":null,"message":"Cannot read properties of undefined (reading 'rows')","category":"enrichment"}
+{"at":"2026-05-20T17:29:48.272Z","level":"W","user":null,"message":"Cannot read properties of undefined (reading 'rows')","category":"enrichment"}
+{"at":"2026-05-20T17:29:48.276Z","level":"W","user":null,"message":"Cannot read properties of undefined (reading 'rows')","category":"enrichment"}
+{"at":"2026-05-20T17:30:47.414Z","level":"I","user":"tester","message":"User signed in","category":"auth"}
+{"at":"2026-05-20T17:30:47.882Z","level":"I","user":"newname","message":"User changed username","category":"auth"}
+{"at":"2026-05-20T17:30:48.582Z","level":"I","user":"tester","message":"User changed password","category":"auth"}
+{"at":"2026-05-20T17:30:48.603Z","level":"W","user":null,"message":"Cannot read properties of undefined (reading 'rows')","category":"enrichment"}
+{"at":"2026-05-20T17:30:48.603Z","level":"I","user":null,"message":"Started song enrichment job","category":"enrichment"}
+{"at":"2026-05-20T17:30:48.653Z","level":"I","user":"mpburton","message":"Completed full-library re-enrichment (5 songs)","category":"enrichment"}
+{"at":"2026-05-20T17:30:48.657Z","level":"I","user":"mpburton","message":"Started full-library re-enrichment (background)","category":"enrichment"}
+{"at":"2026-05-20T17:30:48.668Z","level":"I","user":null,"message":"KaraFun catalog synced (1 tracks)","category":"karafun"}
+{"at":"2026-05-20T17:30:48.672Z","level":"I","user":null,"message":"KaraFun catalog synced (1 tracks)","category":"karafun"}
+{"at":"2026-05-20T17:30:48.687Z","level":"I","user":null,"message":"Removed song from repertoire","category":"data"}
+{"at":"2026-05-20T17:30:48.696Z","level":"I","user":null,"message":"Removed song from repertoire","category":"data"}
