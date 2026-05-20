@@ -463,9 +463,6 @@ function App() {
               </Box>
 
               <SpotifyConnect currentUser={currentUser} />
-              <EnrichmentAdmin isAdmin={isAdmin} />
-
-              <SystemStatus />
               <Divider sx={{ my: 4 }} />
               <DataPortability currentUser={currentUser} />
               
@@ -491,6 +488,8 @@ function App() {
           </CustomTabPanel>
           {isAdmin && (
             <CustomTabPanel value={value} index={5}>
+              <SystemStatus />
+              <EnrichmentAdmin />
               <GodMode />
             </CustomTabPanel>
           )}

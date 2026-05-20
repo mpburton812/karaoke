@@ -118,12 +118,13 @@ const GodMode: React.FC = () => {
   };
 
   return (
-    <Box sx={{ mt: 4 }}>
+    <Box sx={{ mt: 3 }}>
       <Typography variant="h5" gutterBottom sx={{ fontWeight: "bold" }}>
-        GOD MODE
+        USER ADMINISTRATION
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Administrative user access, repository metrics, and account controls.
+        User accounts and repository controls. Health, enrichment, and KaraFun
+        catalog tools are above in this tab.
       </Typography>
 
       {error && (
