@@ -1041,9 +1041,9 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       }
 
       assertSqlAllowed(sql, userId, args);
-      const result = await db.execute({ sql, args });
       const user = await getAuthUserById(userId);
-      auditSqlMutation(userId, sql, user?.username);
+      await auditSqlMutation(userId, sql, user?.username, args);
+      const result = await db.execute({ sql, args });
       res.json(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Query failed.";
@@ -1083,12 +1083,13 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
         return { sql: s.sql, args };
       });
 
-      const results = await db.batch(normalized);
       const user = await getAuthUserById(userId);
       for (const s of normalized) {
         const sqlText = typeof s === "string" ? s : s.sql;
-        auditSqlMutation(userId, sqlText, user?.username);
+        const stmtArgs = typeof s === "string" ? [] : s.args ?? [];
+        await auditSqlMutation(userId, sqlText, user?.username, stmtArgs);
       }
+      const results = await db.batch(normalized);
       res.json({ results });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Batch failed.";

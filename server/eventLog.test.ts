@@ -16,7 +16,7 @@ vi.mock("fs/promises", () => ({
   mkdir: mockMkdir,
 }));
 
-import { listEventLogs, logEvent } from "./eventLog.js";
+import { auditSqlMutation, listEventLogs, logEvent } from "./eventLog.js";
 
 describe("eventLog", () => {
   beforeEach(() => {
@@ -45,6 +45,24 @@ describe("eventLog", () => {
     expect(insert![0].args).toContain("I");
     expect(insert![0].args).toContain("User signed in");
     expect(mockAppendFile).toHaveBeenCalled();
+  });
+
+  it("includes song title and artist on repertoire insert audit", async () => {
+    mockExecute.mockResolvedValue({ rows: [] });
+    await auditSqlMutation(
+      7,
+      `INSERT INTO songs (user_id, track_name, artist_name) VALUES (?, ?, ?)`,
+      "singer",
+      [7, "Bohemian Rhapsody", "Queen"]
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    const insert = mockExecute.mock.calls.find((c) =>
+      String(c[0]?.sql).includes("INSERT INTO event_logs")
+    );
+    expect(insert).toBeDefined();
+    expect(insert![0].args).toContain(
+      'Added song to repertoire: "Bohemian Rhapsody" by Queen'
+    );
   });
 
   it("lists events newest first with pagination", async () => {

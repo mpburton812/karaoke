@@ -35,7 +35,7 @@ vi.mock("./eventLog.js", () => ({
   logEvent: vi.fn(),
   logApiWarning: vi.fn(),
   logApiCritical: vi.fn(),
-  auditSqlMutation: vi.fn(),
+  auditSqlMutation: vi.fn().mockResolvedValue(undefined),
   listEventLogs: mockListEventLogs,
 }));
 
@@ -505,13 +505,17 @@ describe("API routes", () => {
     });
 
     it("runs allowed scoped DELETE", async () => {
-      mockExecute.mockResolvedValueOnce({
-        columns: [],
-        columnTypes: [],
-        rows: [],
-        rowsAffected: 1,
-        lastInsertRowid: null,
-      });
+      mockExecute
+        .mockResolvedValueOnce({
+          rows: [{ id: USER_ID, username: "tester", access_level: "user" }],
+        })
+        .mockResolvedValueOnce({
+          columns: [],
+          columnTypes: [],
+          rows: [],
+          rowsAffected: 1,
+          lastInsertRowid: null,
+        });
 
       const token = signToken({ id: USER_ID, username: "tester" });
       const res = await request(app)

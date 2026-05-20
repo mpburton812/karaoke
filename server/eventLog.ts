@@ -173,35 +173,124 @@ export function logApiCritical(
   });
 }
 
-/** Best-effort audit for scoped SQL executed via /api/execute. */
-export function auditSqlMutation(
+function parseInsertColumnNames(sql: string, table: string): string[] | null {
+  const re = new RegExp(`INSERT\\s+INTO\\s+${table}\\s*\\(([^)]+)\\)`, "i");
+  const match = re.exec(sql);
+  if (!match) return null;
+  return match[1].split(",").map((c) => c.trim().toLowerCase());
+}
+
+function argAt(args: unknown[] | undefined, index: number): unknown {
+  if (!args || index < 0 || index >= args.length) return undefined;
+  return args[index];
+}
+
+function formatSongRef(track: unknown, artist: unknown): string | null {
+  const t = typeof track === "string" ? track.trim() : "";
+  const a = typeof artist === "string" ? artist.trim() : "";
+  if (t && a) return `"${t}" by ${a}`;
+  if (t) return `"${t}"`;
+  return null;
+}
+
+function formatNamedRef(value: unknown): string | null {
+  const s = typeof value === "string" ? value.trim() : "";
+  return s ? `"${s}"` : null;
+}
+
+async function lookupSongRef(
+  userId: number,
+  songId: unknown
+): Promise<string | null> {
+  const id = typeof songId === "number" ? songId : Number(songId);
+  if (!Number.isFinite(id) || id <= 0) return null;
+  try {
+    const res = await db.execute({
+      sql: `SELECT track_name, artist_name FROM songs WHERE id = ? AND user_id = ?`,
+      args: [id, userId],
+    });
+    const row = res?.rows?.[0] as
+      | { track_name?: string; artist_name?: string }
+      | undefined;
+    return formatSongRef(row?.track_name, row?.artist_name);
+  } catch {
+    return null;
+  }
+}
+
+function songRefFromInsertArgs(
+  cols: string[] | null,
+  args: unknown[] | undefined
+): string | null {
+  if (!cols || !args) return null;
+  const trackIdx = cols.indexOf("track_name");
+  const artistIdx = cols.indexOf("artist_name");
+  return formatSongRef(argAt(args, trackIdx), argAt(args, artistIdx));
+}
+
+function namedRefFromInsertArgs(
+  cols: string[] | null,
+  args: unknown[] | undefined,
+  column: string
+): string | null {
+  if (!cols || !args) return null;
+  const idx = cols.indexOf(column);
+  return formatNamedRef(argAt(args, idx));
+}
+
+/** Best-effort audit for scoped SQL executed via /api/execute (call before DELETE so rows can be resolved). */
+export async function auditSqlMutation(
   userId: number,
   sql: string,
-  username?: string | null
-): void {
+  username?: string | null,
+  args?: unknown[]
+): Promise<void> {
   const normalized = sql.replace(/\s+/g, " ").trim();
   const upper = normalized.toUpperCase();
   let message: string | null = null;
   let category = "data";
+  let suffix = "";
 
   if (/^INSERT\s+INTO\s+SONGS\b/i.test(normalized)) {
+    const ref = songRefFromInsertArgs(parseInsertColumnNames(normalized, "songs"), args);
     message = "Added song to repertoire";
+    suffix = ref ? `: ${ref}` : "";
   } else if (/^INSERT\s+INTO\s+LOCATIONS\b/i.test(normalized)) {
+    const ref = namedRefFromInsertArgs(
+      parseInsertColumnNames(normalized, "locations"),
+      args,
+      "name"
+    );
     message = "Added venue";
+    suffix = ref ? `: ${ref}` : "";
   } else if (/^INSERT\s+INTO\s+TAGS\b/i.test(normalized)) {
+    const ref = namedRefFromInsertArgs(
+      parseInsertColumnNames(normalized, "tags"),
+      args,
+      "name"
+    );
     message = "Added tag";
+    suffix = ref ? `: ${ref}` : "";
   } else if (/^INSERT\s+INTO\s+PERFORMANCES\b/i.test(normalized)) {
+    const cols = parseInsertColumnNames(normalized, "performances");
+    const songIdIdx = cols?.indexOf("song_id") ?? -1;
+    const ref = await lookupSongRef(userId, argAt(args, songIdIdx));
     message = "Recorded performance";
+    suffix = ref ? `: ${ref}` : "";
   } else if (/^DELETE\s+FROM\s+SONGS\b/i.test(normalized)) {
+    const ref = await lookupSongRef(userId, argAt(args, 0));
     message = "Removed song from repertoire";
+    suffix = ref ? `: ${ref}` : "";
   } else if (/^DELETE\s+FROM\s+LOCATIONS\b/i.test(normalized)) {
     message = "Removed venue";
   } else if (/^DELETE\s+FROM\s+TAGS\b/i.test(normalized)) {
     message = "Removed tag";
   } else if (/^UPDATE\s+SONGS\b/i.test(normalized) && upper.includes(" LYRICS ")) {
+    const ref = await lookupSongRef(userId, argAt(args, 1));
     message = "Updated song lyrics";
+    suffix = ref ? ` for ${ref}` : "";
   }
 
   if (!message) return;
-  logEvent({ level: "I", userId, username, message, category });
+  logEvent({ level: "I", userId, username, message: `${message}${suffix}`, category });
 }
