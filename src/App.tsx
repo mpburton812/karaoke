@@ -8,19 +8,15 @@ import {
   createTheme, 
   ThemeProvider, 
   CssBaseline,
-  Button,
   AppBar,
   Toolbar,
-  Divider,
+  IconButton,
   CircularProgress,
-  ButtonGroup,
   Snackbar,
   Alert,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
-import LightModeIcon from '@mui/icons-material/LightMode';
-import DarkModeIcon from '@mui/icons-material/DarkMode';
-import TransgenderIcon from '@mui/icons-material/Transgender';
+import SettingsIcon from '@mui/icons-material/Settings';
 import { db } from './db';
 import { clearSession, fetchCurrentUser, type AuthUser } from './api/auth';
 import { setSessionExpiredHandler } from './api/session';
@@ -33,16 +29,9 @@ import {
 const SavedSongs = lazy(() => import('./components/SavedSongs'));
 const TagManager = lazy(() => import('./components/TagManager'));
 const LocationManager = lazy(() => import('./components/LocationManager'));
-const DataPortability = lazy(() => import('./components/DataPortability'));
-const SystemStatus = lazy(() => import('./components/SystemStatus'));
 const Login = lazy(() => import('./components/Login'));
-const Changelog = lazy(() => import('./components/Changelog'));
 const Stats = lazy(() => import('./components/Stats'));
-const ChangePassword = lazy(() => import('./components/ChangePassword'));
-const AdminAppReload = lazy(() => import('./components/AdminAppReload'));
-const SpotifyConnect = lazy(() => import('./components/SpotifyConnect'));
-const EnrichmentAdmin = lazy(() => import('./components/EnrichmentAdmin'));
-const GodMode = lazy(() => import('./components/GodMode'));
+const AppConfigDialog = lazy(() => import('./components/AppConfigDialog'));
 
 type ThemeMode = 'light' | 'dark' | 'trans';
 type SpotifySnackbarState = {
@@ -50,13 +39,7 @@ type SpotifySnackbarState = {
   message: string;
   severity: "success" | "error" | "info";
 };
-const ADMIN_TAB_INDEX = 4;
 const SONGS_TAB_INDEX = 0;
-
-function getInitialTab(): number {
-  const params = new URLSearchParams(window.location.search);
-  return params.has("spotify") ? ADMIN_TAB_INDEX : 0;
-}
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -85,7 +68,10 @@ function CustomTabPanel(props: TabPanelProps) {
 }
 
 function App() {
-  const [value, setValue] = useState(getInitialTab);
+  const [value, setValue] = useState(SONGS_TAB_INDEX);
+  const [configOpen, setConfigOpen] = useState(() =>
+    new URLSearchParams(window.location.search).has("spotify")
+  );
   const [songIdToOpenFromExplorer, setSongIdToOpenFromExplorer] = useState<number | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     return (localStorage.getItem('theme_mode') as ThemeMode) || 'dark';
@@ -278,7 +264,10 @@ function App() {
       if (nextSnackbar) {
         setSpotifySnackbar(nextSnackbar);
       }
-      // Defer until after React commits Admin + SpotifyConnect (listeners miss same-tick dispatch).
+      if (loggedIn) {
+        setConfigOpen(true);
+      }
+      // Defer until after React commits Settings + SpotifyConnect (listeners miss same-tick dispatch).
       if (shouldNotifySpotifyListeners) {
         notifySpotifyListeners();
       }
@@ -290,6 +279,11 @@ function App() {
     setCurrentUser(user);
     localStorage.setItem('karaoke_user', JSON.stringify(user));
   };
+
+  const handleUserUpdated = useCallback((user: AuthUser, _token: string) => {
+    setCurrentUser(user);
+    localStorage.setItem('karaoke_user', JSON.stringify(user));
+  }, []);
 
   const handleLogout = () => {
     setCurrentUser(null);
@@ -366,13 +360,18 @@ function App() {
           <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
             {currentUser.username}
           </Typography>
-          <Button 
-            color="inherit" 
-            startIcon={<LogoutIcon />} 
-            onClick={handleLogout}
-          >
-            LOGOUT
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <IconButton
+              color="inherit"
+              aria-label="Settings"
+              onClick={() => setConfigOpen(true)}
+            >
+              <SettingsIcon />
+            </IconButton>
+            <IconButton color="inherit" aria-label="Log out" onClick={handleLogout}>
+              <LogoutIcon />
+            </IconButton>
+          </Box>
         </Toolbar>
       </AppBar>
       <Container maxWidth="lg" sx={{ mt: 4 }}>
@@ -397,8 +396,6 @@ function App() {
             <Tab label="Places" />
             <Tab label="Tags" />
             <Tab label="Stats" />
-            <Tab label="Admin" />
-            {isAdmin && <Tab label="GOD MODE" />}
           </Tabs>
         </Box>
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>}>
@@ -418,83 +415,21 @@ function App() {
           <CustomTabPanel value={value} index={3}>
             <Stats currentUser={currentUser} />
           </CustomTabPanel>
-          <CustomTabPanel value={value} index={4}>
-            <Box sx={{ textAlign: 'center', mt: 4 }}>
-              <Typography variant="h5" gutterBottom>Administrative Tools</Typography>
-              <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
-                Manage your repertoire and data portability.
-              </Typography>
-
-              <AdminAppReload />
-
-              <Box sx={{ mb: 4 }}>
-                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>THEME SELECTION</Typography>
-                <ButtonGroup variant="outlined" size="large">
-                  <Button 
-                    startIcon={<LightModeIcon />} 
-                    onClick={() => handleThemeChange('light')}
-                    variant={themeMode === 'light' ? 'contained' : 'outlined'}
-                  >
-                    LIGHT
-                  </Button>
-                  <Button 
-                    startIcon={<DarkModeIcon />} 
-                    onClick={() => handleThemeChange('dark')}
-                    variant={themeMode === 'dark' ? 'contained' : 'outlined'}
-                  >
-                    DARK
-                  </Button>
-                  <Button 
-                    startIcon={<TransgenderIcon />} 
-                    onClick={() => handleThemeChange('trans')}
-                    variant={themeMode === 'trans' ? 'contained' : 'outlined'}
-                    sx={themeMode === 'trans' ? {
-                      background: 'linear-gradient(45deg, #5BCEFA 30%, #F5A9B8 90%)',
-                      borderColor: 'transparent'
-                    } : {}}
-                  >
-                    TRANS
-                  </Button>
-                </ButtonGroup>
-              </Box>
-
-              <Box sx={{ mb: 4 }}>
-                <ChangePassword />
-              </Box>
-
-              <SpotifyConnect currentUser={currentUser} />
-              <Divider sx={{ my: 4 }} />
-              <DataPortability currentUser={currentUser} />
-              
-              <Divider sx={{ my: 4 }} />
-              <Changelog />
-
-              <Divider sx={{ my: 6, borderColor: 'error.main' }} />
-              <Box sx={{ p: 3, border: '1px solid', borderColor: 'error.main', borderRadius: 2, bgcolor: 'rgba(211, 47, 47, 0.05)' }}>
-                <Typography variant="h6" color="error" gutterBottom>Danger Zone</Typography>
-                <Typography variant="body2" sx={{ mb: 2 }}>
-                  Clearing your configuration will delete all personal data associated with your account.
-                </Typography>
-                <Button 
-                  variant="outlined" 
-                  color="error" 
-                  onClick={handleNukeData}
-                  sx={{ fontWeight: 'bold' }}
-                >
-                  NUKE ALL CONFIGURATION
-                </Button>
-              </Box>
-            </Box>
-          </CustomTabPanel>
-          {isAdmin && (
-            <CustomTabPanel value={value} index={5}>
-              <SystemStatus />
-              <EnrichmentAdmin />
-              <GodMode />
-            </CustomTabPanel>
-          )}
         </Suspense>
       </Container>
+
+      <Suspense fallback={null}>
+        <AppConfigDialog
+          open={configOpen}
+          onClose={() => setConfigOpen(false)}
+          currentUser={currentUser}
+          isAdmin={isAdmin}
+          themeMode={themeMode}
+          onThemeChange={handleThemeChange}
+          onUserUpdated={handleUserUpdated}
+          onNukeData={handleNukeData}
+        />
+      </Suspense>
       
       <Snackbar
         open={spotifySnackbar.open}

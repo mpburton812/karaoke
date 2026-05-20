@@ -12,6 +12,7 @@ vi.mock("./db.js", () => ({
 
 import {
   changePassword,
+  changeUsername,
   getBearerToken,
   loginUser,
   registerUser,
@@ -124,5 +125,39 @@ describe("changePassword", () => {
     expect(mockExecute).toHaveBeenCalledTimes(2);
     const updateCall = mockExecute.mock.calls[1][0];
     expect(updateCall.sql).toMatch(/UPDATE users SET password_hash/);
+  });
+});
+
+describe("changeUsername", () => {
+  beforeEach(() => {
+    mockExecute.mockReset();
+  });
+
+  it("rejects duplicate usernames", async () => {
+    const hash = await bcrypt.hash("oldpass12", 12);
+    mockExecute
+      .mockResolvedValueOnce({
+        rows: [{ id: 3, username: "bob", password_hash: hash, access_level: "user" }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] });
+
+    await expect(changeUsername(3, "oldpass12", "alice")).rejects.toThrow(
+      /already exists/
+    );
+  });
+
+  it("updates username when password matches", async () => {
+    const hash = await bcrypt.hash("oldpass12", 12);
+    mockExecute
+      .mockResolvedValueOnce({
+        rows: [{ id: 3, username: "bob", password_hash: hash, access_level: "user" }],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rowsAffected: 1 });
+
+    const user = await changeUsername(3, "oldpass12", "Robert");
+    expect(user).toEqual({ id: 3, username: "Robert", accessLevel: "user" });
+    const updateCall = mockExecute.mock.calls[2][0];
+    expect(updateCall.sql).toMatch(/UPDATE users SET username/);
   });
 });

@@ -9,9 +9,13 @@ import {
   CircularProgress,
 } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
-import { changePassword, persistSession } from '../api/auth';
+import { changePassword, persistSession, type AuthUser } from '../api/auth';
 
-const ChangePassword: React.FC = () => {
+interface ChangePasswordProps {
+  onUserUpdated?: (user: AuthUser, token: string) => void;
+}
+
+const ChangePassword: React.FC<ChangePasswordProps> = ({ onUserUpdated }) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,6 +46,7 @@ const ChangePassword: React.FC = () => {
     try {
       const { user, token } = await changePassword(currentPassword, newPassword);
       persistSession(user, token);
+      onUserUpdated?.(user, token);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');

@@ -170,6 +170,68 @@ export async function changePassword(
   };
 }
 
+export async function changeUsername(
+  userId: number,
+  currentPassword: string,
+  newUsername: string
+): Promise<AuthUser> {
+  const trimmed = newUsername.trim();
+  if (!trimmed) {
+    throw new Error("Username is required.");
+  }
+  if (!currentPassword) {
+    throw new Error("Current password is required.");
+  }
+
+  const result = await db.execute({
+    sql: "SELECT id, username, password_hash, access_level FROM users WHERE id = ?",
+    args: [userId],
+  });
+
+  if (result.rows.length === 0) {
+    throw new Error("User not found.");
+  }
+
+  const row = result.rows[0] as {
+    id: number;
+    username: string;
+    password_hash: string | null;
+    access_level?: string | null;
+  };
+
+  if (!row.password_hash) {
+    throw new Error("This account has no password set.");
+  }
+
+  const valid = await bcrypt.compare(currentPassword, row.password_hash);
+  if (!valid) {
+    throw new Error("Current password is incorrect.");
+  }
+
+  if (trimmed.toLowerCase() === row.username.toLowerCase()) {
+    throw new Error("Choose a different username.");
+  }
+
+  const existing = await db.execute({
+    sql: "SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?",
+    args: [trimmed, userId],
+  });
+  if (existing.rows.length > 0) {
+    throw new Error("Username already exists.");
+  }
+
+  await db.execute({
+    sql: "UPDATE users SET username = ? WHERE id = ?",
+    args: [trimmed, userId],
+  });
+
+  return {
+    id: row.id,
+    username: trimmed,
+    accessLevel: row.access_level === "admin" ? "admin" : "user",
+  };
+}
+
 export async function getAuthUserById(userId: number): Promise<AuthUser | null> {
   const result = await db.execute({
     sql: "SELECT id, username, access_level FROM users WHERE id = ?",

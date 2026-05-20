@@ -5,6 +5,10 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-20', description: 'UI: Replace Admin and God Mode tabs with a header settings (gear) dialog; logout is icon-only' },
+  { date: '2026-05-20', description: 'Account: Change username from Settings (password required); new POST /api/auth/change-username' },
+  { date: '2026-05-20', description: 'Admin: Health dashboard, song enrichment, and user administration live under Settings for admins' },
+  { date: '2026-05-18', description: 'Admin: Full-library re-enrichment for all users (sync or background) after GetSongBPM and Last.fm setup' },
   { date: '2026-05-18', description: 'God Mode: last sign-in on registration; list latest performance date; clearer column labels' },
   { date: '2026-05-18', description: 'Fix: Turso startup migration for Spotify playlist rows (foreign key backfill before backfill insert)' },
   { date: '2026-05-18', description: 'Perf: parallel /api/execute loads (Stats, TagManager, LocationManager, Songs tab); remove Tag Manager location N+1' },

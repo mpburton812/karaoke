@@ -79,6 +79,35 @@ describe("API routes", () => {
     });
   });
 
+  describe("POST /api/auth/change-username", () => {
+    it("requires authentication", async () => {
+      const res = await request(app)
+        .post("/api/auth/change-username")
+        .send({ currentPassword: "a", newUsername: "b" });
+      expect(res.status).toBe(401);
+    });
+
+    it("changes username for authenticated user", async () => {
+      const hash = await bcrypt.hash("oldpass12", 12);
+      mockExecute
+        .mockResolvedValueOnce({
+          rows: [{ id: USER_ID, username: "tester", password_hash: hash, access_level: "user" }],
+        })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rowsAffected: 1 });
+
+      const token = signToken({ id: USER_ID, username: "tester" });
+      const res = await request(app)
+        .post("/api/auth/change-username")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ currentPassword: "oldpass12", newUsername: "newname" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.username).toBe("newname");
+      expect(typeof res.body.token).toBe("string");
+    });
+  });
+
   describe("POST /api/auth/change-password", () => {
     it("requires authentication", async () => {
       const res = await request(app)

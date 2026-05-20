@@ -124,7 +124,7 @@ const GodMode: React.FC = () => {
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         User accounts and repository controls. Health, enrichment, and KaraFun
-        catalog tools are above in this tab.
+        catalog tools are in the sections above.
       </Typography>
 
       {error && (

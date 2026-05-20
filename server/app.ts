@@ -6,6 +6,7 @@ import {
   getBearerToken,
   adminSetUserPassword,
   changePassword,
+  changeUsername,
   getAuthUserById,
   loginUser,
   registerUser,
@@ -57,6 +58,7 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/auth/login",
       "/api/auth/me",
       "/api/auth/change-password",
+      "/api/auth/change-username",
       "/api/admin/users",
       "/api/admin/users/:id/password",
       "/api/admin/users/:id",
@@ -216,7 +218,7 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       const s = await getSpotifyLinkStatus(userId);
       if (!s.linked) {
         res.status(403).json({
-          error: "Connect Spotify in Admin before using playlist features.",
+          error: "Connect Spotify in Settings (gear icon) before using playlist features.",
         });
         return;
       }
@@ -246,6 +248,32 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       res.json({ user, token });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Password change failed.";
+      const status = message.includes("incorrect") ? 401 : 400;
+      res.status(status).json({ error: message });
+    }
+  });
+
+  app.post("/api/auth/change-username", requireAuth, async (req, res) => {
+    try {
+      const { currentPassword, newUsername } = req.body as {
+        currentPassword?: string;
+        newUsername?: string;
+      };
+      const userId = (req as express.Request & { userId: number }).userId;
+
+      if (!currentPassword || !newUsername?.trim()) {
+        res.status(400).json({
+          error: "Current password and new username are required.",
+        });
+        return;
+      }
+
+      const user = await changeUsername(userId, currentPassword, newUsername);
+      const token = signToken(user);
+      res.json({ user, token });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Username change failed.";
       const status = message.includes("incorrect") ? 401 : 400;
       res.status(status).json({ error: message });
     }

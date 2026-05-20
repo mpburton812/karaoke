@@ -106,3 +106,31 @@ export async function changePassword(
   }
   return body;
 }
+
+export async function changeUsername(
+  currentPassword: string,
+  newUsername: string
+): Promise<{ user: AuthUser; token: string }> {
+  const token = getStoredToken();
+  if (!token) {
+    throw new Error("Not authenticated. Please log in again.");
+  }
+
+  const res = await fetch(apiUrl("/api/auth/change-username"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ currentPassword, newUsername }),
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    const message = body.error || "Username change failed.";
+    if (shouldExpireSession(res.status, message)) {
+      expireSession();
+    }
+    throw new Error(message);
+  }
+  return body;
+}
