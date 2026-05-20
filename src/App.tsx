@@ -299,9 +299,21 @@ function App() {
       <AppBar position="static" elevation={0}>
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-            {currentUser.username}
+            Karaoke Companion
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 600,
+                maxWidth: { xs: 120, sm: 'none' },
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {currentUser.username}
+            </Typography>
             <IconButton
               color="inherit"
               aria-label="Settings"
