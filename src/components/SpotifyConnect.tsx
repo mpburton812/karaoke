@@ -16,6 +16,7 @@ import {
   type SpotifyStatusResponse,
 } from "../api/spotify";
 import SpotifyPlaylistSync from "./SpotifyPlaylistSync";
+import { panelTitleSx } from "../theme";
 
 interface SpotifyConnectProps {
   currentUser: { id: number; username: string };
@@ -103,8 +104,8 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ currentUser }) => {
 
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 3, textAlign: "left" }}>
-      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: "bold" }}>
-        SPOTIFY ACCOUNT
+      <Typography variant="subtitle2" gutterBottom sx={{ ...panelTitleSx, color: "success.main" }}>
+        Spotify account
       </Typography>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -175,6 +176,7 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ currentUser }) => {
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
         <Button
           variant="contained"
+          color="success"
           startIcon={<InsertLinkIcon />}
           onClick={handleConnect}
           disabled={!status?.configured || actionLoading || status?.linked}

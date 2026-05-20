@@ -109,9 +109,9 @@ const SystemStatus = () => {
   );
 
   return (
-    <Paper sx={{ p: 3, mb: 4, bgcolor: 'background.paper', borderRadius: 2 }}>
+    <Paper variant="outlined" sx={{ p: 3, mb: 4, textAlign: 'left' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Admin Health Dashboard</Typography>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.main' }}>Admin health</Typography>
         <Button 
           startIcon={<RefreshIcon />} 
           size="small" 

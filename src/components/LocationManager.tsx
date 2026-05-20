@@ -231,7 +231,9 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
 
   return (
     <Box sx={{ mt: 4 }}>
-      <Typography variant="h5" gutterBottom align="center">Favorite Locations</Typography>
+      <Typography variant="h5" gutterBottom align="center" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+        Favorite locations
+      </Typography>
       <Typography variant="body2" color="textSecondary" align="center" sx={{ mb: 3 }}>
         Manage your frequent karaoke spots and tag them for better organization.
       </Typography>
@@ -301,7 +303,7 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
                     </Box>
 
                     {locationStatsMap[loc.id] && (
-                      <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                      <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider' }}>
                         <Grid container spacing={2}>
                           <Grid size={{ xs: 4 }}>
                             <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Days Sung</Typography>

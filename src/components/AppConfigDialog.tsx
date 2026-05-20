@@ -9,6 +9,7 @@ import {
   Divider,
   IconButton,
   Typography,
+  alpha,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import LightModeIcon from "@mui/icons-material/LightMode";
@@ -23,7 +24,7 @@ import DataPortability from "./DataPortability";
 import EnrichmentAdmin from "./EnrichmentAdmin";
 import SpotifyConnect from "./SpotifyConnect";
 import SystemStatus from "./SystemStatus";
-import { transTokens, type ThemeMode } from "../theme";
+import { sectionTitleSx, transTokens, type ThemeMode } from "../theme";
 
 interface AppConfigDialogProps {
   open: boolean;
@@ -73,8 +74,8 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
           <AdminAppReload />
 
           <Box sx={{ mb: 4, mt: 3 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: "bold", mb: 2 }}>
-              ACCOUNT
+            <Typography variant="subtitle2" gutterBottom sx={{ ...sectionTitleSx, mb: 2 }}>
+              Account
             </Typography>
             <ChangeUsername
               currentUsername={currentUser.username}
@@ -86,8 +87,8 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
           </Box>
 
           <Box sx={{ mb: 4 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: "bold", mb: 2 }}>
-              APPEARANCE
+            <Typography variant="subtitle2" gutterBottom sx={{ ...sectionTitleSx, mb: 2 }}>
+              Appearance
             </Typography>
             <ButtonGroup variant="outlined" size="large">
               <Button
@@ -95,14 +96,14 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
                 onClick={() => onThemeChange("light")}
                 variant={themeMode === "light" ? "contained" : "outlined"}
               >
-                LIGHT
+                Light
               </Button>
               <Button
                 startIcon={<DarkModeIcon />}
                 onClick={() => onThemeChange("dark")}
                 variant={themeMode === "dark" ? "contained" : "outlined"}
               >
-                DARK
+                Dark
               </Button>
               <Button
                 startIcon={<TransgenderIcon />}
@@ -113,7 +114,7 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
                     ? {
                         background: transTokens.activeButtonGradient,
                         borderColor: "transparent",
-                        color: "#fff",
+                        color: "common.white",
                         "&:hover": {
                           background: transTokens.activeButtonGradient,
                           opacity: 0.92,
@@ -122,7 +123,7 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
                     : {}
                 }
               >
-                TRANS
+                Trans
               </Button>
             </ButtonGroup>
           </Box>
@@ -138,7 +139,7 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
           {isAdmin && (
             <>
               <Divider sx={{ my: 4 }} />
-              <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
+              <Typography variant="h6" sx={{ ...sectionTitleSx, mb: 2 }}>
                 Administrator
               </Typography>
               <SystemStatus />
@@ -152,8 +153,7 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
               p: 3,
               border: "1px solid",
               borderColor: "error.main",
-              borderRadius: 2,
-              bgcolor: "rgba(211, 47, 47, 0.05)",
+              bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
             }}
           >
             <Typography variant="h6" color="error" gutterBottom>
@@ -169,7 +169,7 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
               onClick={onNukeData}
               sx={{ fontWeight: "bold" }}
             >
-              NUKE ALL CONFIGURATION
+              Clear all my data
             </Button>
           </Box>
         </Box>

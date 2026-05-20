@@ -22,7 +22,7 @@ import SongLookup from './SongLookup';
 import { db } from '../db';
 import { fetchLyrics } from '../utils/lyricsService';
 import { KARAOKE_SONGS_REFRESH_EVENT } from '../lib/karaokeEvents';
-import { spotifySx } from '../theme';
+import { karaokeTokens, spotifySx } from '../theme';
 
 /** Shared SELECT for repertoire rows (Spotify playlist name join). */
 const REPERTOIRE_SONG_SELECT = `
@@ -966,7 +966,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                           <Typography variant="body1" noWrap sx={{ fontWeight: 'medium' }}>
                             {song.track_name}
                           </Typography>
-                          {song.vocal_status === 'Mastered' && <StarIcon sx={{ color: '#FFD700', fontSize: 16, flexShrink: 0 }} />}
+                          {song.vocal_status === 'Mastered' && <StarIcon sx={{ color: karaokeTokens.starGold, fontSize: 16, flexShrink: 0 }} />}
                         </Box>
                       } 
                       secondary={

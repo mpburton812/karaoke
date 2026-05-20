@@ -316,9 +316,9 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
         <Grid size={{ xs: 12, md: 8 }}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>TAG CLOUD</Typography>
+              <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>Tag cloud</Typography>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <Box sx={{ display: 'flex', border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+                <Box sx={{ display: 'flex', border: '1px solid', borderColor: 'divider', borderRadius: 3, overflow: 'hidden' }}>
                   <Button 
                     size="small" 
                     variant={filterLogic === 'OR' ? 'contained' : 'text'} 
@@ -407,9 +407,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
                     height: 'auto',
                     padding: '4px 0',
                     fontStyle: 'italic',
-                    backgroundColor: selectedGenres.includes(genre) ? '#03a9f4' : 'transparent',
-                    color: selectedGenres.includes(genre) ? '#fff' : 'text.primary',
-                    '& .MuiChip-label': { px: 2 }
+                    '& .MuiChip-label': { px: 2 },
                   }}
                 />
               ))}

@@ -19,6 +19,7 @@ import {
   type EventLevel,
   type EventLogEntry,
 } from "../api/eventLog";
+import { panelTitleSx } from "../theme";
 
 const PAGE_SIZE = 10;
 
@@ -71,8 +72,8 @@ const EventLogViewer: React.FC = () => {
 
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 4, textAlign: "left" }}>
-      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: "bold" }}>
-        EVENT LOG
+      <Typography variant="subtitle2" gutterBottom sx={{ ...panelTitleSx, color: "primary.main" }}>
+        Event log
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Application audit trail (C = critical, W = warning, I = informational). Mirrored

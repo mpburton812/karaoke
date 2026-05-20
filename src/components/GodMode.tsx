@@ -30,6 +30,7 @@ import {
   type GodModePerformance,
   type GodModeUser,
 } from "../api/godMode";
+import { panelTitleSx } from "../theme";
 
 function fmtDate(value: string | null): string {
   if (!value) return "Never";
@@ -119,8 +120,8 @@ const GodMode: React.FC = () => {
 
   return (
     <Box sx={{ mt: 3 }}>
-      <Typography variant="h5" gutterBottom sx={{ fontWeight: "bold" }}>
-        USER ADMINISTRATION
+      <Typography variant="h5" gutterBottom sx={{ ...panelTitleSx, color: "primary.main" }}>
+        User administration
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         User accounts and password controls. System health, enrichment, and KaraFun

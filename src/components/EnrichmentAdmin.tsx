@@ -17,6 +17,7 @@ import {
   type EnrichmentStatus,
 } from "../api/enrichment";
 import { KARAOKE_SONGS_REFRESH_EVENT } from "../lib/karaokeEvents";
+import { panelTitleSx } from "../theme";
 
 const emptyStatus: EnrichmentStatus = {
   running: false,
@@ -119,8 +120,8 @@ const EnrichmentAdmin: React.FC = () => {
 
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 3, textAlign: "left" }}>
-      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: "bold" }}>
-        SONG ENRICHMENT
+      <Typography variant="subtitle2" gutterBottom sx={{ ...panelTitleSx, color: "primary.main" }}>
+        Song enrichment
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Backend enrichment checks Karaoke availability, lyrics, Spotify audio
@@ -153,7 +154,7 @@ const EnrichmentAdmin: React.FC = () => {
       <LinearProgress
         variant="determinate"
         value={progress}
-        sx={{ mb: 1, borderRadius: 1 }}
+        sx={{ mb: 1 }}
       />
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
         {detailText}
@@ -170,7 +171,6 @@ const EnrichmentAdmin: React.FC = () => {
         sx={{
           border: 1,
           borderColor: "divider",
-          borderRadius: 1,
           p: 1,
           mb: 2,
           typography: "caption",
@@ -216,8 +216,8 @@ const EnrichmentAdmin: React.FC = () => {
       </Box>
 
       <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: "divider" }}>
-        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: "bold" }}>
-          ALL USERS
+        <Typography variant="subtitle2" gutterBottom sx={{ ...panelTitleSx, color: "secondary.main" }}>
+          All users
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Re-run enrichment for every song in every user&apos;s library so new

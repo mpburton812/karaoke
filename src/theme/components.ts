@@ -138,6 +138,17 @@ export function buildComponentOverrides(mode: ThemeMode): Components<Omit<Theme,
         },
       },
     },
+    MuiLinearProgress: {
+      styleOverrides: {
+        root: {
+          borderRadius: 9999,
+          overflow: "hidden",
+        },
+        bar: {
+          borderRadius: 9999,
+        },
+      },
+    },
     MuiAlert: {
       styleOverrides: {
         root: {
