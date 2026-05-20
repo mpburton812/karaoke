@@ -22,6 +22,7 @@ import SongLookup from './SongLookup';
 import { db } from '../db';
 import { fetchLyrics } from '../utils/lyricsService';
 import { KARAOKE_SONGS_REFRESH_EVENT } from '../lib/karaokeEvents';
+import { spotifySx } from '../theme';
 
 /** Shared SELECT for repertoire rows (Spotify playlist name join). */
 const REPERTOIRE_SONG_SELECT = `
@@ -100,7 +101,7 @@ interface Location {
 
 function SpotifyGlyphIcon() {
   return (
-    <SvgIcon viewBox="0 0 24 24" fontSize="small" sx={{ color: "#1DB954" }}>
+    <SvgIcon viewBox="0 0 24 24" fontSize="small" sx={{ color: "success.main" }}>
       <path
         fill="currentColor"
         d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.18.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"
@@ -462,7 +463,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
           </Box>
         </Box>
 
-        <Paper elevation={3} sx={{ p: 4, borderRadius: 4, mb: 4 }}>
+        <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
           <Grid container spacing={4}>
             <Grid size={{ xs: 12, md: 4 }}>
               <Avatar variant="rounded" src={(selectedSong.artwork_url ?? '').replace('100x100bb', '400x400bb')} sx={{ width: '100%', height: 'auto', aspectRatio: '1/1', boxShadow: 3 }} />
@@ -480,7 +481,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                 </Button>
                 <Button 
                   variant="outlined" 
-                  sx={{ color: '#1DB954', borderColor: '#1DB954' }} 
+                  color="success"
                   fullWidth 
                   startIcon={<MusicNoteIcon />}
                   href={`https://open.spotify.com/search/${encodeURIComponent(selectedSong.track_name + ' ' + selectedSong.artist_name)}`}
@@ -525,7 +526,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                     icon={<SpotifyGlyphIcon />}
                     label={`Spotify: ${selectedSong.spotify_source_playlist_name}`}
                     variant="outlined"
-                    sx={{ borderColor: '#1DB954', color: '#1DB954', '& .MuiChip-icon': { color: '#1DB954' } }}
+                    sx={spotifySx}
                   />
                 )}
                 {selectedSong.explicit && <Chip label="Explicit" color="error" size="small" />}
@@ -544,7 +545,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                       icon={<SpotifyGlyphIcon />}
                       label={`Spotify playlists: ${selectedSong.spotify_source_playlist_name}`}
                       variant="outlined"
-                      sx={{ borderColor: '#1DB954', color: '#1DB954', '& .MuiChip-icon': { color: '#1DB954' } }}
+                      sx={spotifySx}
                     />
                   )}
                 </Box>
@@ -909,7 +910,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
-                  <IconButton aria-label="perform" sx={{ color: '#1DB954' }} onClick={(e) => { e.stopPropagation(); handleDirectPerform(song); }}><MicIcon /></IconButton>
+                  <IconButton aria-label="perform" color="primary" onClick={(e) => { e.stopPropagation(); handleDirectPerform(song); }}><MicIcon /></IconButton>
                   <IconButton aria-label="delete" color="error" onClick={(e) => { e.stopPropagation(); setPendingDeleteSong(song); }}><DeleteIcon /></IconButton>
                 </Box>
               </Paper>
@@ -925,7 +926,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                   disablePadding
                   secondaryAction={
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <IconButton edge="end" aria-label="perform" sx={{ color: '#1DB954', mr: 1 }} onClick={(e) => { e.stopPropagation(); handleDirectPerform(song); }}><MicIcon /></IconButton>
+                      <IconButton edge="end" aria-label="perform" color="primary" sx={{ mr: 1 }} onClick={(e) => { e.stopPropagation(); handleDirectPerform(song); }}><MicIcon /></IconButton>
                       <IconButton edge="end" aria-label="delete" color="error" onClick={(e) => { e.stopPropagation(); setPendingDeleteSong(song); }}><DeleteIcon /></IconButton>
                     </Box>
                   }

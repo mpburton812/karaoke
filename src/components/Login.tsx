@@ -87,18 +87,28 @@ const Login: React.FC<LoginProps> = ({ onLogin, sessionNotice }) => {
         }}
       >
         <Paper 
-          elevation={3} 
+          elevation={8} 
           sx={{ 
             p: { xs: 2, sm: 3, md: 4 },
             textAlign: 'center', 
-            backgroundColor: (theme) => alpha(theme.palette.background.paper, 0.8),
-            backdropFilter: 'blur(4px)'
+            backgroundColor: (theme) => alpha(theme.palette.background.paper, 0.92),
+            backdropFilter: 'blur(12px)',
+            border: '1px solid',
+            borderColor: (theme) => alpha(theme.palette.primary.main, 0.35),
+            boxShadow: (theme) =>
+              theme.palette.mode === 'light'
+                ? '0 12px 40px rgba(26, 18, 40, 0.12)'
+                : `0 12px 40px rgba(0, 0, 0, 0.45), 0 0 24px ${alpha(theme.palette.primary.main, 0.2)}`,
           }}
         >
           <Typography
             variant="h4"
             gutterBottom
-            sx={{ fontWeight: 'bold', fontSize: { xs: '1.5rem', sm: '2.125rem' } }}
+            sx={{
+              fontWeight: 'bold',
+              fontSize: { xs: '1.5rem', sm: '2.125rem' },
+              color: 'primary.main',
+            }}
           >
             Karaoke Companion
           </Typography>
@@ -147,7 +157,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, sessionNotice }) => {
                   onClick={submit}
                   disabled={loading || !username || !password}
                 >
-                  {loading ? <CircularProgress size={24} /> : "CREATE ACCOUNT"}
+                  {loading ? <CircularProgress size={24} /> : "Create account"}
                 </Button>
                 <Button 
                   variant="outlined"
@@ -170,7 +180,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, sessionNotice }) => {
                   onClick={submit}
                   disabled={loading || !username || !password}
                 >
-                  {loading ? <CircularProgress size={24} /> : "LOGIN"}
+                  {loading ? <CircularProgress size={24} /> : "Log in"}
                 </Button>
                 <Button
                   variant="outlined"
@@ -180,7 +190,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, sessionNotice }) => {
                   onClick={() => { setIsCreating(true); setError(null); setPassword(''); }}
                   disabled={loading}
                 >
-                  CREATE ACCOUNT
+                  Create account
                 </Button>
               </>
             )}

@@ -20,6 +20,7 @@ import PlaceIcon from '@mui/icons-material/Place';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import { db } from '../db';
+import { karaokeTokens } from '../theme';
 
 interface GlobalStats {
   totalSongs: number;
@@ -151,11 +152,11 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
         {[
           { label: 'Performances', value: stats?.totalPerformances, icon: <MicIcon color="primary" />, color: 'primary.main' },
           { label: 'Songs in List', value: stats?.totalSongs, icon: <MusicNoteIcon color="secondary" />, color: 'secondary.main' },
-          { label: 'Average Rating', value: stats?.avgRating.toFixed(1), icon: <StarIcon sx={{ color: '#FFD700' }} />, color: '#FFD700' },
+          { label: 'Average Rating', value: stats?.avgRating.toFixed(1), icon: <StarIcon sx={{ color: karaokeTokens.starGold }} />, color: karaokeTokens.starGold },
           { label: 'Venues Visited', value: stats?.uniqueVenues, icon: <PlaceIcon color="info" />, color: 'info.main' },
         ].map((item, i) => (
           <Grid size={{ xs: 6, md: 3 }} key={i}>
-            <Paper elevation={3} sx={{ p: 3, textAlign: 'center', borderRadius: 4, height: '100%', border: '1px solid', borderColor: 'divider' }}>
+            <Paper elevation={3} sx={{ p: 3, textAlign: 'center', height: '100%', border: '1px solid', borderColor: 'divider' }}>
               <Box sx={{ mb: 1 }}>{item.icon}</Box>
               <Typography variant="h4" sx={{ fontWeight: 'bold' }}>{item.value}</Typography>
               <Typography variant="caption" color="textSecondary" sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>{item.label}</Typography>
@@ -167,9 +168,9 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
       <Grid container spacing={4}>
         {/* Top Tracks */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper elevation={2} sx={{ p: 3, borderRadius: 4, height: '100%' }}>
+          <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
-              <EmojiEventsIcon sx={{ color: '#FFD700' }} />
+              <EmojiEventsIcon sx={{ color: karaokeTokens.starGold }} />
               <Typography variant="h6" sx={{ fontWeight: 'bold' }}>All-Time Greatest Hits</Typography>
             </Box>
             <List>
@@ -198,7 +199,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
         {/* Top Artists & Genres */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, height: '100%' }}>
-            <Paper elevation={2} sx={{ p: 3, borderRadius: 4 }}>
+            <Paper elevation={2} sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
                 <TrendingUpIcon color="primary" />
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Top Artists</Typography>
@@ -215,7 +216,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
               </Box>
             </Paper>
 
-            <Paper elevation={2} sx={{ p: 3, borderRadius: 4, flexGrow: 1 }}>
+            <Paper elevation={2} sx={{ p: 3, flexGrow: 1 }}>
               <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Genre DNA</Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {genres.map((g, i) => (
@@ -224,11 +225,12 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
                       <Typography variant="body2">{g.genre}</Typography>
                       <Typography variant="body2" color="textSecondary">{g.count} songs</Typography>
                     </Box>
-                    <Box sx={{ width: '100%', height: 8, bgcolor: 'background.default', borderRadius: 4, overflow: 'hidden' }}>
+                    <Box sx={{ width: '100%', height: 8, bgcolor: 'background.default', borderRadius: 9999, overflow: 'hidden' }}>
                       <Box sx={{ 
                         width: `${(g.count / (stats?.totalSongs || 1)) * 100}%`, 
                         height: '100%', 
-                        bgcolor: i % 2 === 0 ? 'primary.main' : 'secondary.main' 
+                        bgcolor: i % 2 === 0 ? 'primary.main' : 'secondary.main',
+                        borderRadius: 9999,
                       }} />
                     </Box>
                   </Box>
@@ -240,7 +242,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
 
         {/* Venue Leaderboard */}
         <Grid size={{ xs: 12 }}>
-          <Paper elevation={2} sx={{ p: 3, borderRadius: 4 }}>
+          <Paper elevation={2} sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 1 }}>
               <PlaceIcon color="error" />
               <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Venue Power Ranking</Typography>
@@ -248,7 +250,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
             <Grid container spacing={2}>
               {venues.map((v, i) => (
                 <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }} key={i}>
-                  <Box sx={{ p: 2, textAlign: 'center', border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
+                  <Box sx={{ p: 2, textAlign: 'center', border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
                     <Typography variant="subtitle1" noWrap sx={{ fontWeight: 'bold' }}>{v.location}</Typography>
                     <Typography variant="h5" color="primary" sx={{ my: 1, fontWeight: 'bold' }}>{v.count}</Typography>
                     <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>PERFORMANCES</Typography>

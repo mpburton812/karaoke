@@ -338,7 +338,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
               <Typography variant="h6" gutterBottom>{selectedSong.trackName}</Typography>
               <Typography variant="body1" color="textSecondary" gutterBottom>{selectedSong.artistName}</Typography>
               
-              <Box sx={{ mt: 3, mb: 2, p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+              <Box sx={{ mt: 3, mb: 2, p: 2, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
                 <Typography variant="subtitle2" gutterBottom align="left" color="primary">Data Sources</Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   {[

@@ -18,6 +18,7 @@ export const karaokeTokens = {
   glowPink: "0 0 20px rgba(255, 77, 141, 0.35)",
   appBarGradient: "linear-gradient(90deg, #1a1228 0%, #2a1535 50%, #152a35 100%)",
   spotifyGreen: "#1DB954",
+  starGold: "#ffc857",
 } as const;
 
 export const transTokens = {
