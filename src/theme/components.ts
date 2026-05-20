@@ -1,4 +1,5 @@
 import type { Components, Theme } from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
 import type { ThemeMode } from "./types";
 import { karaokeTokens, lightTokens, transTokens } from "./tokens";
 
@@ -71,10 +72,14 @@ export function buildComponentOverrides(mode: ThemeMode): Components<Omit<Theme,
     },
     MuiButton: {
       styleOverrides: {
-        root: ({ ownerState }) => ({
+        root: ({ theme, ownerState }) => ({
           borderRadius: 12,
           textTransform: "none",
           fontWeight: 600,
+          "&:focus-visible": {
+            outline: `2px solid ${theme.palette.secondary.main}`,
+            outlineOffset: 2,
+          },
           ...(ownerState.variant === "contained" &&
             ownerState.color === "primary" &&
             mode !== "light" && {
@@ -85,9 +90,13 @@ export function buildComponentOverrides(mode: ThemeMode): Components<Omit<Theme,
     },
     MuiIconButton: {
       styleOverrides: {
-        root: {
+        root: ({ theme }) => ({
           borderRadius: 12,
-        },
+          "&:focus-visible": {
+            outline: `2px solid ${theme.palette.secondary.main}`,
+            outlineOffset: 2,
+          },
+        }),
       },
     },
     MuiChip: {
@@ -119,23 +128,39 @@ export function buildComponentOverrides(mode: ThemeMode): Components<Omit<Theme,
     },
     MuiTabs: {
       styleOverrides: {
+        root: {
+          minHeight: 48,
+          "& .MuiTabs-flexContainer": {
+            gap: 8,
+          },
+        },
         indicator: {
-          height: 3,
-          borderRadius: 3,
+          display: "none",
         },
       },
     },
     MuiTab: {
       styleOverrides: {
-        root: {
+        root: ({ theme }) => ({
           textTransform: "none",
           fontWeight: 600,
           borderRadius: pill,
           minHeight: 40,
-          "&.Mui-selected": {
-            color: "primary.main",
+          px: 2.5,
+          py: 1,
+          transition: theme.transitions.create(["background-color", "color", "box-shadow"], {
+            duration: theme.transitions.duration.short,
+          }),
+          "&:focus-visible": {
+            outline: `2px solid ${theme.palette.secondary.main}`,
+            outlineOffset: 2,
           },
-        },
+          "&.Mui-selected": {
+            color: theme.palette.primary.main,
+            backgroundColor: alpha(theme.palette.primary.main, 0.18),
+            boxShadow: mode === "light" ? "none" : karaokeTokens.glowPink,
+          },
+        }),
       },
     },
     MuiLinearProgress: {

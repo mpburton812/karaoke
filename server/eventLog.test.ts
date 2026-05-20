@@ -16,10 +16,17 @@ vi.mock("fs/promises", () => ({
   mkdir: mockMkdir,
 }));
 
-import { auditSqlMutation, listEventLogs, logEvent } from "./eventLog.js";
+import {
+  auditSqlMutation,
+  listEventLogs,
+  logEvent,
+  logServerStartup,
+  resetEventLogTestState,
+} from "./eventLog.js";
 
 describe("eventLog", () => {
   beforeEach(() => {
+    resetEventLogTestState();
     mockExecute.mockReset();
     mockAppendFile.mockReset();
     mockMkdir.mockReset();
@@ -63,6 +70,19 @@ describe("eventLog", () => {
     expect(insert![0].args).toContain(
       'Added song to repertoire: "Bohemian Rhapsody" by Queen'
     );
+  });
+
+  it("logs API startup as a release event once per process", async () => {
+    mockExecute.mockResolvedValue({ rows: [] });
+    logServerStartup();
+    logServerStartup();
+    await new Promise((r) => setTimeout(r, 20));
+    const inserts = mockExecute.mock.calls.filter((c) =>
+      String(c[0]?.sql).includes("INSERT INTO event_logs")
+    );
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]![0].args).toContain("release");
+    expect(String(inserts[0]![0].args)).toMatch(/API started/);
   });
 
   it("lists events newest first with pagination", async () => {

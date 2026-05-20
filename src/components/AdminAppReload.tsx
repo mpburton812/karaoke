@@ -11,6 +11,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 
 import { forceAppReload } from "../lib/forceAppReload";
+import { reportAppReloadRequest } from "../lib/reportBuild";
 
 type DevGitStamp = { commit: string; branch: string };
 
@@ -49,6 +50,7 @@ const AdminAppReload: React.FC = () => {
   const handleReload = async () => {
     setLoading(true);
     setMessage(null);
+    reportAppReloadRequest();
     try {
       setMessage("Restarting… loading the latest app from the server.");
       await forceAppReload();

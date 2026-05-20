@@ -26,6 +26,7 @@ import {
 import { lazyRetry } from './lib/lazyRetry';
 import AppConfigDialog from './components/AppConfigDialog';
 import { logUserAction } from './api/eventLog';
+import { reportClientBuildOnce } from './lib/reportBuild';
 import { createAppTheme, type ThemeMode } from './theme';
 
 // Lazy load tab components (retry once on chunk load failure after deploy)
@@ -270,6 +271,11 @@ function App() {
 
   useEffect(() => {
     if (!currentUser) return;
+    reportClientBuildOnce();
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser) return;
     const handler = (e: Event) => {
       const ce = e as CustomEvent<KaraokeOpenSongDetail>;
       const id = ce.detail?.songId;
@@ -328,20 +334,17 @@ function App() {
         </Toolbar>
       </AppBar>
       <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Box sx={{ width: '100%', borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ width: '100%', borderBottom: 1, borderColor: 'divider', py: 1, px: { xs: 0.5, sm: 1 } }}>
           <Tabs
             value={value}
             onChange={handleChange}
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
-            textColor="primary"
-            indicatorColor="primary"
             sx={{
-              /* Many tabs + narrow width: default scroller clips; scrollable keeps every tab reachable. */
+              /* Scrollable pill tabs — every tab stays reachable on narrow widths. */
               '& .MuiTab-root': {
-                minWidth: { xs: 'auto', sm: 90 },
-                px: { xs: 1.25, sm: 2 },
+                minWidth: { xs: 'auto', sm: 88 },
               },
             }}
           >
@@ -349,7 +352,7 @@ function App() {
             <Tab label="Places" />
             <Tab label="Tags" />
             <Tab label="Stats" />
-            {isAdmin && <Tab label="GOD MODE" />}
+            {isAdmin && <Tab label="God mode" />}
           </Tabs>
         </Box>
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>}>

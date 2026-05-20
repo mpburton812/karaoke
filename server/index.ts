@@ -3,6 +3,7 @@ import { createApp, registerProcessEventHandlers } from "./app.js";
 import { tursoConfigured } from "./db.js";
 import { initDb } from "./initDb.js";
 import { attachStaticFrontend } from "./static.js";
+import { logServerStartup } from "./eventLog.js";
 
 const PORT = Number(process.env.PORT) || 3001;
 const serveStatic =
@@ -18,6 +19,7 @@ async function start() {
 
   await initDb();
   console.log("Database initialized.");
+  logServerStartup();
 
   const app = createApp({ serveStatic });
   if (serveStatic) {

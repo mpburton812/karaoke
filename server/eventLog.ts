@@ -2,6 +2,7 @@ import { appendFile, mkdir } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { db } from "./db.js";
+import { formatBuildLabel, getBuildInfo } from "./buildInfo.js";
 
 export type EventLevel = "C" | "W" | "I";
 
@@ -156,6 +157,48 @@ export function logApiWarning(
     message,
     userId: context?.userId,
     category: context?.category ?? "api",
+    details: context?.details,
+  });
+}
+
+let serverStartupLogged = false;
+
+/** @internal Vitest only — module-level startup guard. */
+export function resetEventLogTestState(): void {
+  serverStartupLogged = false;
+}
+
+/** Log once per API process when the server boots (deploy / code update). */
+export function logServerStartup(): void {
+  if (serverStartupLogged) return;
+  serverStartupLogged = true;
+
+  const info = getBuildInfo();
+  const envPart = info.nodeEnv !== "production" ? ` [${info.nodeEnv}]` : "";
+  logEvent({
+    level: "I",
+    message: `API started — ${formatBuildLabel(info)}${envPart}`,
+    category: "release",
+    details: {
+      commit: info.commit,
+      branch: info.branch,
+      version: info.version,
+      nodeEnv: info.nodeEnv,
+      builtAt: info.builtAt,
+    },
+  });
+}
+
+export function logRelease(
+  message: string,
+  context?: { userId?: number; username?: string | null; details?: Record<string, unknown> }
+): void {
+  logEvent({
+    level: "I",
+    message,
+    userId: context?.userId,
+    username: context?.username,
+    category: "release",
     details: context?.details,
   });
 }

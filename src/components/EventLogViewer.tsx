@@ -35,6 +35,20 @@ function levelTitle(level: EventLevel): string {
   return "Informational";
 }
 
+function categoryChipColor(
+  category: string | null
+): "secondary" | "success" | "default" | "info" {
+  if (category === "release") return "secondary";
+  if (category === "auth") return "info";
+  return "default";
+}
+
+function formatCategory(category: string | null): string | null {
+  if (!category) return null;
+  if (category === "release") return "Release";
+  return category.charAt(0).toUpperCase() + category.slice(1);
+}
+
 function fmtWhen(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
@@ -76,7 +90,8 @@ const EventLogViewer: React.FC = () => {
         Event log
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Application audit trail (C = critical, W = warning, I = informational). Mirrored
+        Application audit trail including sign-ins, data changes, API restarts, and
+        client build loads (C = critical, W = warning, I = informational). Mirrored
         to{" "}
         <Typography component="span" variant="body2" sx={{ fontFamily: "monospace" }}>
           logs/application-events.jsonl
@@ -102,13 +117,14 @@ const EventLogViewer: React.FC = () => {
                 <TableCell sx={{ fontWeight: "bold" }}>When</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>User</TableCell>
                 <TableCell sx={{ fontWeight: "bold", width: 56 }}>Lvl</TableCell>
+                <TableCell sx={{ fontWeight: "bold", width: 88 }}>Type</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>Description</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {events.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                  <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
                     No events recorded yet.
                   </TableCell>
                 </TableRow>
@@ -127,6 +143,18 @@ const EventLogViewer: React.FC = () => {
                         title={levelTitle(row.level)}
                         sx={{ fontWeight: "bold", minWidth: 36 }}
                       />
+                    </TableCell>
+                    <TableCell>
+                      {row.category ? (
+                        <Chip
+                          size="small"
+                          label={formatCategory(row.category)}
+                          color={categoryChipColor(row.category)}
+                          variant="outlined"
+                        />
+                      ) : (
+                        "—"
+                      )}
                     </TableCell>
                     <TableCell>{row.message}</TableCell>
                   </TableRow>

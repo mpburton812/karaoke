@@ -23,6 +23,8 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import HistoryIcon from '@mui/icons-material/History';
+import PlaceIcon from '@mui/icons-material/Place';
+import EmptyState from './EmptyState';
 import { db } from '../db';
 
 interface Location {
@@ -256,14 +258,16 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
+      {locations.length === 0 ? (
+        <EmptyState
+          icon={<PlaceIcon />}
+          title="No venues yet"
+          description="Add a karaoke bar, pub, or practice spot above — then tag it so songs and stats stay organized."
+        />
+      ) : (
       <Paper elevation={2}>
         <List>
-          {locations.length === 0 ? (
-            <ListItem>
-              <ListItemText secondary="No favorite locations added yet." />
-            </ListItem>
-          ) : (
-            locations.map((loc, index) => (
+            {locations.map((loc, index) => (
               <React.Fragment key={loc.id}>
                 <ListItem
                   alignItems="flex-start"
@@ -351,10 +355,10 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
                 </ListItem>
                 {index < locations.length - 1 && <Divider />}
               </React.Fragment>
-            ))
-          )}
+            ))}
         </List>
       </Paper>
+      )}
 
       <Dialog open={venueSongsOpen} onClose={() => !venueSongsLoading && setVenueSongsOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Songs at {venueSongsTitle}</DialogTitle>

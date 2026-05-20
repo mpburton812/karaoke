@@ -22,7 +22,9 @@ import {
   ListItemButton
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import { db } from '../db';
+import EmptyState from './EmptyState';
 import { KARAOKE_OPEN_SONG_EVENT, type KaraokeOpenSongDetail } from '../lib/karaokeEvents';
 
 interface Tag {
@@ -423,13 +425,19 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
             <Divider sx={{ mb: 2 }} />
 
             {filteredSongs.length === 0 ? (
-              <Box sx={{ py: 4, textAlign: 'center' }}>
-                <Typography color="textSecondary">
-                  {selectedTagIds.length === 0 && selectedGenres.length === 0 
-                    ? "Select some tags or genres above to start exploring." 
-                    : "No songs match your criteria."}
-                </Typography>
-              </Box>
+              <EmptyState
+                icon={<FilterListIcon />}
+                title={
+                  selectedTagIds.length === 0 && selectedGenres.length === 0
+                    ? 'Start exploring'
+                    : 'No matching songs'
+                }
+                description={
+                  selectedTagIds.length === 0 && selectedGenres.length === 0
+                    ? 'Select tags or genres in the cloud above to find songs in your repertoire.'
+                    : 'No songs match this combination — try fewer tags or switch between + and − filter modes.'
+                }
+              />
             ) : (
               <List>
                 {filteredSongs.map((song) => (

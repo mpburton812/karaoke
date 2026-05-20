@@ -159,7 +159,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
             <Paper elevation={3} sx={{ p: 3, textAlign: 'center', height: '100%', border: '1px solid', borderColor: 'divider' }}>
               <Box sx={{ mb: 1 }}>{item.icon}</Box>
               <Typography variant="h4" sx={{ fontWeight: 'bold' }}>{item.value}</Typography>
-              <Typography variant="caption" color="textSecondary" sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>{item.label}</Typography>
+              <Typography variant="caption" color="textSecondary">{item.label}</Typography>
             </Paper>
           </Grid>
         ))}
@@ -253,14 +253,14 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
                   <Box sx={{ p: 2, textAlign: 'center', border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
                     <Typography variant="subtitle1" noWrap sx={{ fontWeight: 'bold' }}>{v.location}</Typography>
                     <Typography variant="h5" color="primary" sx={{ my: 1, fontWeight: 'bold' }}>{v.count}</Typography>
-                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>PERFORMANCES</Typography>
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>Performances</Typography>
                     <Rating value={v.avgRating} readOnly size="small" />
                   </Box>
                 </Grid>
               ))}
               {venues.length === 0 && (
                 <Grid size={{ xs: 12 }}>
-                  <Typography align="center" color="textSecondary">No venue data yet. Start performing!</Typography>
+                  <Typography align="center" color="textSecondary">No venue data yet — record a performance at a venue to see rankings here.</Typography>
                 </Grid>
               )}
             </Grid>

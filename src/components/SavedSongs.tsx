@@ -19,6 +19,7 @@ import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SongLookup from './SongLookup';
+import EmptyState from './EmptyState';
 import { db } from '../db';
 import { fetchLyrics } from '../utils/lyricsService';
 import { KARAOKE_SONGS_REFRESH_EVENT } from '../lib/karaokeEvents';
@@ -448,7 +449,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
 
   const genres = ['All', ...new Set(songs.map(s => s.genre).filter(Boolean))];
   const statusOptions = ['Mastered', 'Proficient', 'Practicing'];
-
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
   if (error) return <Alert severity="error">{error}</Alert>;
 
@@ -456,10 +456,10 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     return (
       <Box sx={{ mt: 2 }}>
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-          <Button startIcon={<ArrowBackIcon />} onClick={() => setSelectedSong(null)}>RETURN TO LIST</Button>
+          <Button startIcon={<ArrowBackIcon />} onClick={() => setSelectedSong(null)}>Back to list</Button>
           <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button variant="contained" color="primary" startIcon={<MicIcon />} onClick={handleOpenPerfDialog}>PERFORM</Button>
-            <Button variant="contained" color="error" startIcon={<DeleteIcon />} onClick={() => setPendingDeleteSong(selectedSong)}>REMOVE FROM LIST</Button>
+            <Button variant="contained" color="primary" startIcon={<MicIcon />} onClick={handleOpenPerfDialog}>Record performance</Button>
+            <Button variant="contained" color="error" startIcon={<DeleteIcon />} onClick={() => setPendingDeleteSong(selectedSong)}>Remove from list</Button>
           </Box>
         </Box>
 
@@ -477,7 +477,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                   href={`https://www.youtube.com/results?search_query=${encodeURIComponent(selectedSong.track_name + ' ' + selectedSong.artist_name + ' karaoke')}`}
                   target="_blank"
                 >
-                  PRACTICE ON YOUTUBE
+                  Practice on YouTube
                 </Button>
                 <Button 
                   variant="outlined" 
@@ -487,7 +487,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                   href={`https://open.spotify.com/search/${encodeURIComponent(selectedSong.track_name + ' ' + selectedSong.artist_name)}`}
                   target="_blank"
                 >
-                  LISTEN ON SPOTIFY
+                  Listen on Spotify
                 </Button>
                 {selectedSong.lyrics ? (
                   <Button 
@@ -497,7 +497,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                     startIcon={<NotesIcon />}
                     onClick={() => setLyricsDialogOpen(true)}
                   >
-                    LYRICS
+                    Lyrics
                   </Button>
                 ) : (
                   <Button 
@@ -508,7 +508,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                     onClick={handleFetchLyrics}
                     disabled={loadingLyrics}
                   >
-                    FETCH LYRICS
+                    Fetch lyrics
                   </Button>
                 )}
               </Box>
@@ -533,7 +533,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
               </Box>
 
               <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>DATA SOURCES</Typography>
+                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>Data sources</Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
                   <Chip label={selectedSong.lyrics ? 'Lyrics found' : 'Lyrics missing'} color={selectedSong.lyrics ? 'success' : 'default'} variant="outlined" />
                   <Chip label={selectedSong.karafun_available ? 'KaraFun match' : 'No KaraFun match'} color={selectedSong.karafun_available ? 'success' : 'default'} variant="outlined" />
@@ -550,7 +550,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                   )}
                 </Box>
 
-                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>SONG TAGS</Typography>
+                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>Song tags</Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
                   {selectedSongTags.map(tag => (
                     <Chip key={tag.id} label={tag.name} onDelete={() => handleRemoveSongTag(tag.id)} color="primary" size="small" />
@@ -802,7 +802,9 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
       {/* Search & Add New Songs */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" gutterBottom align="center">Add New Songs from Internet</Typography>
+        <Typography variant="h5" gutterBottom align="center" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+          Add songs from the web
+        </Typography>
         <SongLookup currentUser={currentUser} onSongAdded={fetchSongs} />
       </Box>
 
@@ -810,7 +812,9 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
 
       {/* Repertoire Search & Filter */}
       <Box sx={{ mb: 2 }}>
-        <Typography variant="h5" gutterBottom align="center">Your Repertoire</Typography>
+        <Typography variant="h5" gutterBottom align="center" sx={{ fontWeight: 'bold' }}>
+          Your repertoire
+        </Typography>
         <Accordion defaultExpanded sx={{ mb: 3 }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography sx={{ fontWeight: 'bold' }}>Search, filters, and view</Typography>
@@ -879,7 +883,15 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
 
       {/* Song List */}
       {filteredSongs.length === 0 ? (
-        <Typography align="center" color="textSecondary" sx={{ mt: 4 }}>No songs found matching your criteria.</Typography>
+        <EmptyState
+          icon={<MusicNoteIcon />}
+          title={songs.length === 0 ? 'Your repertoire is empty' : 'No songs match your filters'}
+          description={
+            songs.length === 0
+              ? 'Search above to find a track and add it — your first karaoke pick is one click away.'
+              : 'Try clearing search text or widening your genre and status filters.'
+          }
+        />
       ) : viewMode === 'cards' ? (
         <Grid container spacing={2}>
           {filteredSongs.map((song) => (

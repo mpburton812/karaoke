@@ -2,6 +2,8 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { execSync } from 'child_process'
+import { writeFileSync, mkdirSync } from 'fs'
+import path from 'path'
 
 function gitRef(command: string, fallback: string): string {
   try {
@@ -13,6 +15,26 @@ function gitRef(command: string, fallback: string): string {
 
 const commitHash = gitRef('git rev-parse --short HEAD', 'unknown')
 const branchName = gitRef('git rev-parse --abbrev-ref HEAD', 'unknown')
+
+/** Written into dist/ so the API can log the same build id as the SPA after deploy. */
+function buildStampPlugin(): Plugin {
+  return {
+    name: 'karaoke-build-stamp',
+    closeBundle() {
+      const outDir = path.resolve('dist')
+      mkdirSync(outDir, { recursive: true })
+      writeFileSync(
+        path.join(outDir, 'build-stamp.json'),
+        JSON.stringify({
+          commit: commitHash,
+          branch: branchName,
+          builtAt: new Date().toISOString(),
+        }),
+        'utf8'
+      )
+    },
+  }
+}
 
 /** Dev-only: current git HEAD on each request (Vite `define` is frozen at dev-server start). */
 function devGitStampPlugin(): Plugin {
@@ -60,6 +82,7 @@ export default defineConfig({
   plugins: [
     react(),
     devGitStampPlugin(),
+    buildStampPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
