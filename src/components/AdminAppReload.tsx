@@ -10,33 +10,7 @@ import {
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 
-/** Clear PWA caches, remove service workers, and reload to fetch the latest deployed app. */
-async function forceAppReload(): Promise<void> {
-  if ("serviceWorker" in navigator) {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(
-      registrations.map(async (reg) => {
-        try {
-          await reg.update();
-        } catch {
-          /* offline or update blocked */
-        }
-      })
-    );
-  }
-
-  if ("caches" in window) {
-    const keys = await caches.keys();
-    await Promise.all(keys.map((key) => caches.delete(key)));
-  }
-
-  if ("serviceWorker" in navigator) {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(registrations.map((reg) => reg.unregister()));
-  }
-
-  window.location.reload();
-}
+import { forceAppReload } from "../lib/forceAppReload";
 
 type DevGitStamp = { commit: string; branch: string };
 

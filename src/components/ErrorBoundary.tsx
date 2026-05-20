@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Box, Button, Paper, Typography } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { forceAppReload, isChunkLoadError } from '../lib/forceAppReload';
 
 interface Props {
   children: ReactNode;
@@ -9,15 +10,20 @@ interface Props {
 interface State {
   hasError: boolean;
   message: string;
+  chunkStale: boolean;
+  hardReloading: boolean;
 }
 
 class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, message: '' };
+  state: State = { hasError: false, message: '', chunkStale: false, hardReloading: false };
 
   static getDerivedStateFromError(error: Error): State {
+    const message = error.message || 'An unexpected error occurred.';
     return {
       hasError: true,
-      message: error.message || 'An unexpected error occurred.',
+      message,
+      chunkStale: isChunkLoadError(message),
+      hardReloading: false,
     };
   }
 
@@ -30,7 +36,12 @@ class ErrorBoundary extends Component<Props, State> {
   };
 
   handleRetry = () => {
-    this.setState({ hasError: false, message: '' });
+    this.setState({ hasError: false, message: '', chunkStale: false, hardReloading: false });
+  };
+
+  handleHardReload = () => {
+    this.setState({ hardReloading: true });
+    void forceAppReload();
   };
 
   render() {
@@ -54,19 +65,24 @@ class ErrorBoundary extends Component<Props, State> {
             Something went wrong
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            {this.state.message}
+            {this.state.chunkStale
+              ? 'The app was updated while this tab was open. Reload to download the latest version.'
+              : this.state.message}
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Button variant="outlined" onClick={this.handleRetry}>
-              Try again
-            </Button>
+            {!this.state.chunkStale && (
+              <Button variant="outlined" onClick={this.handleRetry}>
+                Try again
+              </Button>
+            )}
             <Button
               variant="contained"
               color="primary"
               startIcon={<RefreshIcon />}
-              onClick={this.handleReload}
+              onClick={this.state.chunkStale ? this.handleHardReload : this.handleReload}
+              disabled={this.state.hardReloading}
             >
-              Reload app
+              {this.state.hardReloading ? 'Reloading…' : 'Reload app'}
             </Button>
           </Box>
         </Paper>

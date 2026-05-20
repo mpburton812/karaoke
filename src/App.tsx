@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, Suspense, useMemo, useEffect, useCallback } from 'react';
 import { 
   Container, 
   Box, 
@@ -24,14 +24,15 @@ import {
   KARAOKE_OPEN_SONG_EVENT,
   type KaraokeOpenSongDetail,
 } from './lib/karaokeEvents';
+import { lazyRetry } from './lib/lazyRetry';
+import AppConfigDialog from './components/AppConfigDialog';
 
-// Lazy load tab components
-const SavedSongs = lazy(() => import('./components/SavedSongs'));
-const TagManager = lazy(() => import('./components/TagManager'));
-const LocationManager = lazy(() => import('./components/LocationManager'));
-const Login = lazy(() => import('./components/Login'));
-const Stats = lazy(() => import('./components/Stats'));
-const AppConfigDialog = lazy(() => import('./components/AppConfigDialog'));
+// Lazy load tab components (retry once on chunk load failure after deploy)
+const SavedSongs = lazyRetry(() => import('./components/SavedSongs'));
+const TagManager = lazyRetry(() => import('./components/TagManager'));
+const LocationManager = lazyRetry(() => import('./components/LocationManager'));
+const Login = lazyRetry(() => import('./components/Login'));
+const Stats = lazyRetry(() => import('./components/Stats'));
 
 type ThemeMode = 'light' | 'dark' | 'trans';
 type SpotifySnackbarState = {
@@ -418,18 +419,16 @@ function App() {
         </Suspense>
       </Container>
 
-      <Suspense fallback={null}>
-        <AppConfigDialog
-          open={configOpen}
-          onClose={() => setConfigOpen(false)}
-          currentUser={currentUser}
-          isAdmin={isAdmin}
-          themeMode={themeMode}
-          onThemeChange={handleThemeChange}
-          onUserUpdated={handleUserUpdated}
-          onNukeData={handleNukeData}
-        />
-      </Suspense>
+      <AppConfigDialog
+        open={configOpen}
+        onClose={() => setConfigOpen(false)}
+        currentUser={currentUser}
+        isAdmin={isAdmin}
+        themeMode={themeMode}
+        onThemeChange={handleThemeChange}
+        onUserUpdated={handleUserUpdated}
+        onNukeData={handleNukeData}
+      />
       
       <Snackbar
         open={spotifySnackbar.open}
