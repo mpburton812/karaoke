@@ -32,6 +32,10 @@ export function isChunkLoadError(message: string): boolean {
     lower.includes("failed to fetch dynamically imported module") ||
     lower.includes("importing a module script failed") ||
     lower.includes("loading chunk") ||
-    lower.includes("chunkloaderror")
+    lower.includes("chunkloaderror") ||
+    lower.includes("error loading dynamically imported module") ||
+    lower.includes("unable to preload css") ||
+    lower.includes("outdated optimize dep") ||
+    /mime type.*text\/html/i.test(message)
   );
 }

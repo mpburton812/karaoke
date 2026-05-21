@@ -1,3 +1,4 @@
+/** Client auth API — must export changeUsername exactly once (see scripts/dedupe-auth-export.mjs). */
 import { expireSession, shouldExpireSession } from "./session";
 
 const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");

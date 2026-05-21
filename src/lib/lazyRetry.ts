@@ -1,9 +1,9 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
-
-const CHUNK_RETRY_KEY = "karaoke_chunk_retry";
+import { messageFromReason, recoverFromChunkError } from "./chunkRecovery";
+import { isChunkLoadError } from "./forceAppReload";
 
 /**
- * Wraps React.lazy with one automatic reload per session when a dynamic import fails
+ * Wraps React.lazy with automatic recovery when a dynamic import fails
  * (common after deploy when the browser still has an old main bundle).
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -14,15 +14,12 @@ export function lazyRetry<T extends ComponentType<any>>(
     try {
       return await importer();
     } catch (err) {
-      const tried = sessionStorage.getItem(CHUNK_RETRY_KEY);
-      if (!tried) {
-        sessionStorage.setItem(CHUNK_RETRY_KEY, "1");
-        window.location.reload();
+      if (isChunkLoadError(messageFromReason(err))) {
+        await recoverFromChunkError(err);
         return new Promise(() => {
           /* reload in progress */
         });
       }
-      sessionStorage.removeItem(CHUNK_RETRY_KEY);
       throw err;
     }
   });

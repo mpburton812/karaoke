@@ -85,7 +85,34 @@ export default defineConfig({
     buildStampPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: null,
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      workbox: {
+        globPatterns: ['**/*.{html,svg,webmanifest}'],
+        globIgnores: ['**/assets/**'],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//],
+        cleanupOutdatedCaches: true,
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/.*\.(js|css)$/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'app-assets',
+              networkTimeoutSeconds: 5,
+              expiration: { maxEntries: 64, maxAgeSeconds: 60 * 60 * 24 * 7 },
+            },
+          },
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'app-shell',
+              networkTimeoutSeconds: 5,
+            },
+          },
+        ],
+      },
       manifest: {
         name: 'Karaoke Companion',
         short_name: 'Karaoke',

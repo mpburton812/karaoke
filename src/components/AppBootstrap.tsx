@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import App from "../App";
 import { waitForApi } from "../db";
+import { ensureLatestBuild } from "../lib/ensureLatestBuild";
 import { createAppTheme } from "../theme";
 
 const bootTheme = createAppTheme("dark");
@@ -25,6 +26,7 @@ export default function AppBootstrap() {
     setError(null);
     setProgress({ attempt: 0, max: 1 });
     try {
+      await ensureLatestBuild();
       await waitForApi({
         signal,
         onProgress: (attempt, max) => setProgress({ attempt, max }),
