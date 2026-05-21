@@ -582,6 +582,23 @@ async function loadSongsForJob(
   return res.rows as unknown as SongToEnrich[];
 }
 
+/** Run enrichment immediately for specific songs (e.g. welcome song on registration). */
+export async function enrichSongsNow(
+  userId: number,
+  songIds: number[]
+): Promise<void> {
+  const songs = await loadSongsForJob(userId, songIds, true);
+  if (songs.length === 0) return;
+  const spotifyAccessToken = await getSpotifyAccessTokenForUser(userId).catch(
+    () => null
+  );
+  for (let i = 0; i < songs.length; i++) {
+    const song = songs[i]!;
+    if (i > 0) await sleep(1100);
+    await enrichSong(userId, song, spotifyAccessToken);
+  }
+}
+
 async function runJob(userId: number, songs: SongToEnrich[]): Promise<void> {
   const job = jobs.get(userId);
   if (!job) return;

@@ -10,6 +10,14 @@ vi.mock("./db.js", () => ({
   tursoConfigured: true,
 }));
 
+const { mockSeedWelcomeSong } = vi.hoisted(() => ({
+  mockSeedWelcomeSong: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("./welcomeSong.js", () => ({
+  seedWelcomeSongForUser: mockSeedWelcomeSong,
+}));
+
 import {
   changePassword,
   changeUsername,
@@ -66,6 +74,7 @@ describe("registerUser", () => {
     expect(mockExecute.mock.calls[2][0]).toMatchObject({
       sql: expect.stringContaining("last_login_at"),
     });
+    expect(mockSeedWelcomeSong).toHaveBeenCalledWith(5);
   });
 });
 

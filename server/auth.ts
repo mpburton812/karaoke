@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { Request } from "express";
 import { db } from "./db.js";
+import { seedWelcomeSongForUser } from "./welcomeSong.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-insecure-change-me";
 const TOKEN_TTL = "7d";
@@ -72,6 +73,7 @@ export async function registerUser(
     sql: "UPDATE users SET last_login_at = datetime('now') WHERE id = ?",
     args: [row.id],
   });
+  await seedWelcomeSongForUser(row.id);
   return {
     id: row.id,
     username: row.username,
