@@ -31,10 +31,7 @@ class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('ErrorBoundary caught:', error, info.componentStack);
     if (!isChunkLoadError(error.message)) {
-      logClientCritical(
-        `Client crash: ${error.message}`.slice(0, 500),
-        'client'
-      );
+      logClientCritical(`Client crash: ${error.message}`.slice(0, 500));
     }
   }
 

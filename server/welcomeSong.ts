@@ -1,5 +1,5 @@
 import { db } from "./db.js";
-import { logApiWarning, logEvent } from "./eventLog.js";
+import { logApiWarning, logCatalogEvent } from "./eventLog.js";
 import { enrichSongsNow } from "./songEnrichment.js";
 
 /** Starter track for new accounts (Spotify catalog reference). */
@@ -64,17 +64,15 @@ export async function seedWelcomeSongForUser(userId: number): Promise<void> {
     if (!Number.isFinite(newId) || newId <= 0) return;
 
     await enrichSongsNow(userId, [newId]);
-    logEvent({
-      level: "I",
+    logCatalogEvent("feature_utilization_metrics", {
       userId,
       message: `Welcome song added: "${WELCOME_SONG.trackName}" by ${WELCOME_SONG.artistName}`,
-      category: "data",
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logApiWarning(`Welcome song seed failed: ${message}`, {
       userId,
-      category: "data",
+      event: "non_breaking_api_runtime_error",
     });
   }
 }

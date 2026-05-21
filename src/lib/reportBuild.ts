@@ -1,4 +1,4 @@
-import { logUserAction } from "../api/eventLog";
+import { logCatalogClientEvent } from "../api/eventLog";
 
 const STORAGE_KEY = "karaoke_reported_build";
 
@@ -15,10 +15,16 @@ export function reportClientBuildOnce(): void {
   if (!commit || commit === "unknown") return;
   if (sessionStorage.getItem(STORAGE_KEY) === commit) return;
   sessionStorage.setItem(STORAGE_KEY, commit);
-  logUserAction(buildMessage("Client loaded build"), "release");
+  logCatalogClientEvent(
+    "application_configuration_load_success",
+    buildMessage("Client loaded build")
+  );
 }
 
 /** Log when an admin explicitly reloads to pick up a new deploy. */
 export function reportAppReloadRequest(): void {
-  logUserAction(buildMessage("Requested app reload for build"), "release");
+  logCatalogClientEvent(
+    "session_token_renewal",
+    buildMessage("Requested app reload for build")
+  );
 }

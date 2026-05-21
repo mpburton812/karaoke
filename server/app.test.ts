@@ -33,6 +33,7 @@ vi.mock("./songEnrichment.js", async (importOriginal) => {
 
 vi.mock("./eventLog.js", () => ({
   logEvent: vi.fn(),
+  logCatalogEvent: vi.fn(),
   logApiWarning: vi.fn(),
   logApiCritical: vi.fn(),
   auditSqlMutation: vi.fn().mockResolvedValue(undefined),

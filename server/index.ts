@@ -3,7 +3,7 @@ import { createApp, registerProcessEventHandlers } from "./app.js";
 import { tursoConfigured } from "./db.js";
 import { initDb } from "./initDb.js";
 import { attachStaticFrontend } from "./static.js";
-import { logServerStartup } from "./eventLog.js";
+import { logCatalogEvent, logServerStartup } from "./eventLog.js";
 
 const PORT = Number(process.env.PORT) || 3001;
 const serveStatic =
@@ -14,10 +14,22 @@ async function start() {
 
   if (!tursoConfigured) {
     console.error("Cannot start API: Turso credentials missing.");
+    logCatalogEvent("database_connection_failure", {
+      message: "Cannot start API: Turso credentials missing.",
+    });
     process.exit(1);
   }
 
-  await initDb();
+  try {
+    await initDb();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Database initialization failed:", message);
+    logCatalogEvent("database_connection_failure", {
+      message: `Database initialization failed: ${message}`,
+    });
+    process.exit(1);
+  }
   console.log("Database initialized.");
   logServerStartup();
 

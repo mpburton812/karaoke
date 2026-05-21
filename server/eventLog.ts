@@ -1,16 +1,28 @@
 import { appendFile, mkdir } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import {
+  type EventCode,
+  type EventLevelCode,
+  getEventDefinition,
+  isEventCode,
+  levelForEvent,
+} from "../src/lib/eventCatalog.js";
 import { db } from "./db.js";
 import { formatBuildLabel, getBuildInfo } from "./buildInfo.js";
 
-export type EventLevel = "C" | "W" | "I";
+export type EventLevel = EventLevelCode;
+
+export type { EventCode } from "../src/lib/eventCatalog.js";
+export { EVENT_CATALOG, EVENT_CATALOG_ENTRIES } from "../src/lib/eventCatalog.js";
 
 export interface LogEventInput {
   level: EventLevel;
   message: string;
   userId?: number | null;
   username?: string | null;
+  /** Canonical event code (stored in `category`); level is derived when recognized. */
+  event?: EventCode | string;
   category?: string;
   details?: Record<string, unknown>;
 }
@@ -22,6 +34,7 @@ export interface EventLogRow {
   userId: number | null;
   username: string | null;
   message: string;
+  /** Event catalog code, or legacy grouping label. */
   category: string | null;
 }
 
@@ -44,11 +57,30 @@ function normalizeLevel(level: string): EventLevel {
   return "I";
 }
 
+function resolveEventAndLevel(input: LogEventInput): {
+  level: EventLevel;
+  category: string | null;
+} {
+  const eventKey =
+    (typeof input.event === "string" && input.event.trim()) ||
+    (typeof input.category === "string" && isEventCode(input.category)
+      ? input.category
+      : null);
+
+  if (eventKey && isEventCode(eventKey)) {
+    return { level: levelForEvent(eventKey), category: eventKey };
+  }
+
+  const legacyCategory = input.category?.trim().slice(0, 64) || null;
+  return { level: normalizeLevel(input.level), category: legacyCategory };
+}
+
 async function appendGithubJsonl(entry: {
   at: string;
   level: EventLevel;
   user: string | null;
   message: string;
+  event: string | null;
   category: string | null;
 }): Promise<void> {
   try {
@@ -61,16 +93,37 @@ async function appendGithubJsonl(entry: {
 }
 
 /**
+ * Log a catalogued application event. Level and default label come from {@link EVENT_CATALOG}.
+ */
+export function logCatalogEvent(
+  event: EventCode,
+  input?: Omit<LogEventInput, "event" | "level" | "category"> & {
+    message?: string;
+    category?: string;
+  }
+): void {
+  const def = getEventDefinition(event)!;
+  logEvent({
+    event,
+    level: def.level,
+    message: input?.message?.trim() || def.label,
+    userId: input?.userId,
+    username: input?.username,
+    category: input?.category,
+    details: input?.details,
+  });
+}
+
+/**
  * Structured application event (RFC 5424–style severities mapped to C / W / I).
  * Persists to Turso and appends to logs/application-events.jsonl for GitHub review.
  */
 export function logEvent(input: LogEventInput): void {
-  const level = normalizeLevel(input.level);
+  const { level, category } = resolveEventAndLevel(input);
   const occurredAt = nowIso();
   const message = input.message.trim().slice(0, 2000);
   if (!message) return;
 
-  const category = input.category?.trim().slice(0, 64) || null;
   const detailsJson =
     input.details && Object.keys(input.details).length > 0
       ? JSON.stringify(input.details).slice(0, 4000)
@@ -105,6 +158,7 @@ export function logEvent(input: LogEventInput): void {
         level,
         user: username,
         message,
+        event: category && isEventCode(category) ? category : null,
         category,
       });
     } catch (err) {
@@ -150,8 +204,21 @@ export async function listEventLogs(options: {
 
 export function logApiWarning(
   message: string,
-  context?: { userId?: number; category?: string; details?: Record<string, unknown> }
+  context?: {
+    userId?: number;
+    event?: EventCode;
+    category?: string;
+    details?: Record<string, unknown>;
+  }
 ): void {
+  if (context?.event) {
+    logCatalogEvent(context.event, {
+      message,
+      userId: context?.userId,
+      details: context?.details,
+    });
+    return;
+  }
   logEvent({
     level: "W",
     message,
@@ -175,10 +242,8 @@ export function logServerStartup(): void {
 
   const info = getBuildInfo();
   const envPart = info.nodeEnv !== "production" ? ` [${info.nodeEnv}]` : "";
-  logEvent({
-    level: "I",
+  logCatalogEvent("application_configuration_load_success", {
     message: `API started — ${formatBuildLabel(info)}${envPart}`,
-    category: "release",
     details: {
       commit: info.commit,
       branch: info.branch,
@@ -191,22 +256,37 @@ export function logServerStartup(): void {
 
 export function logRelease(
   message: string,
-  context?: { userId?: number; username?: string | null; details?: Record<string, unknown> }
+  context?: {
+    userId?: number;
+    username?: string | null;
+    details?: Record<string, unknown>;
+  }
 ): void {
-  logEvent({
-    level: "I",
+  logCatalogEvent("session_token_renewal", {
     message,
     userId: context?.userId,
     username: context?.username,
-    category: "release",
     details: context?.details,
   });
 }
 
 export function logApiCritical(
   message: string,
-  context?: { userId?: number; category?: string; details?: Record<string, unknown> }
+  context?: {
+    userId?: number;
+    event?: EventCode;
+    category?: string;
+    details?: Record<string, unknown>;
+  }
 ): void {
+  if (context?.event) {
+    logCatalogEvent(context.event, {
+      message,
+      userId: context?.userId,
+      details: context?.details,
+    });
+    return;
+  }
   logEvent({
     level: "C",
     message,
@@ -291,7 +371,6 @@ export async function auditSqlMutation(
   const normalized = sql.replace(/\s+/g, " ").trim();
   const upper = normalized.toUpperCase();
   let message: string | null = null;
-  let category = "data";
   let suffix = "";
 
   if (/^INSERT\s+INTO\s+SONGS\b/i.test(normalized)) {
@@ -335,5 +414,9 @@ export async function auditSqlMutation(
   }
 
   if (!message) return;
-  logEvent({ level: "I", userId, username, message: `${message}${suffix}`, category });
+  logCatalogEvent("feature_utilization_metrics", {
+    userId,
+    username,
+    message: `${message}${suffix}`,
+  });
 }

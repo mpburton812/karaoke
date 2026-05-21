@@ -15,7 +15,7 @@ vi.mock("./songEnrichment.js", () => ({
 }));
 
 vi.mock("./eventLog.js", () => ({
-  logEvent: vi.fn(),
+  logCatalogEvent: vi.fn(),
   logApiWarning: vi.fn(),
 }));
 

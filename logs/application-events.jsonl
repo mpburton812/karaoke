@@ -16,3 +16,7 @@
 {"at":"2026-05-20T17:30:48.672Z","level":"I","user":null,"message":"KaraFun catalog synced (1 tracks)","category":"karafun"}
 {"at":"2026-05-20T17:30:48.687Z","level":"I","user":null,"message":"Removed song from repertoire","category":"data"}
 {"at":"2026-05-20T17:30:48.696Z","level":"I","user":null,"message":"Removed song from repertoire","category":"data"}
+{"at":"2026-05-20T20:36:08.970Z","level":"I","user":null,"message":"API started — build 58d00f1 on branch dev [development]","category":"release"}
+{"at":"2026-05-20T20:36:40.115Z","level":"I","user":"mpburton","message":"Client loaded build 84d5885 (dev)","category":"release"}
+{"at":"2026-05-21T12:29:48.708Z","level":"I","user":null,"message":"API started — build 84d5885 on branch dev [development]","category":"release"}
+{"at":"2026-05-21T12:29:51.190Z","level":"I","user":null,"message":"API started — build 84d5885 on branch dev [development]","category":"release"}

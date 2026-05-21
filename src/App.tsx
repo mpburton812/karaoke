@@ -26,7 +26,7 @@ import {
 import { lazyRetry } from './lib/lazyRetry';
 import AppConfigDialog from './components/AppConfigDialog';
 import WelcomeMessageDialog from './components/WelcomeMessageDialog';
-import { logUserAction } from './api/eventLog';
+import { logCatalogClientEvent, logUserAction } from './api/eventLog';
 import { reportClientBuildOnce } from './lib/reportBuild';
 import { isWelcomeDismissed } from './lib/welcomeMessage';
 import { createAppTheme, type ThemeMode } from './theme';
@@ -228,7 +228,7 @@ function App() {
 
   const handleLogout = () => {
     if (currentUser) {
-      logUserAction("User signed out", "auth");
+      logCatalogClientEvent("user_logout", "User signed out");
     }
     setCurrentUser(null);
     setSessionNotice(null);

@@ -1,3 +1,4 @@
+import { getEventDefinition, type EventCode } from "../lib/eventCatalog";
 import { getStoredToken } from "./auth";
 import { expireSession, shouldExpireSession } from "./session";
 
@@ -54,26 +55,43 @@ export function fetchAdminEventLogs(
 }
 
 function postClientEvent(
-  message: string,
-  category: string | undefined,
-  level: EventLevel
+  event: EventCode,
+  message: string
 ): void {
   const text = message.trim();
   if (!text) return;
   void authedFetch<{ ok: boolean }>("/api/events/log", {
     method: "POST",
-    body: JSON.stringify({ message: text, category, level }),
+    body: JSON.stringify({ message: text, event }),
   }).catch(() => {
     /* best-effort */
   });
 }
 
-/** Client-side informational audit. */
+/** Client-side catalogued informational event. */
+export function logCatalogClientEvent(
+  event: EventCode,
+  message?: string
+): void {
+  const def = getEventDefinition(event);
+  const text = (message?.trim() || def?.label || event).slice(0, 500);
+  postClientEvent(event, text);
+}
+
+/** @deprecated Prefer {@link logCatalogClientEvent} with a catalog event code. */
 export function logUserAction(message: string, category?: string): void {
-  postClientEvent(message, category, "I");
+  const legacy: Record<string, EventCode> = {
+    auth: "feature_utilization_metrics",
+    release: "application_configuration_load_success",
+    data: "feature_utilization_metrics",
+    client: "component_ui_rendering_event",
+  };
+  const event =
+    category && legacy[category] ? legacy[category] : "feature_utilization_metrics";
+  postClientEvent(event, message);
 }
 
 /** Client-side critical report (e.g. React error boundary). */
-export function logClientCritical(message: string, category?: string): void {
-  postClientEvent(message, category ?? "client", "C");
+export function logClientCritical(message: string): void {
+  postClientEvent("uncaught_runtime_exception", message);
 }

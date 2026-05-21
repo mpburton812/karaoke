@@ -19,6 +19,7 @@ import {
   type EventLevel,
   type EventLogEntry,
 } from "../api/eventLog";
+import { isEventCode, labelForEvent, levelTitle } from "../lib/eventCatalog";
 import { panelTitleSx } from "../theme";
 
 const PAGE_SIZE = 10;
@@ -29,24 +30,24 @@ function levelColor(level: EventLevel): "error" | "warning" | "info" {
   return "info";
 }
 
-function levelTitle(level: EventLevel): string {
-  if (level === "C") return "Critical";
-  if (level === "W") return "Warning";
-  return "Informational";
+function eventLabel(category: string | null): string | null {
+  if (!category) return null;
+  return labelForEvent(category);
 }
 
-function categoryChipColor(
+function eventChipColor(
   category: string | null
 ): "secondary" | "success" | "default" | "info" {
+  if (!category) return "default";
+  if (isEventCode(category)) {
+    if (category.startsWith("user_")) return "info";
+    if (category.includes("session") || category.includes("configuration"))
+      return "secondary";
+    return "default";
+  }
   if (category === "release") return "secondary";
   if (category === "auth") return "info";
   return "default";
-}
-
-function formatCategory(category: string | null): string | null {
-  if (!category) return null;
-  if (category === "release") return "Release";
-  return category.charAt(0).toUpperCase() + category.slice(1);
 }
 
 function fmtWhen(iso: string): string {
@@ -90,8 +91,8 @@ const EventLogViewer: React.FC = () => {
         Event log
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Application audit trail including sign-ins, data changes, API restarts, and
-        client build loads (C = critical, W = warning, I = informational). Mirrored
+        Canonical event types with fixed severities (C = critical, W = warning,
+        I = informational). Mirrored
         to{" "}
         <Typography component="span" variant="body2" sx={{ fontFamily: "monospace" }}>
           logs/application-events.jsonl
@@ -148,8 +149,8 @@ const EventLogViewer: React.FC = () => {
                       {row.category ? (
                         <Chip
                           size="small"
-                          label={formatCategory(row.category)}
-                          color={categoryChipColor(row.category)}
+                          label={eventLabel(row.category)}
+                          color={eventChipColor(row.category)}
                           variant="outlined"
                         />
                       ) : (

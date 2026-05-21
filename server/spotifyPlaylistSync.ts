@@ -1,5 +1,5 @@
 import { db } from "./db.js";
-import { logEvent } from "./eventLog.js";
+import { logCatalogEvent } from "./eventLog.js";
 import {
   fetchSpotifyCurrentUser,
   getSpotifyAccessTokenForUser,
@@ -453,11 +453,9 @@ export async function syncSpotifyPlaylist(
     });
     const newRow = ins.rows[0] as { id: number } | undefined;
     if (newRow?.id != null) {
-      logEvent({
-        level: "I",
+      logCatalogEvent("feature_utilization_metrics", {
         userId,
         message: `Added song to repertoire: "${tr.name}" by ${artistName}`,
-        category: "spotify",
       });
       addedSongIds.push(newRow.id);
       await db.execute({

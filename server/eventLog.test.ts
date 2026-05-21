@@ -41,7 +41,7 @@ describe("eventLog", () => {
       userId: 7,
       username: "singer",
       message: "User signed in",
-      category: "auth",
+      event: "user_login_success",
     });
     await new Promise((r) => setTimeout(r, 20));
     expect(mockExecute).toHaveBeenCalled();
@@ -50,6 +50,7 @@ describe("eventLog", () => {
     );
     expect(insert).toBeDefined();
     expect(insert![0].args).toContain("I");
+    expect(insert![0].args).toContain("user_login_success");
     expect(insert![0].args).toContain("User signed in");
     expect(mockAppendFile).toHaveBeenCalled();
   });
@@ -81,7 +82,7 @@ describe("eventLog", () => {
       String(c[0]?.sql).includes("INSERT INTO event_logs")
     );
     expect(inserts).toHaveLength(1);
-    expect(inserts[0]![0].args).toContain("release");
+    expect(inserts[0]![0].args).toContain("application_configuration_load_success");
     expect(String(inserts[0]![0].args)).toMatch(/API started/);
   });
 
