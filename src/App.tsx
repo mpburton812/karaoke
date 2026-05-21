@@ -25,8 +25,10 @@ import {
 } from './lib/karaokeEvents';
 import { lazyRetry } from './lib/lazyRetry';
 import AppConfigDialog from './components/AppConfigDialog';
+import WelcomeMessageDialog from './components/WelcomeMessageDialog';
 import { logUserAction } from './api/eventLog';
 import { reportClientBuildOnce } from './lib/reportBuild';
+import { isWelcomeDismissed } from './lib/welcomeMessage';
 import { createAppTheme, type ThemeMode } from './theme';
 
 // Lazy load tab components (retry once on chunk load failure after deploy)
@@ -77,6 +79,7 @@ function App() {
   const [configOpen, setConfigOpen] = useState(() =>
     new URLSearchParams(window.location.search).has("spotify")
   );
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [songIdToOpenFromExplorer, setSongIdToOpenFromExplorer] = useState<number | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     return (localStorage.getItem('theme_mode') as ThemeMode) || 'dark';
@@ -275,6 +278,15 @@ function App() {
   }, [currentUser?.id]);
 
   useEffect(() => {
+    if (!currentUser) {
+      setWelcomeOpen(false);
+      return;
+    }
+    if (new URLSearchParams(window.location.search).has("spotify")) return;
+    setWelcomeOpen(!isWelcomeDismissed(currentUser.id));
+  }, [currentUser?.id]);
+
+  useEffect(() => {
     if (!currentUser) return;
     const handler = (e: Event) => {
       const ce = e as CustomEvent<KaraokeOpenSongDetail>;
@@ -387,6 +399,12 @@ function App() {
         </Suspense>
       </Container>
 
+      <WelcomeMessageDialog
+        open={welcomeOpen}
+        userId={currentUser.id}
+        onClose={() => setWelcomeOpen(false)}
+      />
+
       <AppConfigDialog
         open={configOpen}
         onClose={() => setConfigOpen(false)}
@@ -396,6 +414,7 @@ function App() {
         onThemeChange={handleThemeChange}
         onUserUpdated={handleUserUpdated}
         onNukeData={handleNukeData}
+        onOpenWelcome={() => setWelcomeOpen(true)}
       />
       
       <Snackbar

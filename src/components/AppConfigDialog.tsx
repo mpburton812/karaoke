@@ -8,6 +8,7 @@ import {
   DialogTitle,
   Divider,
   IconButton,
+  Link,
   Typography,
   alpha,
 } from "@mui/material";
@@ -35,6 +36,7 @@ interface AppConfigDialogProps {
   onThemeChange: (mode: ThemeMode) => void;
   onUserUpdated: (user: AuthUser, token: string) => void;
   onNukeData: () => void;
+  onOpenWelcome: () => void;
 }
 
 const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
@@ -46,6 +48,7 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
   onThemeChange,
   onUserUpdated,
   onNukeData,
+  onOpenWelcome,
 }) => {
   return (
     <Dialog
@@ -67,9 +70,22 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
       </DialogTitle>
       <DialogContent dividers>
         <Box sx={{ textAlign: "center" }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Account, appearance, integrations, and data tools.
           </Typography>
+
+          <Link
+            component="button"
+            type="button"
+            variant="body2"
+            onClick={() => {
+              onClose();
+              onOpenWelcome();
+            }}
+            sx={{ mb: 3, display: "inline-block" }}
+          >
+            Welcome message
+          </Link>
 
           <AdminAppReload />
 
