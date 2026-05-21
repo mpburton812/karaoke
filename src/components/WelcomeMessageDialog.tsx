@@ -1,3 +1,4 @@
+import React from "react";
 import {
   Button,
   Dialog,
@@ -46,13 +47,17 @@ const WelcomeMessageDialog: React.FC<WelcomeMessageDialogProps> = ({
           <Typography
             key={index}
             variant="body1"
-            paragraph
-            sx={{ whiteSpace: "pre-wrap" }}
+            component="p"
+            sx={{ mb: 2, whiteSpace: "pre-wrap" }}
           >
             {paragraph}
           </Typography>
         ))}
-        <Typography variant="body1" paragraph sx={{ whiteSpace: "pre-wrap" }}>
+        <Typography
+          variant="body1"
+          component="p"
+          sx={{ mb: 0, whiteSpace: "pre-wrap" }}
+        >
           This is a &quot;passion project&quot; app and is not professionally
           maintained. If you have questions, find bugs, or want to suggest new
           features, email me at{" "}
