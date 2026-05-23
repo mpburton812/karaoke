@@ -11,7 +11,8 @@ import {
   List,
   ListItem,
   ListItemAvatar,
-  ListItemText
+  ListItemText,
+  useTheme
 } from '@mui/material';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import MicIcon from '@mui/icons-material/Mic';
@@ -19,6 +20,18 @@ import StarIcon from '@mui/icons-material/Star';
 import PlaceIcon from '@mui/icons-material/Place';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
+import SchoolIcon from '@mui/icons-material/School';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer 
+} from 'recharts';
 import { db } from '../db';
 import { karaokeTokens } from '../theme';
 
@@ -27,6 +40,9 @@ interface GlobalStats {
   totalPerformances: number;
   avgRating: number;
   uniqueVenues: number;
+  masteredCount: number;
+  proficientCount: number;
+  practicingCount: number;
 }
 
 interface TopArtist {
@@ -53,26 +69,85 @@ interface VenueStat {
   avgRating: number;
 }
 
+interface HistoryEntry {
+  song_id: number;
+  status: string;
+  changed_at: string;
+}
+
+interface ChartData {
+  week: string;
+  Mastered: number;
+  Proficient: number;
+  Practicing: number;
+}
+
 const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
+  const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<GlobalStats | null>(null);
   const [topArtists, setTopArtists] = useState<TopArtist[]>([]);
   const [topSongs, setTopSongs] = useState<TopSong[]>([]);
   const [genres, setGenres] = useState<GenreStat[]>([]);
   const [venues, setVenues] = useState<VenueStat[]>([]);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+
+  const processChartData = useCallback((history: HistoryEntry[]) => {
+    const data: ChartData[] = [];
+    const now = new Date();
+    const weeksToShow = 12;
+    
+    // Start from 12 weeks ago
+    const startDate = new Date();
+    startDate.setDate(now.getDate() - (weeksToShow * 7));
+    
+    for (let i = 0; i <= weeksToShow; i++) {
+      const weekEnd = new Date(startDate);
+      weekEnd.setDate(startDate.getDate() + (i * 7));
+      
+      const weekLabel = i === weeksToShow ? 'Now' : `W-${weeksToShow - i}`;
+      
+      // Calculate status for each song at this point in time
+      const songStatusMap = new Map<number, string>();
+      
+      for (const entry of history) {
+        const changedAt = new Date(entry.changed_at.replace(' ', 'T') + 'Z'); // Handle SQLite format
+        if (changedAt <= weekEnd) {
+          songStatusMap.set(entry.song_id, entry.status);
+        }
+      }
+      
+      const counts = { Mastered: 0, Proficient: 0, Practicing: 0 };
+      songStatusMap.forEach((status) => {
+        if (status === 'Mastered') counts.Mastered++;
+        else if (status === 'Proficient') counts.Proficient++;
+        else if (status === 'Practicing') counts.Practicing++;
+      });
+      
+      data.push({
+        week: weekLabel,
+        ...counts
+      });
+    }
+    
+    setChartData(data);
+  }, []);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
     const uid = currentUser.id;
     try {
-      const [globalRes, artistRes, songRes, genreRes, venueRes] = await Promise.all([
+      const [globalRes, artistRes, songRes, genreRes, venueRes, historyRes] = await Promise.all([
         db.execute({
           sql: `SELECT 
                   (SELECT COUNT(*) FROM songs WHERE user_id = ?) as totalSongs,
                   (SELECT COUNT(*) FROM performances WHERE user_id = ?) as totalPerformances,
                   (SELECT AVG(rating) FROM performances WHERE user_id = ?) as avgRating,
-                  (SELECT COUNT(DISTINCT location) FROM performances WHERE user_id = ?) as uniqueVenues`,
-          args: [uid, uid, uid, uid],
+                  (SELECT COUNT(DISTINCT location) FROM performances WHERE user_id = ?) as uniqueVenues,
+                  (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Mastered') as masteredCount,
+                  (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Proficient') as proficientCount,
+                  (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Practicing') as practicingCount`,
+          args: [uid, uid, uid, uid, uid, uid, uid],
         }),
         db.execute({
           sql: `SELECT artist_name, COUNT(*) as count 
@@ -112,6 +187,14 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
                 LIMIT 5`,
           args: [uid],
         }),
+        db.execute({
+          sql: `SELECT h.song_id, h.status, h.changed_at
+                FROM song_status_history h
+                JOIN songs s ON h.song_id = s.id
+                WHERE s.user_id = ?
+                ORDER BY h.changed_at ASC`,
+          args: [uid],
+        }),
       ]);
 
       const g = globalRes.rows[0];
@@ -120,17 +203,27 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
         totalPerformances: Number(g.totalPerformances),
         avgRating: Number(g.avgRating) || 0,
         uniqueVenues: Number(g.uniqueVenues),
+        masteredCount: Number(g.masteredCount),
+        proficientCount: Number(g.proficientCount),
+        practicingCount: Number(g.practicingCount)
       });
+
       setTopArtists(artistRes.rows as unknown as TopArtist[]);
       setTopSongs(songRes.rows as unknown as TopSong[]);
       setGenres(genreRes.rows as unknown as GenreStat[]);
       setVenues(venueRes.rows as unknown as VenueStat[]);
+
+      const history = historyRes.rows as unknown as HistoryEntry[];
+      if (history.length > 0) {
+        processChartData(history);
+      }
+
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
     } finally {
       setLoading(false);
     }
-  }, [currentUser.id]);
+  }, [currentUser.id, processChartData]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -164,6 +257,80 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
           </Grid>
         ))}
       </Grid>
+
+      {/* Proficiency Breakdown */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {[
+          { label: 'Mastered', value: stats?.masteredCount, icon: <StarIcon sx={{ color: '#FFD700' }} />, color: '#FFD700' },
+          { label: 'Proficient', value: stats?.proficientCount, icon: <SchoolIcon color="success" />, color: 'success.main' },
+          { label: 'Practicing', value: stats?.practicingCount, icon: <FitnessCenterIcon color="info" />, color: 'info.main' },
+        ].map((item, i) => (
+          <Grid size={{ xs: 4 }} key={i}>
+            <Paper elevation={2} sx={{ p: 2, textAlign: 'center', borderRadius: 3, borderLeft: '4px solid', borderLeftColor: item.color }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                {item.icon}
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{item.value}</Typography>
+              </Box>
+              <Typography variant="caption" color="textSecondary">{item.label}</Typography>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Progress Chart */}
+      {chartData.length > 0 && (
+        <Paper elevation={2} sx={{ p: 3, borderRadius: 4, mb: 4 }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>Weekly Repertoire Growth</Typography>
+          <Box sx={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer>
+              <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.palette.divider} />
+                <XAxis 
+                  dataKey="week" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: theme.palette.text.secondary, fontSize: 12 }} 
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: theme.palette.text.secondary, fontSize: 12 }} 
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: theme.palette.background.paper, 
+                    borderColor: theme.palette.divider,
+                    borderRadius: 8
+                  }} 
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="Mastered" 
+                  stroke="#FFD700" 
+                  strokeWidth={3} 
+                  dot={{ r: 4, fill: "#FFD700" }} 
+                  activeDot={{ r: 6 }} 
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="Proficient" 
+                  stroke={theme.palette.success.main} 
+                  strokeWidth={3} 
+                  dot={{ r: 4, fill: theme.palette.success.main }} 
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="Practicing" 
+                  stroke={theme.palette.info.main} 
+                  strokeWidth={3} 
+                  dot={{ r: 4, fill: theme.palette.info.main }} 
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </Box>
+        </Paper>
+      )}
 
       <Grid container spacing={4}>
         {/* Top Tracks */}

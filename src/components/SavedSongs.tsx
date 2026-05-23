@@ -288,6 +288,14 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
         sql: `UPDATE songs SET ${field} = ? WHERE id = ? AND user_id = ?`,
         args: [value, songId, currentUser.id]
       });
+
+      if (field === 'vocal_status') {
+        await db.execute({
+          sql: "INSERT INTO song_status_history (song_id, status) VALUES (?, ?)",
+          args: [songId, value]
+        });
+      }
+
       setSongs(prevSongs => prevSongs.map(s => s.id === songId ? { ...s, [field]: value } : s));
       if (selectedSong?.id === songId) {
         setSelectedSong({ ...selectedSong, [field]: value as string });

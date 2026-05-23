@@ -392,6 +392,29 @@ export const initDb = async () => {
       )
     `);
 
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS song_status_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        song_id INTEGER,
+        status TEXT NOT NULL,
+        changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (song_id) REFERENCES songs (id) ON DELETE CASCADE
+      )
+    `);
+
+    // Migration: Populate history for existing songs if empty
+    try {
+      const historyCheck = await db.execute("SELECT COUNT(*) as count FROM song_status_history");
+      if (Number(historyCheck.rows[0].count) === 0) {
+        await db.execute(`
+          INSERT INTO song_status_history (song_id, status)
+          SELECT id, vocal_status FROM songs
+        `);
+      }
+    } catch (err) {
+      console.error("Error populating song_status_history:", err);
+    }
+
     await dedupeSongsByUserItunes();
     try {
       await db.execute(

@@ -197,14 +197,35 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
         loudness: null as number | null,
       };
 
-      const ins = await db.execute({
+      const result = await db.execute({
         sql: `INSERT INTO songs (
           user_id, itunes_id, track_name, artist_name, artwork_url, karafun_available,
           key, bpm, duration_ms, popularity, energy, danceability, happiness,
           acousticness, instrumentalness, liveness, speechiness, loudness,
           release_date, explicit, album, genre, release_year, lyrics
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(user_id, itunes_id) DO NOTHING
+        ON CONFLICT(user_id, itunes_id) DO UPDATE SET
+          track_name = excluded.track_name,
+          artist_name = excluded.artist_name,
+          artwork_url = excluded.artwork_url,
+          karafun_available = excluded.karafun_available,
+          key = excluded.key,
+          bpm = excluded.bpm,
+          duration_ms = excluded.duration_ms,
+          energy = excluded.energy,
+          danceability = excluded.danceability,
+          happiness = excluded.happiness,
+          acousticness = excluded.acousticness,
+          instrumentalness = excluded.instrumentalness,
+          liveness = excluded.liveness,
+          speechiness = excluded.speechiness,
+          loudness = excluded.loudness,
+          release_date = excluded.release_date,
+          explicit = excluded.explicit,
+          album = excluded.album,
+          genre = excluded.genre,
+          release_year = excluded.release_year,
+          lyrics = excluded.lyrics
         RETURNING id`,
         args: [
           currentUser.id,
@@ -234,8 +255,8 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
         ],
       });
 
-      const newId = (ins.rows[0] as unknown as { id?: number })?.id;
-      if (typeof newId !== "number") {
+      const songId = (result.rows[0] as unknown as { id?: number })?.id;
+      if (typeof songId !== "number") {
         setSnackbar({
           open: true,
           message: "That song is already in your song list. No duplicate was added.",
@@ -245,16 +266,30 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
         setSaving(false);
         return;
       }
-      void runEnrichmentForImportedSongIds(currentUser.id, [newId]).catch(
+
+      // Record initial status in history
+      const historyCheck = await db.execute({
+        sql: "SELECT COUNT(*) as count FROM song_status_history WHERE song_id = ?",
+        args: [songId]
+      });
+
+      if (Number(historyCheck.rows[0].count) === 0) {
+        await db.execute({
+          sql: "INSERT INTO song_status_history (song_id, status) VALUES (?, 'Practicing')",
+          args: [songId]
+        });
+      }
+
+      void runEnrichmentForImportedSongIds(currentUser.id, [songId]).catch(
         (e) => console.warn("[song lookup enrichment]", e)
       );
 
       setSnackbar({
         open: true,
-        message:
-          "Song saved. KaraFun, lyrics, MusicBrainz, and AcousticBrainz finish in the background.",
+        message: "Song saved. KaraFun, lyrics, MusicBrainz, and AcousticBrainz finish in the background.",
         severity: "success",
       });
+
       if (onSongAdded) onSongAdded();
       window.dispatchEvent(new Event(KARAOKE_SONGS_REFRESH_EVENT));
       setTimeout(() => {
