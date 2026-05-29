@@ -24,7 +24,6 @@ interface SongToEnrich {
   track_name: string;
   artist_name: string;
   spotify_track_id: string | null;
-  genre: string | null;
 }
 
 interface EnrichmentJob {
@@ -165,42 +164,6 @@ function mergeQualities(
     speechiness: base.speechiness ?? incoming.speechiness ?? null,
     loudness: base.loudness ?? incoming.loudness ?? null,
   };
-}
-
-async function checkKarafunAvailable(
-  trackName: string,
-  artistName: string
-): Promise<boolean> {
-  const cleanTitle = cleanText(trackName);
-  const cleanArtist = cleanText(artistName);
-
-  const result = await db.execute({
-    sql: `SELECT id FROM karafun_catalog 
-          WHERE (title LIKE ? OR ? LIKE '%' || title || '%') 
-          AND (artist LIKE ? OR ? LIKE '%' || artist || '%') 
-          LIMIT 1`,
-    args: [`%${cleanTitle}%`, cleanTitle, `%${cleanArtist}%`, cleanArtist],
-  });
-
-  if (result.rows.length > 0) return true;
-
-  const searchQuery = `${cleanTitle} ${cleanArtist}`;
-  const karafunSearchUrl = `https://www.karafun.com/search.html?query=${encodeURIComponent(searchQuery)}`;
-  const html = await fetchText(
-    karafunSearchUrl,
-    {
-      headers: {
-        "User-Agent": "KaraokeCompanion/1.0 (https://github.com/mpburton812/karaoke)",
-        Accept: "text/html",
-      },
-    },
-    "KaraFun search"
-  );
-  return (
-    html.includes("song-list__item") ||
-    html.includes("karaoke/") ||
-    (html.length > 1000 && !html.toLowerCase().includes("no results found"))
-  );
 }
 
 async function fetchLyrics(
@@ -424,12 +387,12 @@ function inferQualitiesFromTags(tags: string[]): Partial<MusicalQualities> {
   };
 }
 
-async function fetchLastFmMetadata(
+async function fetchLastFmQualities(
   trackName: string,
   artistName: string
-): Promise<{ genre: string | null; qualities: Partial<MusicalQualities> }> {
+): Promise<Partial<MusicalQualities>> {
   const apiKey = process.env.LASTFM_API_KEY?.trim();
-  if (!apiKey) return { genre: null, qualities: {} };
+  if (!apiKey) return {};
   const params = new URLSearchParams({
     method: "track.getInfo",
     api_key: apiKey,
@@ -444,10 +407,7 @@ async function fetchLastFmMetadata(
     "Last.fm track info"
   );
   const tags = readLastFmTags(data);
-  return {
-    genre: tags[0] ?? null,
-    qualities: inferQualitiesFromTags(tags),
-  };
+  return inferQualitiesFromTags(tags);
 }
 
 async function enrichSong(
@@ -455,13 +415,6 @@ async function enrichSong(
   song: SongToEnrich,
   spotifyAccessToken: string | null
 ): Promise<void> {
-  let kf = false;
-  try {
-    kf = await checkKarafunAvailable(song.track_name, song.artist_name);
-  } catch {
-    /* optional */
-  }
-
   let lyricsText: string | null = null;
   try {
     lyricsText = await fetchLyrics(song.artist_name, song.track_name);
@@ -470,7 +423,6 @@ async function enrichSong(
   }
 
   let qualities = emptyQualities();
-  let genre = song.genre;
   if (spotifyAccessToken && song.spotify_track_id) {
     try {
       qualities = mergeQualities(
@@ -492,9 +444,10 @@ async function enrichSong(
   }
 
   try {
-    const lastFm = await fetchLastFmMetadata(song.track_name, song.artist_name);
-    genre = genre || lastFm.genre;
-    qualities = mergeQualities(qualities, lastFm.qualities);
+    qualities = mergeQualities(
+      qualities,
+      await fetchLastFmQualities(song.track_name, song.artist_name)
+    );
   } catch {
     /* optional */
   }
@@ -510,15 +463,12 @@ async function enrichSong(
 
   await db.execute({
     sql: `UPDATE songs SET
-      karafun_available = ?,
       lyrics = COALESCE(?, lyrics),
       key = ?, bpm = ?, energy = ?, danceability = ?, happiness = ?,
       acousticness = ?, instrumentalness = ?, liveness = ?, speechiness = ?, loudness = ?,
-      genre = COALESCE(?, genre),
       enriched_at = datetime('now')
       WHERE id = ? AND user_id = ?`,
     args: [
-      kf ? 1 : 0,
       lyricsText && lyricsText.trim() ? lyricsText.trim() : null,
       qualities.key,
       qualities.bpm,
@@ -530,7 +480,6 @@ async function enrichSong(
       qualities.liveness,
       qualities.speechiness,
       qualities.loudness,
-      genre && genre.trim() ? genre.trim() : null,
       song.id,
       userId,
     ],
@@ -564,7 +513,7 @@ async function loadSongsForJob(
     if (uniqueIds.length === 0) return [];
     const placeholders = uniqueIds.map(() => "?").join(",");
     const res = await db.execute({
-      sql: `SELECT id, track_name, artist_name, spotify_track_id, genre FROM songs
+      sql: `SELECT id, track_name, artist_name, spotify_track_id FROM songs
             WHERE user_id = ? AND id IN (${placeholders})
             ORDER BY id ASC`,
       args: [userId, ...uniqueIds],
@@ -574,7 +523,7 @@ async function loadSongsForJob(
 
   const pendingOnly = force ? "" : " AND enriched_at IS NULL";
   const res = await db.execute({
-    sql: `SELECT id, track_name, artist_name, spotify_track_id, genre FROM songs
+    sql: `SELECT id, track_name, artist_name, spotify_track_id FROM songs
           WHERE user_id = ?${pendingOnly}
           ORDER BY id ASC`,
     args: [userId],

@@ -130,7 +130,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
-  const [genreFilter, setGenreFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
   const [pendingDeleteSong, setPendingDeleteSong] = useState<Song | null>(null);
@@ -519,13 +518,11 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     const artist = (song.artist_name ?? '').toLowerCase();
     const q = searchQuery.toLowerCase();
     const matchesSearch = title.includes(q) || artist.includes(q);
-    const matchesGenre = genreFilter === 'All' || song.genre === genreFilter;
     const status = song.vocal_status || 'Practicing';
     const matchesStatus = statusFilter.length === 0 || statusFilter.includes(status);
-    return matchesSearch && matchesGenre && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
 
-  const genres = ['All', ...new Set(songs.map(s => s.genre).filter(Boolean))];
   const statusOptions = ['Mastered', 'Proficient', 'Practicing'];
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
   if (error) return <Alert severity="error">{error}</Alert>;
@@ -596,9 +593,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
               <Typography variant="h4" color="textSecondary" gutterBottom>{selectedSong.artist_name}</Typography>
               
               <Box sx={{ mt: 2, mb: 3, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Chip label={selectedSong.genre || 'Unknown genre'} color="secondary" variant="outlined" />
                 <Chip label={selectedSong.release_year || 'Unknown year'} variant="outlined" />
-                <Chip label={selectedSong.karafun_available ? "KaraFun available" : "Not on KaraFun"} color={selectedSong.karafun_available ? "success" : "default"} variant="outlined" />
                 {selectedSong.spotify_source_playlist_name && (
                   <Chip
                     icon={<SpotifyGlyphIcon />}
@@ -614,10 +609,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                 <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>Data sources</Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
                   <Chip label={selectedSong.lyrics ? 'Lyrics found' : 'Lyrics missing'} color={selectedSong.lyrics ? 'success' : 'default'} variant="outlined" />
-                  <Chip label={selectedSong.karafun_available ? 'KaraFun match' : 'No KaraFun match'} color={selectedSong.karafun_available ? 'success' : 'default'} variant="outlined" />
                   <Chip label={selectedSong.bpm ? `BPM ${selectedSong.bpm}` : 'BPM missing'} color={selectedSong.bpm ? 'success' : 'warning'} variant="outlined" />
                   <Chip label={selectedSong.key && selectedSong.key !== 'DNF' ? `Key ${selectedSong.key}` : 'Key missing'} color={selectedSong.key && selectedSong.key !== 'DNF' ? 'success' : 'warning'} variant="outlined" />
-                  <Chip label={selectedSong.genre ? `Genre ${selectedSong.genre}` : 'Genre missing'} color={selectedSong.genre ? 'success' : 'warning'} variant="outlined" />
                   {selectedSong.spotify_source_playlist_name && (
                     <Chip
                       icon={<SpotifyGlyphIcon />}
@@ -940,12 +933,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
               >
                 Clear
               </Button>
-              <FormControl size="small" sx={{ minWidth: 140 }}>
-                <InputLabel>Genre</InputLabel>
-                <Select value={genreFilter} label="Genre" onChange={(e) => setGenreFilter(e.target.value)}>
-                  {genres.map(g => <MenuItem key={g} value={g}>{g}</MenuItem>)}
-                </Select>
-              </FormControl>
               <FormControl size="small" sx={{ minWidth: 220 }}>
                 <InputLabel shrink>Status</InputLabel>
                 <Select
@@ -1000,7 +987,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
           description={
             songs.length === 0
               ? 'Search above to find a track and add it — your first karaoke pick is one click away.'
-              : 'Try clearing search text or widening your genre and status filters.'
+              : 'Try clearing search text or widening your status filters.'
           }
         />
       ) : viewMode === 'cards' ? (

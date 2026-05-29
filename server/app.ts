@@ -46,7 +46,6 @@ import {
   scheduleAdminReenrichAllUsersBackground,
   startEnrichmentJob,
 } from "./songEnrichment.js";
-import { syncKarafunCatalog } from "./karafunSync.js";
 import { isEventCode } from "../src/lib/eventCatalog.js";
 import {
   auditSqlMutation,
@@ -84,7 +83,6 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/enrichment/status",
       "/api/enrichment/run",
       "/api/admin/enrichment/rebuild-all",
-      "/api/karafun/sync",
       "/api/admin/health",
       "/api/admin/event-logs",
       "/api/events/log",
@@ -670,26 +668,6 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       }
     }
   );
-
-  app.post("/api/karafun/sync", requireAuth, async (req, res) => {
-    const userId = (req as express.Request & { userId: number }).userId;
-    try {
-      const result = await syncKarafunCatalog();
-      logCatalogEvent("feature_utilization_metrics", {
-        userId,
-        message: `KaraFun catalog synced (${result.count} tracks)`,
-      });
-      res.json(result);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "KaraFun catalog sync failed.";
-      logApiWarning(message, {
-        userId,
-        event: "core_service_dependency_failure",
-      });
-      res.status(502).json({ error: message });
-    }
-  });
 
   app.get("/api/admin/health", requireAuth, async (_req, res) => {
     try {

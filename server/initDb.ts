@@ -206,16 +206,6 @@ export const initDb = async () => {
     `);
 
     await db.execute(`
-      CREATE TABLE IF NOT EXISTS karafun_catalog (
-        id INTEGER PRIMARY KEY,
-        title TEXT,
-        artist TEXT,
-        duration INTEGER,
-        styles TEXT
-      )
-    `);
-    await db.execute(`CREATE INDEX IF NOT EXISTS idx_karafun_title_artist ON karafun_catalog (title, artist)`);
-    await db.execute(`
       CREATE TABLE IF NOT EXISTS performances (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         song_id INTEGER,
@@ -449,6 +439,24 @@ export const initDb = async () => {
     await db.execute(
       `CREATE INDEX IF NOT EXISTS idx_event_logs_occurred ON event_logs (occurred_at DESC, id DESC)`
     );
+
+    try {
+      await db.execute(`DROP TABLE IF EXISTS karafun_catalog`);
+      await db.execute(`DELETE FROM metadata WHERE key = 'karafun_last_updated'`);
+      await db.execute(`
+        DELETE FROM song_tags
+        WHERE rowid IN (
+          SELECT st.rowid FROM song_tags st
+          INNER JOIN songs s ON s.id = st.song_id
+          INNER JOIN tags t ON t.id = st.tag_id
+          WHERE s.genre IS NOT NULL
+            AND lower(trim(t.name)) = lower(trim(s.genre))
+        )
+      `);
+      await db.execute(`UPDATE songs SET genre = NULL WHERE genre IS NOT NULL`);
+    } catch (migrationErr) {
+      console.error("Genre/KaraFun cleanup migration skipped:", migrationErr);
+    }
 
   } catch (error) {
     console.error("Error initializing database:", error);

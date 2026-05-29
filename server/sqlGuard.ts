@@ -60,10 +60,6 @@ export function assertSqlAllowed(
     return;
   }
 
-  if (/DELETE\s+FROM\s+KARAFUN_CATALOG/i.test(normalized)) {
-    return;
-  }
-
   if (userScopedMutation(normalized)) {
     if (!/\buser_id\s*=\s*\?/i.test(normalized)) {
       throw new Error("UPDATE/DELETE on user data must filter by user_id = ?.");

@@ -77,12 +77,4 @@ describe.skipIf(!canRun)("Turso integration", () => {
     );
   });
 
-  it("reads karafun_catalog metadata", async () => {
-    const result = await db.execute(
-      "SELECT COUNT(*) AS count FROM karafun_catalog"
-    );
-    expect(Number((result.rows[0] as { count: number }).count)).toBeGreaterThanOrEqual(
-      0
-    );
-  });
 });

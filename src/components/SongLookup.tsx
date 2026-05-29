@@ -26,7 +26,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import axios from 'axios';
 import { db } from '../db';
 import { KARAOKE_SONGS_REFRESH_EVENT } from '../lib/karaokeEvents';
-import { fetchLyrics, cleanText } from '../utils/lyricsService';
+import { fetchLyrics } from '../utils/lyricsService';
 import { runEnrichmentForImportedSongIds } from '../utils/songEnrichment';
 
 interface iTunesSong {
@@ -53,12 +53,10 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
   const [results, setResults] = useState<iTunesSong[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSong, setSelectedSong] = useState<iTunesSong | null>(null);
-  const [isKarafunAvailable, setIsKarafunAvailable] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const [lookupStatus, setLookupStatus] = useState({
-    karafun: 'idle' as LookupState,
     lyrics: 'idle' as LookupState,
     musicbrainz: 'idle' as LookupState,
     acousticbrainz: 'idle' as LookupState
@@ -96,46 +94,13 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
   const handleSelectSong = async (song: iTunesSong) => {
     setSelectedSong(song);
     setLookupStatus({
-      karafun: 'loading',
       lyrics: 'loading',
       musicbrainz: 'idle',
       acousticbrainz: 'idle'
     });
-    setIsKarafunAvailable(null);
     setLyrics(null);
-    
-    // Clean up title for better matching
-    const cleanTitle = cleanText(song.trackName);
-    const cleanArtist = cleanText(song.artistName);
 
     try {
-      // 1. KaraFun check
-      const result = await db.execute({
-        sql: `SELECT id FROM karafun_catalog 
-              WHERE (title LIKE ? OR ? LIKE '%' || title || '%') 
-              AND (artist LIKE ? OR ? LIKE '%' || artist || '%') 
-              LIMIT 1`,
-        args: [`%${cleanTitle}%`, cleanTitle, `%${cleanArtist}%`, cleanArtist]
-      });
-
-      if (result.rows.length > 0) {
-        setIsKarafunAvailable(true);
-        setLookupStatus(prev => ({ ...prev, karafun: 'success' }));
-      } else {
-        const searchQuery = `${cleanTitle} ${cleanArtist}`;
-        const karafunSearchUrl = `https://www.karafun.com/search.html?query=${encodeURIComponent(searchQuery)}`;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(karafunSearchUrl)}`;
-        
-        const response = await axios.get(proxyUrl);
-        const html = response.data.contents || '';
-        const hasSongItems = html.includes('song-list__item') || html.includes('karaoke/');
-        const isAvailable = hasSongItems || (html.length > 1000 && !html.toLowerCase().includes('no results found'));
-        
-        setIsKarafunAvailable(isAvailable);
-        setLookupStatus(prev => ({ ...prev, karafun: isAvailable ? 'success' : 'error' }));
-      }
-
-      // 2. Lyrics check
       const lyricsText = await fetchLyrics(song.artistName, song.trackName);
       if (lyricsText) {
         setLyrics(lyricsText);
@@ -146,8 +111,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
       
     } catch (err) {
       console.error('Error checking song details:', err);
-      setIsKarafunAvailable(false);
-      setLookupStatus(prev => ({ ...prev, karafun: 'error', lyrics: 'error' }));
+      setLookupStatus(prev => ({ ...prev, lyrics: 'error' }));
     }
   };
 
@@ -205,16 +169,15 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
 
       const result = await db.execute({
         sql: `INSERT INTO songs (
-          user_id, itunes_id, track_name, artist_name, artwork_url, karafun_available,
+          user_id, itunes_id, track_name, artist_name, artwork_url,
           key, bpm, duration_ms, popularity, energy, danceability, happiness,
           acousticness, instrumentalness, liveness, speechiness, loudness,
-          release_date, explicit, album, genre, release_year, lyrics
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          release_date, explicit, album, release_year, lyrics
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(user_id, itunes_id) DO UPDATE SET
           track_name = excluded.track_name,
           artist_name = excluded.artist_name,
           artwork_url = excluded.artwork_url,
-          karafun_available = excluded.karafun_available,
           key = excluded.key,
           bpm = excluded.bpm,
           duration_ms = excluded.duration_ms,
@@ -229,7 +192,6 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
           release_date = excluded.release_date,
           explicit = excluded.explicit,
           album = excluded.album,
-          genre = excluded.genre,
           release_year = excluded.release_year,
           lyrics = excluded.lyrics
         RETURNING id`,
@@ -239,7 +201,6 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
           selectedSong.trackName,
           selectedSong.artistName,
           selectedSong.artworkUrl100,
-          isKarafunAvailable ? 1 : 0,
           qualities.key,
           qualities.bpm,
           selectedSong.trackTimeMillis,
@@ -255,7 +216,6 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
           selectedSong.releaseDate,
           selectedSong.trackExplicitness === 'explicit' ? 1 : 0,
           selectedSong.collectionName,
-          selectedSong.primaryGenreName,
           new Date(selectedSong.releaseDate).getFullYear(),
           lyrics,
         ],
@@ -292,7 +252,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
 
       setSnackbar({
         open: true,
-        message: "Song saved. KaraFun, lyrics, MusicBrainz, and AcousticBrainz finish in the background.",
+        message: "Song saved. Lyrics, MusicBrainz, and AcousticBrainz finish in the background.",
         severity: "success",
       });
 
@@ -390,7 +350,6 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
                 <Typography variant="subtitle2" gutterBottom align="left" color="primary">Data sources</Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   {[
-                    { key: 'karafun', label: 'KaraFun Catalog' },
                     { key: 'lyrics', label: 'Lyrics Database' },
                     { key: 'musicbrainz', label: 'MusicBrainz (MBID)' },
                     { key: 'acousticbrainz', label: 'AcousticBrainz (Features)' }

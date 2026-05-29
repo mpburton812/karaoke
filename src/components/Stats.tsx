@@ -12,6 +12,17 @@ import {
   ListItem,
   ListItemAvatar,
   ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   useTheme
 } from '@mui/material';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
@@ -82,6 +93,25 @@ interface ChartData {
   Practicing: number;
 }
 
+interface PerformanceListRow {
+  date: string;
+  location: string | null;
+  track_name: string;
+  artist_name: string;
+  rating: number | null;
+}
+
+interface SongByRatingRow {
+  id: number;
+  track_name: string;
+  artist_name: string;
+  artwork_url: string | null;
+  avgRating: number;
+  perfCount: number;
+}
+
+type StatsDetailDialog = 'performances' | 'ratings' | null;
+
 const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
   const theme = useTheme();
   const [loading, setLoading] = useState(true);
@@ -91,6 +121,10 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
   const [genres, setGenres] = useState<GenreStat[]>([]);
   const [venues, setVenues] = useState<VenueStat[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [detailDialog, setDetailDialog] = useState<StatsDetailDialog>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [performanceList, setPerformanceList] = useState<PerformanceListRow[]>([]);
+  const [songsByRating, setSongsByRating] = useState<SongByRatingRow[]>([]);
 
   const processChartData = useCallback((history: HistoryEntry[]) => {
     const data: ChartData[] = [];
@@ -232,6 +266,61 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
     return () => window.clearTimeout(timer);
   }, [fetchStats]);
 
+  const openPerformancesDialog = async () => {
+    setDetailDialog('performances');
+    setDetailLoading(true);
+    try {
+      const result = await db.execute({
+        sql: `SELECT p.date, p.location, s.track_name, s.artist_name, p.rating
+              FROM performances p
+              JOIN songs s ON p.song_id = s.id
+              WHERE p.user_id = ?
+              ORDER BY p.date DESC, p.id DESC`,
+        args: [currentUser.id],
+      });
+      setPerformanceList(result.rows as unknown as PerformanceListRow[]);
+    } catch (err) {
+      console.error('Error loading performance list:', err);
+      setPerformanceList([]);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const openRatingsDialog = async () => {
+    setDetailDialog('ratings');
+    setDetailLoading(true);
+    try {
+      const result = await db.execute({
+        sql: `SELECT s.id, s.track_name, s.artist_name, s.artwork_url,
+                     AVG(p.rating) AS avgRating, COUNT(*) AS perfCount
+              FROM performances p
+              JOIN songs s ON p.song_id = s.id
+              WHERE p.user_id = ? AND p.rating IS NOT NULL
+              GROUP BY s.id
+              ORDER BY avgRating DESC, perfCount DESC, s.track_name ASC`,
+        args: [currentUser.id],
+      });
+      setSongsByRating(
+        (result.rows as unknown as SongByRatingRow[]).map((row) => ({
+          ...row,
+          avgRating: Number(row.avgRating),
+          perfCount: Number(row.perfCount),
+        }))
+      );
+    } catch (err) {
+      console.error('Error loading songs by rating:', err);
+      setSongsByRating([]);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const formatPerfDate = (date: string) => {
+    const d = new Date(date);
+    return Number.isNaN(d.getTime()) ? date : d.toLocaleDateString();
+  };
+
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
 
   return (
@@ -243,16 +332,73 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
       {/* Hero Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
-          { label: 'Performances', value: stats?.totalPerformances, icon: <MicIcon color="primary" />, color: 'primary.main' },
-          { label: 'Songs in List', value: stats?.totalSongs, icon: <MusicNoteIcon color="secondary" />, color: 'secondary.main' },
-          { label: 'Average Rating', value: stats?.avgRating.toFixed(1), icon: <StarIcon sx={{ color: karaokeTokens.starGold }} />, color: karaokeTokens.starGold },
-          { label: 'Venues Visited', value: stats?.uniqueVenues, icon: <PlaceIcon color="info" />, color: 'info.main' },
+          {
+            label: 'Performances',
+            value: stats?.totalPerformances,
+            icon: <MicIcon color="primary" />,
+            onClick: () => void openPerformancesDialog(),
+          },
+          {
+            label: 'Songs in List',
+            value: stats?.totalSongs,
+            icon: <MusicNoteIcon color="secondary" />,
+          },
+          {
+            label: 'Average Rating',
+            value: stats?.avgRating.toFixed(1),
+            icon: <StarIcon sx={{ color: karaokeTokens.starGold }} />,
+            onClick: () => void openRatingsDialog(),
+          },
+          {
+            label: 'Venues Visited',
+            value: stats?.uniqueVenues,
+            icon: <PlaceIcon color="info" />,
+          },
         ].map((item, i) => (
           <Grid size={{ xs: 6, md: 3 }} key={i}>
-            <Paper elevation={3} sx={{ p: 3, textAlign: 'center', height: '100%', border: '1px solid', borderColor: 'divider' }}>
+            <Paper
+              elevation={3}
+              onClick={item.onClick}
+              sx={{
+                p: 3,
+                textAlign: 'center',
+                height: '100%',
+                border: '1px solid',
+                borderColor: 'divider',
+                cursor: item.onClick ? 'pointer' : 'default',
+                transition: 'background-color 0.15s',
+                ...(item.onClick
+                  ? {
+                      '&:hover': { bgcolor: 'action.hover' },
+                      '&:focus-visible': {
+                        outline: '2px solid',
+                        outlineColor: 'primary.main',
+                        outlineOffset: 2,
+                      },
+                    }
+                  : {}),
+              }}
+              {...(item.onClick
+                ? {
+                    role: 'button' as const,
+                    tabIndex: 0,
+                    onKeyDown: (e: React.KeyboardEvent) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        item.onClick?.();
+                      }
+                    },
+                  }
+                : {})}
+            >
               <Box sx={{ mb: 1 }}>{item.icon}</Box>
               <Typography variant="h4" sx={{ fontWeight: 'bold' }}>{item.value}</Typography>
               <Typography variant="caption" color="textSecondary">{item.label}</Typography>
+              {item.onClick && (
+                <Typography variant="caption" display="block" color="primary" sx={{ mt: 0.5 }}>
+                  Tap for details
+                </Typography>
+              )}
             </Paper>
           </Grid>
         ))}
@@ -434,6 +580,115 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
           </Paper>
         </Grid>
       </Grid>
+
+      <Dialog
+        open={detailDialog === 'performances'}
+        onClose={() => setDetailDialog(null)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle>All performances</DialogTitle>
+        <DialogContent dividers>
+          {detailLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : performanceList.length === 0 ? (
+            <Typography color="text.secondary">No performances recorded yet.</Typography>
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Venue</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Song</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }} align="center">
+                      Rating
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {performanceList.map((row, idx) => (
+                    <TableRow key={`${row.date}-${row.track_name}-${idx}`}>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        {formatPerfDate(row.date)}
+                      </TableCell>
+                      <TableCell>{row.location?.trim() || '—'}</TableCell>
+                      <TableCell>
+                        {row.track_name}
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {row.artist_name}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        {row.rating != null ? (
+                          <Rating value={row.rating} readOnly size="small" />
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailDialog(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={detailDialog === 'ratings'}
+        onClose={() => setDetailDialog(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Songs ranked by average rating</DialogTitle>
+        <DialogContent dividers>
+          {detailLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : songsByRating.length === 0 ? (
+            <Typography color="text.secondary">
+              No rated performances yet. Record a performance with a star rating to see rankings
+              here.
+            </Typography>
+          ) : (
+            <List disablePadding>
+              {songsByRating.map((song, i) => (
+                <ListItem key={song.id} divider={i < songsByRating.length - 1}>
+                  <ListItemAvatar>
+                    <Avatar variant="rounded" src={song.artwork_url ?? undefined} />
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={song.track_name}
+                    secondary={song.artist_name}
+                  />
+                  <Box sx={{ textAlign: 'right', ml: 1 }}>
+                    <Rating
+                      value={song.avgRating}
+                      readOnly
+                      size="small"
+                      precision={0.1}
+                    />
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {song.avgRating.toFixed(1)} · {song.perfCount}{' '}
+                      {song.perfCount === 1 ? 'performance' : 'performances'}
+                    </Typography>
+                  </Box>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailDialog(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

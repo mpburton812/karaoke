@@ -53,7 +53,6 @@ interface TagManagerProps {
 
 const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
   const [tags, setTags] = useState<Tag[]>([]);
-  const [genres, setGenres] = useState<string[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [newTagName, setNewTagName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -61,7 +60,6 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
 
   // Filter State
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<number | string>('');
   const [filterLogic, setFilterLogic] = useState<'OR' | 'AND'>('AND');
   const [filteredSongs, setFilteredSongs] = useState<Song[]>([]);
@@ -71,7 +69,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
     setLoading(true);
     const uid = currentUser.id;
     try {
-      const [tagsRes, genresRes, locsRes] = await Promise.all([
+      const [tagsRes, locsRes] = await Promise.all([
         db.execute({
           sql: `
           SELECT t.id, t.name, COUNT(st.song_id) as count 
@@ -81,10 +79,6 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
           GROUP BY t.id 
           ORDER BY t.name ASC
         `,
-          args: [uid],
-        }),
-        db.execute({
-          sql: "SELECT DISTINCT genre FROM songs WHERE user_id = ? AND genre IS NOT NULL ORDER BY genre ASC",
           args: [uid],
         }),
         db.execute({
@@ -99,7 +93,6 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
       ]);
 
       setTags(tagsRes.rows as unknown as Tag[]);
-      setGenres(genresRes.rows.map((r) => r.genre as string));
 
       const locsWithTags: Location[] = (locsRes.rows as unknown as { id: number; name: string; tag_ids: string | null }[]).map(
         (row) => ({
@@ -123,7 +116,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
   }, [fetchData]);
 
   const fetchFilteredSongs = useCallback(async () => {
-    if (selectedTagIds.length === 0 && selectedGenres.length === 0) {
+    if (selectedTagIds.length === 0) {
       setFilteredSongs([]);
       return;
     }
@@ -135,11 +128,6 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
       const args: (string | number)[] = [];
       const conditions: string[] = [`s.user_id = ?`];
       args.push(currentUser.id);
-
-      if (selectedGenres.length > 0) {
-        conditions.push(`s.genre IN (${selectedGenres.map(() => '?').join(',')})`);
-        args.push(...selectedGenres);
-      }
 
       if (selectedTagIds.length > 0) {
         if (filterLogic === 'OR') {
@@ -168,7 +156,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
     } finally {
       setSearching(false);
     }
-  }, [selectedTagIds, selectedGenres, currentUser.id, filterLogic]);
+  }, [selectedTagIds, currentUser.id, filterLogic]);
 
   useEffect(() => {
     Promise.resolve().then(() => fetchFilteredSongs());
@@ -216,12 +204,6 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
     );
   };
 
-  const toggleGenreSelection = (genre: string) => {
-    setSelectedGenres(prev => 
-      prev.includes(genre) ? prev.filter(g => g !== genre) : [...prev, genre]
-    );
-  };
-
   const handleVenueChange = (venueId: number | string) => {
     setSelectedVenueId(venueId);
     if (venueId === '') {
@@ -238,7 +220,6 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
 
   const clearFilters = () => {
     setSelectedTagIds([]);
-    setSelectedGenres([]);
     setSelectedVenueId('');
     setFilterLogic('AND');
   };
@@ -346,7 +327,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
               {filterLogic === 'OR' 
                 ? 'Select any tags (+) for a broad search.' 
                 : 'Select specific tags (−) for a narrow search (matches all).'}
-              {selectedTagIds.length > 0 || selectedGenres.length > 0 ? ` Showing matches.` : ` Select options below.`}
+              {selectedTagIds.length > 0 ? ` Showing matches.` : ` Select options below.`}
             </Typography>
 
             {/* Venue Shortcut */}
@@ -375,12 +356,9 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
             <Divider sx={{ mb: 3 }} />
 
             <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>
-              <Box component="span" sx={{ color: 'success.main' }}>Tags</Box> and <Box component="span" sx={{ color: 'info.main' }}>Genres</Box>
+              <Box component="span" sx={{ color: 'success.main' }}>Tags</Box>
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 3, alignItems: 'center' }}>
-              {/* Combine Tags and Genres into the cloud if they want, but separate sections are often cleaner. 
-                  The user asked to "optionally genres from songs in the list". 
-                  I'll keep them as distinct but styled identically for a cohesive "Cloud" feel. */}
               {tags.map(tag => (
                 <Chip 
                   key={`tag-${tag.id}`} 
@@ -393,23 +371,6 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
                     height: 'auto',
                     padding: '4px 0',
                     '& .MuiChip-label': { px: 2 }
-                  }}
-                />
-              ))}
-              
-              {genres.map(genre => (
-                <Chip 
-                  key={`genre-${genre}`} 
-                  label={genre} 
-                  onClick={() => toggleGenreSelection(genre)}
-                  color={selectedGenres.includes(genre) ? "info" : "default"}
-                  variant={selectedGenres.includes(genre) ? "filled" : "outlined"}
-                  sx={{ 
-                    fontSize: '1rem',
-                    height: 'auto',
-                    padding: '4px 0',
-                    fontStyle: 'italic',
-                    '& .MuiChip-label': { px: 2 },
                   }}
                 />
               ))}
@@ -428,13 +389,13 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
               <EmptyState
                 icon={<FilterListIcon />}
                 title={
-                  selectedTagIds.length === 0 && selectedGenres.length === 0
+                  selectedTagIds.length === 0
                     ? 'Start exploring'
                     : 'No matching songs'
                 }
                 description={
-                  selectedTagIds.length === 0 && selectedGenres.length === 0
-                    ? 'Select tags or genres in the cloud above to find songs in your repertoire.'
+                  selectedTagIds.length === 0
+                    ? 'Select tags in the cloud above to find songs in your repertoire.'
                     : 'No songs match this combination — try fewer tags or switch between + and − filter modes.'
                 }
               />
@@ -449,7 +410,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
                         </ListItemAvatar>
                         <ListItemText 
                           primary={song.track_name} 
-                          secondary={`${song.artist_name} • ${song.genre}`} 
+                          secondary={song.artist_name} 
                         />
                       </ListItemButton>
                     </ListItem>

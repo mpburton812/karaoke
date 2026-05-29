@@ -34,12 +34,6 @@ describe("assertSqlAllowed", () => {
     ).toThrow(/authenticated user/);
   });
 
-  it("allows global karafun catalog delete", () => {
-    expect(() =>
-      assertSqlAllowed("DELETE FROM karafun_catalog", USER_ID, [])
-    ).not.toThrow();
-  });
-
   it("blocks DROP statements", () => {
     expect(() =>
       assertSqlAllowed("SELECT 1; DROP TABLE users", USER_ID, [])
