@@ -362,7 +362,9 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
       sql: 'SELECT tag_id FROM performance_tags WHERE performance_id = ?',
       args: [performanceId],
     });
-    return (result.rows as { tag_id: number }[]).map((row) => Number(row.tag_id));
+    return (result.rows as unknown as { tag_id: number }[]).map((row) =>
+      Number(row.tag_id)
+    );
   };
 
   const refreshPerfDialogHistory = async () => {
