@@ -13,6 +13,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MicIcon from '@mui/icons-material/Mic';
 import NotesIcon from '@mui/icons-material/Notes';
 import CloseIcon from '@mui/icons-material/Close';
+import EditIcon from '@mui/icons-material/Edit';
 import SearchIcon from '@mui/icons-material/Search';
 import StarIcon from '@mui/icons-material/Star';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
@@ -136,14 +137,14 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
 
   // Performance Dialog State
   const [perfDialogOpen, setPerfDialogOpen] = useState(false);
+  const [editingPerfId, setEditingPerfId] = useState<number | null>(null);
   const [perfDate, setPerfDate] = useState('');
   const [perfLocation, setPerfLocation] = useState('');
   const [perfNotes, setPerfNotes] = useState('');
   const [perfRating, setPerfRating] = useState<number | null>(3);
   const [selectedPerfTags, setSelectedPerfTags] = useState<number[]>([]);
   const [savingPerf, setSavingPerf] = useState(false);
-  const [perfCheckExpanded, setPerfCheckExpanded] = useState(false);
-  const [perfCheckLoading, setPerfCheckLoading] = useState(false);
+  const [perfHistoryLoading, setPerfHistoryLoading] = useState(false);
 
   // Notes Dialog State
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
@@ -350,53 +351,120 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     }
   };
 
+  const normalizePerfDateInput = (date: string | null | undefined): string => {
+    if (!date) return new Date().toISOString().split('T')[0]!;
+    if (date.includes('T')) return date.split('T')[0]!;
+    return date.slice(0, 10);
+  };
+
+  const fetchPerformanceTagIds = async (performanceId: number): Promise<number[]> => {
+    const result = await db.execute({
+      sql: 'SELECT tag_id FROM performance_tags WHERE performance_id = ?',
+      args: [performanceId],
+    });
+    return (result.rows as { tag_id: number }[]).map((row) => Number(row.tag_id));
+  };
+
+  const refreshPerfDialogHistory = async () => {
+    if (!selectedSong) return;
+    setPerfHistoryLoading(true);
+    try {
+      await fetchPerformances(selectedSong.id);
+    } finally {
+      setPerfHistoryLoading(false);
+    }
+  };
+
   const handleOpenPerfDialog = () => {
     const now = new Date();
+    setEditingPerfId(null);
     setPerfDate(now.toISOString().split('T')[0]);
     setPerfLocation('');
     setPerfNotes('');
     setPerfRating(3);
     setSelectedPerfTags([]);
-    setPerfCheckExpanded(false);
     setPerfDialogOpen(true);
+    void refreshPerfDialogHistory();
   };
 
-  const handlePerfCheck = async () => {
-    if (!selectedSong) return;
-    setPerfCheckLoading(true);
+  const handleOpenEditPerformance = async (perf: Performance) => {
+    setEditingPerfId(perf.id);
+    setPerfDate(normalizePerfDateInput(perf.date));
+    setPerfLocation(perf.location || '');
+    setPerfNotes(perf.notes || '');
+    setPerfRating(perf.rating ?? 3);
     try {
-      await fetchPerformances(selectedSong.id);
-      setPerfCheckExpanded(true);
-    } finally {
-      setPerfCheckLoading(false);
+      setSelectedPerfTags(await fetchPerformanceTagIds(perf.id));
+    } catch (err) {
+      console.error('Error loading performance tags:', err);
+      setSelectedPerfTags([]);
     }
+    setPerfDialogOpen(true);
+    void refreshPerfDialogHistory();
+  };
+
+  const closePerfDialog = () => {
+    setPerfDialogOpen(false);
+    setEditingPerfId(null);
   };
 
   const handleSavePerformance = async () => {
     if (!selectedSong) return;
     setSavingPerf(true);
     try {
-      const result = await db.execute({
-        sql: "INSERT INTO performances (song_id, user_id, date, location, notes, rating) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
-        args: [selectedSong.id, currentUser.id, perfDate, perfLocation, perfNotes, perfRating]
-      });
-      
-      const perfId = (result.rows[0] as unknown as { id: number }).id;
-      
-      // Save performance tags
-      for (const tagId of selectedPerfTags) {
+      let perfId = editingPerfId;
+
+      if (editingPerfId != null) {
         await db.execute({
-          sql: "INSERT INTO performance_tags (performance_id, tag_id) VALUES (?, ?)",
-          args: [perfId, tagId]
+          sql: `UPDATE performances SET date = ?, location = ?, notes = ?, rating = ?
+                WHERE id = ? AND user_id = ?`,
+          args: [
+            perfDate,
+            perfLocation,
+            perfNotes,
+            perfRating,
+            editingPerfId,
+            currentUser.id,
+          ],
         });
+        await db.execute({
+          sql: 'DELETE FROM performance_tags WHERE performance_id = ?',
+          args: [editingPerfId],
+        });
+      } else {
+        const result = await db.execute({
+          sql: `INSERT INTO performances (song_id, user_id, date, location, notes, rating)
+                VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+          args: [
+            selectedSong.id,
+            currentUser.id,
+            perfDate,
+            perfLocation,
+            perfNotes,
+            perfRating,
+          ],
+        });
+        perfId = (result.rows[0] as unknown as { id: number }).id;
       }
 
-      setPerfDialogOpen(false);
-      setPerfCheckExpanded(false);
+      if (perfId != null) {
+        for (const tagId of selectedPerfTags) {
+          await db.execute({
+            sql: 'INSERT INTO performance_tags (performance_id, tag_id) VALUES (?, ?)',
+            args: [perfId, tagId],
+          });
+        }
+      }
+
+      closePerfDialog();
       fetchPerformances(selectedSong.id);
     } catch (err) {
       console.error('Error saving performance:', err);
-      alert('Failed to save performance.');
+      alert(
+        editingPerfId != null
+          ? 'Failed to update performance.'
+          : 'Failed to save performance.'
+      );
     } finally {
       setSavingPerf(false);
     }
@@ -648,6 +716,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                     <TableCell>Location</TableCell>
                     <TableCell align="center">Performance</TableCell>
                     <TableCell align="center">Notes</TableCell>
+                    <TableCell align="center">Edit</TableCell>
                     <TableCell align="center">Delete</TableCell>
                   </TableRow>
                 </TableHead>
@@ -659,8 +728,19 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                       <TableCell align="center">
                         <Rating value={perf.rating || 0} readOnly size="small" />
                       </TableCell>
-                      <TableCell align="center">{perf.notes ? <IconButton onClick={() => handleShowNotes(perf.notes)}><NotesIcon /></IconButton> : '-'}</TableCell>
-                      <TableCell align="center"><IconButton color="error" onClick={() => handleDeletePerformance(perf.id)}><CloseIcon /></IconButton></TableCell>
+                      <TableCell align="center">{perf.notes ? <IconButton onClick={() => handleShowNotes(perf.notes)} aria-label="View notes"><NotesIcon /></IconButton> : '-'}</TableCell>
+                      <TableCell align="center">
+                        <Tooltip title="Edit performance">
+                          <IconButton
+                            color="primary"
+                            aria-label="Edit performance"
+                            onClick={() => void handleOpenEditPerformance(perf)}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell align="center"><IconButton color="error" onClick={() => handleDeletePerformance(perf.id)} aria-label="Delete performance"><CloseIcon /></IconButton></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -672,15 +752,14 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
         <Dialog
           open={perfDialogOpen}
           onClose={() => {
-            if (!savingPerf) {
-              setPerfDialogOpen(false);
-              setPerfCheckExpanded(false);
-            }
+            if (!savingPerf) closePerfDialog();
           }}
           fullWidth
           maxWidth="xs"
         >
-          <DialogTitle>Record performance</DialogTitle>
+          <DialogTitle>
+            {editingPerfId != null ? 'Edit performance' : 'Record performance'}
+          </DialogTitle>
           <DialogContent>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
               <TextField label="Date" type="date" value={perfDate} onChange={(e) => setPerfDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth />
@@ -711,56 +790,70 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                   multiple
                   options={availableTags}
                   getOptionLabel={(option) => option.name}
+                  value={availableTags.filter((t) => selectedPerfTags.includes(t.id))}
                   renderInput={(params) => <TextField {...params} label="Tags" placeholder="Add tags..." />}
-                  onChange={(_, value) => setSelectedPerfTags(value.map(v => v.id))}
+                  onChange={(_, value) => setSelectedPerfTags(value.map((v) => v.id))}
                 />
               </FormControl>
 
               <TextField label="Notes" placeholder="How did it go?" multiline rows={3} value={perfNotes} onChange={(e) => setPerfNotes(e.target.value)} fullWidth />
 
-              <Button
-                variant="outlined"
-                fullWidth
-                onClick={() => void handlePerfCheck()}
-                disabled={savingPerf || perfCheckLoading}
-              >
-                {perfCheckLoading ? <CircularProgress size={22} /> : 'Check'}
-              </Button>
+              <Divider />
 
-              {perfCheckExpanded && (
-                <Box
-                  sx={{
-                    maxHeight: 220,
-                    overflow: 'auto',
-                    border: 1,
-                    borderColor: 'divider',
-                    borderRadius: 1,
-                    px: 1,
-                  }}
-                >
-                  {performances.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-                      No performances recorded for this song yet.
-                    </Typography>
-                  ) : (
-                    <List dense disablePadding>
-                      {performances.map((p) => (
-                        <ListItem key={p.id} disablePadding sx={{ py: 0.5 }}>
-                          <ListItemText
-                            primary={new Date(p.date).toLocaleDateString()}
-                            secondary={p.location?.trim() ? p.location : '—'}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  )}
-                </Box>
-              )}
+              <Typography variant="subtitle2" color="text.secondary">
+                Previous performances
+              </Typography>
+              <Box
+                sx={{
+                  maxHeight: 220,
+                  overflow: 'auto',
+                  border: 1,
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  px: 1,
+                }}
+              >
+                {perfHistoryLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                    <CircularProgress size={22} />
+                  </Box>
+                ) : performances.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+                    No performances recorded for this song yet.
+                  </Typography>
+                ) : (
+                  <List dense disablePadding>
+                    {performances.map((p) => (
+                      <ListItem key={p.id} disablePadding sx={{ py: 0.5 }}>
+                        <ListItemText
+                          primary={new Date(p.date).toLocaleDateString()}
+                          secondary={
+                            <>
+                              {p.location?.trim() ? p.location : '—'}
+                              {p.rating ? (
+                                <Rating value={p.rating} readOnly size="small" sx={{ display: 'block', mt: 0.25 }} />
+                              ) : null}
+                            </>
+                          }
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </Box>
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => { setPerfDialogOpen(false); setPerfCheckExpanded(false); }} disabled={savingPerf}>Cancel</Button>
-            <Button onClick={handleSavePerformance} variant="contained" disabled={savingPerf}>{savingPerf ? <CircularProgress size={24} /> : 'Save'}</Button>
+            <Button onClick={closePerfDialog} disabled={savingPerf}>Cancel</Button>
+            <Button onClick={handleSavePerformance} variant="contained" disabled={savingPerf}>
+              {savingPerf ? (
+                <CircularProgress size={24} />
+              ) : editingPerfId != null ? (
+                'Update'
+              ) : (
+                'Save'
+              )}
+            </Button>
           </DialogActions>
         </Dialog>
 
