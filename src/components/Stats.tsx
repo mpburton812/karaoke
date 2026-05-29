@@ -395,7 +395,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
               <Typography variant="h4" sx={{ fontWeight: 'bold' }}>{item.value}</Typography>
               <Typography variant="caption" color="textSecondary">{item.label}</Typography>
               {item.onClick && (
-                <Typography variant="caption" display="block" color="primary" sx={{ mt: 0.5 }}>
+                <Typography variant="caption" color="primary" sx={{ mt: 0.5, display: 'block' }}>
                   Tap for details
                 </Typography>
               )}
@@ -617,7 +617,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
                       <TableCell>{row.location?.trim() || '—'}</TableCell>
                       <TableCell>
                         {row.track_name}
-                        <Typography variant="caption" color="text.secondary" display="block">
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                           {row.artist_name}
                         </Typography>
                       </TableCell>
@@ -675,7 +675,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
                       size="small"
                       precision={0.1}
                     />
-                    <Typography variant="caption" color="text.secondary" display="block">
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                       {song.avgRating.toFixed(1)} · {song.perfCount}{' '}
                       {song.perfCount === 1 ? 'performance' : 'performances'}
                     </Typography>
