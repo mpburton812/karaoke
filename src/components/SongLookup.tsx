@@ -72,6 +72,12 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
     severity: 'success'
   });
 
+  const handleClearSearch = () => {
+    setQuery('');
+    setResults([]);
+    setError(null);
+  };
+
   const handleSearch = async () => {
     if (!query) return;
     setLoading(true);
@@ -323,6 +329,13 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
           onChange={(e) => setQuery(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
         />
+        <Button
+          variant="outlined"
+          onClick={handleClearSearch}
+          disabled={loading || (!query && results.length === 0)}
+        >
+          Clear
+        </Button>
         <Button 
           variant="contained" 
           startIcon={<SearchIcon />} 

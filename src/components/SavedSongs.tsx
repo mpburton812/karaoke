@@ -837,6 +837,14 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                 sx={{ flexGrow: 1, minWidth: 220 }}
                 slotProps={{ input: { startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} /> } }}
               />
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => setSearchQuery('')}
+                disabled={!searchQuery}
+              >
+                Clear
+              </Button>
               <FormControl size="small" sx={{ minWidth: 140 }}>
                 <InputLabel>Genre</InputLabel>
                 <Select value={genreFilter} label="Genre" onChange={(e) => setGenreFilter(e.target.value)}>
