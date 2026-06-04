@@ -1,6 +1,6 @@
 # Karaoke Companion
 
-Personal karaoke repertoire manager: song lookup (iTunes, KaraFun, lyrics), performances, tags, venues, and stats. React PWA with an Express API backed by [Turso](https://turso.tech/).
+Multi-user karaoke repertoire manager: iTunes song lookup, lyrics enrichment, performances, tags, venues, and stats. React PWA with an Express API backed by [Turso](https://turso.tech/) — each account’s data is isolated by `user_id`.
 
 ## Architecture
 
@@ -45,8 +45,8 @@ cp .env.example .env
 | `SPOTIFY_CLIENT_SECRET` | No | Spotify OAuth (server only) |
 | `SPOTIFY_REDIRECT_URI` | No | e.g. `http://127.0.0.1:3001/api/spotify/callback` |
 | `PUBLIC_APP_URL` | No | SPA origin after OAuth, e.g. `http://127.0.0.1:5173` |
-| `GETSONGBPM_API_KEY` | No | Optional enrichment provider for BPM/key |
-| `LASTFM_API_KEY` | No | Optional enrichment provider for genre/mood tags |
+| `SERVE_STATIC` | No | `true` on Render (serves `dist/` from the API) |
+| `ADMIN_USERNAMES` | No | Comma-separated usernames that receive `admin` access (default: `mpburton`) |
 
 **Never commit `.env` or put Turso tokens in `VITE_*` variables.**
 
@@ -109,7 +109,7 @@ If secrets are missing in CI, integration tests skip automatically.
 
 The live site must be a **Web Service**, not a **Static Site**. A static deploy only serves `dist/` files; `/api/*` returns 404 and the app shows “API server unavailable”.
 
-1. Use the repo’s [`render.yaml`](render.yaml) or create a **Web Service** from GitHub (`dev` branch).
+1. Use the repo’s [`render.yaml`](render.yaml) or create a **Web Service** from GitHub (`main` branch per blueprint).
 2. **Build command:** `npm install --include=dev && npm run build`  
    (Required if `NODE_ENV=production` is set — otherwise npm skips Vite/TypeScript.)
 3. **Start command:** `npm start` (API + serves `dist/` when `SERVE_STATIC=true`)
@@ -148,19 +148,11 @@ Used by **Admin → Spotify account** to link a Spotify user for playlist access
 
 Scopes requested: `playlist-read-private`, `playlist-read-collaborative`. Refresh tokens are stored in Turso on the `users` row.
 
-### Optional enrichment providers
+### Song enrichment (lyrics)
 
-Song enrichment always checks local KaraFun, lyrics, and MusicBrainz. If these
-optional keys are present on the API service, enrichment also uses:
-
-| Variable | Provider | Used for |
-|----------|----------|----------|
-| `GETSONGBPM_API_KEY` | GetSongBPM | BPM and key fallback |
-| `LASTFM_API_KEY` | Last.fm | Genre/tag and mood-style fallback |
-
-If a song has a Spotify track id and the user has connected Spotify, the server
-also tries Spotify audio features first. Some Spotify apps may not have access
-to that endpoint; enrichment continues with the other providers when blocked.
+After import, the server background job fetches **lyrics** (lyrics.ovh) and sets
+`enriched_at`. iTunes import may also fetch lyrics in the browser before save.
+Admin → **Song enrichment** runs the queue for songs missing `enriched_at`.
 
 ### Split deploy (API + static frontend on different hosts)
 
@@ -200,14 +192,15 @@ npx cap sync android
 | `ci.yml` | PR / push `main`, `dev` | Lint, unit tests, web build |
 | `integration.yml` | push `dev`, manual | Turso integration tests (needs secrets) |
 | `android-build.yml` | push `dev`, manual | Debug APK |
-| `update-catalog.yml` | nightly, manual | KaraFun catalog sync |
-
-## Security notes
+## Security notes (shared / multi-user)
 
 - Passwords are hashed with bcrypt; sessions use JWT.
 - Turso credentials are **not** shipped to the browser.
-- `/api/execute` is authenticated but still accepts SQL from logged-in users — treat as a known limitation for untrusted multi-tenant use.
+- All song/performance rows are scoped by `user_id`; configure `ADMIN_USERNAMES` for operators.
+- `/api/execute` still accepts SQL from logged-in clients — **Track 2 (security sprint)** will add scoped REST APIs and tighter SQL guard. Do not expose the app to untrusted users until that work ships.
+- Admin routes (`/api/admin/*`) require `access_level = admin`.
 - Rotate `TURSO_AUTH_TOKEN` and `JWT_SECRET` if they were ever committed to git.
+- Use a strong unique `JWT_SECRET` in production (no default dev secret).
 
 ## License
 

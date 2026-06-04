@@ -124,8 +124,8 @@ const GodMode: React.FC = () => {
         User administration
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        User accounts and password controls. System health, enrichment, and KaraFun
-        tools are in Settings (gear icon).
+        User accounts and password controls. System health and enrichment tools are
+        in Settings (gear icon).
       </Typography>
 
       {error && (

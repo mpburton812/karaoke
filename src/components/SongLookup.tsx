@@ -148,41 +148,17 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
         return;
       }
 
-      const qualities = {
-        bpm: null as number | null,
-        key: "DNF",
-        energy: null as number | null,
-        danceability: null as number | null,
-        happiness: null as number | null,
-        acousticness: null as number | null,
-        instrumentalness: null as number | null,
-        liveness: null as number | null,
-        speechiness: null as number | null,
-        loudness: null as number | null,
-      };
-
       const result = await db.execute({
         sql: `INSERT INTO songs (
           user_id, itunes_id, track_name, artist_name, artwork_url,
-          key, bpm, duration_ms, popularity, energy, danceability, happiness,
-          acousticness, instrumentalness, liveness, speechiness, loudness,
-          release_date, explicit, album, release_year, lyrics
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          duration_ms, release_date, explicit, album, release_year, lyrics,
+          personal_key, vocal_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '0', 'Practicing')
         ON CONFLICT(user_id, itunes_id) DO UPDATE SET
           track_name = excluded.track_name,
           artist_name = excluded.artist_name,
           artwork_url = excluded.artwork_url,
-          key = excluded.key,
-          bpm = excluded.bpm,
           duration_ms = excluded.duration_ms,
-          energy = excluded.energy,
-          danceability = excluded.danceability,
-          happiness = excluded.happiness,
-          acousticness = excluded.acousticness,
-          instrumentalness = excluded.instrumentalness,
-          liveness = excluded.liveness,
-          speechiness = excluded.speechiness,
-          loudness = excluded.loudness,
           release_date = excluded.release_date,
           explicit = excluded.explicit,
           album = excluded.album,
@@ -195,18 +171,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
           selectedSong.trackName,
           selectedSong.artistName,
           selectedSong.artworkUrl100,
-          qualities.key,
-          qualities.bpm,
           selectedSong.trackTimeMillis,
-          null,
-          qualities.energy,
-          qualities.danceability,
-          qualities.happiness,
-          qualities.acousticness,
-          qualities.instrumentalness,
-          qualities.liveness,
-          qualities.speechiness,
-          qualities.loudness,
           selectedSong.releaseDate,
           selectedSong.trackExplicitness === 'explicit' ? 1 : 0,
           selectedSong.collectionName,

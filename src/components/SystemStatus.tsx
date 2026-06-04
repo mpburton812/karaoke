@@ -96,13 +96,8 @@ const SystemStatus = () => {
         </Grid>
 
         <Grid size={{ xs: 12, sm: 4 }}>
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>GetSongBPM</Typography>
-          <Box sx={{ mt: 0.5 }}>{statusChip(health?.providers.getSongBpm, 'Configured')}</Box>
-        </Grid>
-
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Last.fm</Typography>
-          <Box sx={{ mt: 0.5 }}>{statusChip(health?.providers.lastFm, 'Configured')}</Box>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Lyrics enrichment</Typography>
+          <Box sx={{ mt: 0.5 }}>{statusChip(health?.providers.lyricsEnrichment, 'Active')}</Box>
         </Grid>
 
         <Grid size={{ xs: 12, sm: 4 }}>

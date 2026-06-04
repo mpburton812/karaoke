@@ -18,8 +18,7 @@ export interface AdminHealthResponse {
     spotifyOAuth: boolean;
     spotifyClientId: boolean;
     spotifyClientSecret: boolean;
-    getSongBpm: boolean;
-    lastFm: boolean;
+    lyricsEnrichment: boolean;
   };
 }
 

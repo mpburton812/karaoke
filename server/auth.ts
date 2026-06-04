@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { Request } from "express";
+import { accessLevelForNewUser } from "./adminConfig.js";
 import { db } from "./db.js";
 import { seedWelcomeSongForUser } from "./welcomeSong.js";
 
@@ -59,7 +60,7 @@ export async function registerUser(
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const accessLevel = trimmed.toLowerCase() === "mpburton" ? "admin" : "user";
+  const accessLevel = accessLevelForNewUser(trimmed);
   const result = await db.execute({
     sql: "INSERT INTO users (username, password_hash, access_level) VALUES (?, ?, ?) RETURNING id, username, access_level",
     args: [trimmed, passwordHash, accessLevel],

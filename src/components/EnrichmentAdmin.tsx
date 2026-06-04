@@ -124,10 +124,9 @@ const EnrichmentAdmin: React.FC = () => {
         Song enrichment
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Backend enrichment checks Karaoke availability, lyrics, Spotify audio
-        features (when linked), GetSongBPM, Last.fm, MusicBrainz, and
-        AcousticBrainz. Use this to scan every song that has not finished
-        enrichment yet.
+        Backend enrichment fetches lyrics for songs that have not finished yet
+        (sets enriched_at when complete). Use this to backfill lyrics across your
+        library.
       </Typography>
 
       {error && (

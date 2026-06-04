@@ -432,9 +432,9 @@ export async function syncSpotifyPlaylist(
       sql: `INSERT INTO songs (
         user_id, itunes_id, spotify_track_id, spotify_sync_playlist_id,
         track_name, artist_name, artwork_url, duration_ms, album, explicit,
-        popularity, release_date, release_year, genre,
-        karafun_available, personal_key, vocal_status
-      ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, 'Standard', 'Practicing')
+        popularity, release_date, release_year,
+        personal_key, vocal_status
+      ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '0', 'Practicing')
       RETURNING id`,
       args: [
         userId,

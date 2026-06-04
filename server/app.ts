@@ -715,7 +715,7 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     }
   );
 
-  app.get("/api/admin/health", requireAuth, async (_req, res) => {
+  app.get("/api/admin/health", requireAuth, requireAdmin, async (_req, res) => {
     try {
       res.json({
         ok: true,
@@ -726,8 +726,7 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
           spotifyOAuth: spotifyOAuthConfigured(),
           spotifyClientId: Boolean(process.env.SPOTIFY_CLIENT_ID?.trim()),
           spotifyClientSecret: Boolean(process.env.SPOTIFY_CLIENT_SECRET?.trim()),
-          getSongBpm: Boolean(process.env.GETSONGBPM_API_KEY?.trim()),
-          lastFm: Boolean(process.env.LASTFM_API_KEY?.trim()),
+          lyricsEnrichment: true,
         },
       });
     } catch (err) {

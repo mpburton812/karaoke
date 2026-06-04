@@ -58,28 +58,15 @@ interface Song {
   track_name: string;
   artist_name: string;
   artwork_url: string;
-  karafun_available: boolean;
-  key: string;
-  bpm: number;
   duration_ms: number;
-  popularity: number;
-  energy: number;
-  danceability: number;
-  happiness: number;
-  acousticness: number;
-  instrumentalness: number;
-  liveness: number;
-  speechiness: number;
-  loudness: number;
+  popularity: number | null;
   release_date: string;
   explicit: boolean;
   album: string;
-  genre: string;
   release_year: number;
   personal_key: string;
   vocal_status: string;
   lyrics?: string;
-  last_practiced?: string;
 }
 
 interface Performance {
@@ -1080,7 +1067,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                       } 
                       secondary={
                         <Typography variant="body2" color="textSecondary" noWrap>
-                          {song.artist_name} • {song.personal_key || 'Standard'}
+                          {song.artist_name} • key {song.personal_key || '0'}
                           {song.spotify_track_id && song.spotify_source_playlist_name
                             ? ` • ${song.spotify_source_playlist_name}`
                             : ''}

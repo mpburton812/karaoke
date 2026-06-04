@@ -1,4 +1,6 @@
+import { syncAdminAccessLevels } from "./adminConfig.js";
 import { db } from "./db.js";
+import { runSchemaMigrations } from "./schemaMigrations.js";
 
 export const initDb = async () => {
   try {
@@ -27,10 +29,7 @@ export const initDb = async () => {
       }
     }
 
-    await db.execute({
-      sql: "UPDATE users SET access_level = 'admin' WHERE LOWER(username) = LOWER(?)",
-      args: ["mpburton"],
-    });
+    await syncAdminAccessLevels();
 
     for (const col of [
       "spotify_refresh_token TEXT",
@@ -70,7 +69,7 @@ export const initDb = async () => {
         album TEXT,
         genre TEXT,
         release_year INTEGER,
-        personal_key TEXT DEFAULT 'Standard',
+        personal_key TEXT DEFAULT '0',
         vocal_status TEXT DEFAULT 'Practicing',
         lyrics TEXT,
         last_practiced TEXT,
@@ -84,7 +83,7 @@ export const initDb = async () => {
       { name: 'user_id', type: 'INTEGER' },
       { name: 'genre', type: 'TEXT' },
       { name: 'release_year', type: 'INTEGER' },
-      { name: 'personal_key', type: "TEXT DEFAULT 'Standard'" },
+      { name: 'personal_key', type: "TEXT DEFAULT '0'" },
       { name: 'vocal_status', type: "TEXT DEFAULT 'Practicing'" },
       { name: 'lyrics', type: 'TEXT' },
       { name: 'last_practiced', type: 'TEXT' },
@@ -174,35 +173,6 @@ export const initDb = async () => {
           SELECT 1 FROM spotify_synced_playlists p
           WHERE p.user_id = s.user_id AND p.spotify_playlist_id = s.spotify_sync_playlist_id
         )
-    `);
-
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS setlists (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        name TEXT NOT NULL,
-        description TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-      )
-    `);
-
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS setlist_songs (
-        setlist_id INTEGER,
-        song_id INTEGER,
-        display_order INTEGER,
-        PRIMARY KEY (setlist_id, song_id),
-        FOREIGN KEY (setlist_id) REFERENCES setlists (id) ON DELETE CASCADE,
-        FOREIGN KEY (song_id) REFERENCES songs (id) ON DELETE CASCADE
-      )
-    `);
-
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS metadata (
-        key TEXT PRIMARY KEY,
-        value TEXT
-      )
     `);
 
     await db.execute(`
@@ -440,23 +410,7 @@ export const initDb = async () => {
       `CREATE INDEX IF NOT EXISTS idx_event_logs_occurred ON event_logs (occurred_at DESC, id DESC)`
     );
 
-    try {
-      await db.execute(`DROP TABLE IF EXISTS karafun_catalog`);
-      await db.execute(`DELETE FROM metadata WHERE key = 'karafun_last_updated'`);
-      await db.execute(`
-        DELETE FROM song_tags
-        WHERE rowid IN (
-          SELECT st.rowid FROM song_tags st
-          INNER JOIN songs s ON s.id = st.song_id
-          INNER JOIN tags t ON t.id = st.tag_id
-          WHERE s.genre IS NOT NULL
-            AND lower(trim(t.name)) = lower(trim(s.genre))
-        )
-      `);
-      await db.execute(`UPDATE songs SET genre = NULL WHERE genre IS NOT NULL`);
-    } catch (migrationErr) {
-      console.error("Genre/KaraFun cleanup migration skipped:", migrationErr);
-    }
+    await runSchemaMigrations();
 
   } catch (error) {
     console.error("Error initializing database:", error);

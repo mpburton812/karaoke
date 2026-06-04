@@ -239,7 +239,7 @@ function App() {
   const handleNukeData = async () => {
     if (!currentUser) return;
     const confirmed = window.confirm(
-      "CRITICAL WARNING: This will permanently delete ALL your songs, performances, setlists, tags, and locations. This action CANNOT be undone. Are you absolutely sure?"
+      "CRITICAL WARNING: This will permanently delete ALL your songs, performances, tags, and locations. This action CANNOT be undone. Are you absolutely sure?"
     );
     
     if (confirmed) {
@@ -248,10 +248,8 @@ function App() {
         await db.batch([
           { sql: "DELETE FROM performance_tags WHERE performance_id IN (SELECT id FROM performances WHERE user_id = ?)", args: [currentUser.id] },
           { sql: "DELETE FROM song_tags WHERE song_id IN (SELECT id FROM songs WHERE user_id = ?)", args: [currentUser.id] },
-          { sql: "DELETE FROM setlist_songs WHERE setlist_id IN (SELECT id FROM setlists WHERE user_id = ?)", args: [currentUser.id] },
           { sql: "DELETE FROM performances WHERE user_id = ?", args: [currentUser.id] },
           { sql: "DELETE FROM songs WHERE user_id = ?", args: [currentUser.id] },
-          { sql: "DELETE FROM setlists WHERE user_id = ?", args: [currentUser.id] },
           { sql: "DELETE FROM tags WHERE user_id = ?", args: [currentUser.id] },
           { sql: "DELETE FROM locations WHERE user_id = ?", args: [currentUser.id] }
         ]);

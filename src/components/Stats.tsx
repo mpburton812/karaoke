@@ -69,11 +69,6 @@ interface TopSong {
   artwork_url: string;
 }
 
-interface GenreStat {
-  genre: string;
-  count: number;
-}
-
 interface VenueStat {
   location: string;
   count: number;
@@ -118,7 +113,6 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
   const [stats, setStats] = useState<GlobalStats | null>(null);
   const [topArtists, setTopArtists] = useState<TopArtist[]>([]);
   const [topSongs, setTopSongs] = useState<TopSong[]>([]);
-  const [genres, setGenres] = useState<GenreStat[]>([]);
   const [venues, setVenues] = useState<VenueStat[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [detailDialog, setDetailDialog] = useState<StatsDetailDialog>(null);
@@ -171,7 +165,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
     setLoading(true);
     const uid = currentUser.id;
     try {
-      const [globalRes, artistRes, songRes, genreRes, venueRes, historyRes] = await Promise.all([
+      const [globalRes, artistRes, songRes, venueRes, historyRes] = await Promise.all([
         db.execute({
           sql: `SELECT 
                   (SELECT COUNT(*) FROM songs WHERE user_id = ?) as totalSongs,
@@ -201,15 +195,6 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
                 GROUP BY s.id 
                 ORDER BY count DESC 
                 LIMIT 5`,
-          args: [uid],
-        }),
-        db.execute({
-          sql: `SELECT genre, COUNT(*) as count 
-                FROM songs 
-                WHERE user_id = ? AND genre IS NOT NULL
-                GROUP BY genre 
-                ORDER BY count DESC 
-                LIMIT 8`,
           args: [uid],
         }),
         db.execute({
@@ -244,7 +229,6 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
 
       setTopArtists(artistRes.rows as unknown as TopArtist[]);
       setTopSongs(songRes.rows as unknown as TopSong[]);
-      setGenres(genreRes.rows as unknown as GenreStat[]);
       setVenues(venueRes.rows as unknown as VenueStat[]);
 
       const history = historyRes.rows as unknown as HistoryEntry[];
@@ -509,48 +493,24 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
           </Paper>
         </Grid>
 
-        {/* Top Artists & Genres */}
+        {/* Top artists */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, height: '100%' }}>
-            <Paper elevation={2} sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
-                <TrendingUpIcon color="primary" />
-                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Top artists</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {topArtists.map((artist, i) => (
-                  <Chip 
-                    key={i} 
-                    label={`${artist.artist_name} (${artist.count})`} 
-                    color={i === 0 ? "primary" : "default"}
-                    sx={{ fontWeight: i === 0 ? 'bold' : 'normal' }}
-                  />
-                ))}
-              </Box>
-            </Paper>
-
-            <Paper elevation={2} sx={{ p: 3, flexGrow: 1 }}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Genre mix</Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {genres.map((g, i) => (
-                  <Box key={i} sx={{ width: '100%', mb: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography variant="body2">{g.genre}</Typography>
-                      <Typography variant="body2" color="textSecondary">{g.count} songs</Typography>
-                    </Box>
-                    <Box sx={{ width: '100%', height: 8, bgcolor: 'background.default', borderRadius: 9999, overflow: 'hidden' }}>
-                      <Box sx={{ 
-                        width: `${(g.count / (stats?.totalSongs || 1)) * 100}%`, 
-                        height: '100%', 
-                        bgcolor: i % 2 === 0 ? 'primary.main' : 'secondary.main',
-                        borderRadius: 9999,
-                      }} />
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-            </Paper>
-          </Box>
+          <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
+              <TrendingUpIcon color="primary" />
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Top artists</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {topArtists.map((artist, i) => (
+                <Chip
+                  key={i}
+                  label={`${artist.artist_name} (${artist.count})`}
+                  color={i === 0 ? 'primary' : 'default'}
+                  sx={{ fontWeight: i === 0 ? 'bold' : 'normal' }}
+                />
+              ))}
+            </Box>
+          </Paper>
         </Grid>
 
         {/* Venue Leaderboard */}

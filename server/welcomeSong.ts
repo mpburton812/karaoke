@@ -11,14 +11,13 @@ export const WELCOME_SONG = {
   releaseDate: "1973-11-02",
   releaseYear: 1973,
   durationMs: 339_000,
-  genre: "Rock",
   artworkUrl:
     "https://i.scdn.co/image/ab67616d0000b273ac26a12b2b4c5ab47cd51f38",
 } as const;
 
 /**
  * Inserts Piano Man into a new user's library and runs full server enrichment
- * (KaraFun, lyrics, GetSongBPM, Last.fm, MusicBrainz, optional Spotify features).
+ * (lyrics lookup via server enrichment).
  */
 export async function seedWelcomeSongForUser(userId: number): Promise<void> {
   try {
@@ -43,9 +42,9 @@ export async function seedWelcomeSongForUser(userId: number): Promise<void> {
     const ins = await db.execute({
       sql: `INSERT INTO songs (
         user_id, itunes_id, spotify_track_id, track_name, artist_name, artwork_url,
-        album, release_date, release_year, duration_ms, genre,
-        personal_key, vocal_status, karafun_available
-      ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Standard', 'Practicing', 0)
+        album, release_date, release_year, duration_ms,
+        personal_key, vocal_status
+      ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, '0', 'Practicing')
       RETURNING id`,
       args: [
         userId,
@@ -57,7 +56,6 @@ export async function seedWelcomeSongForUser(userId: number): Promise<void> {
         WELCOME_SONG.releaseDate,
         WELCOME_SONG.releaseYear,
         WELCOME_SONG.durationMs,
-        WELCOME_SONG.genre,
       ],
     });
     const newId = Number((ins.rows[0] as { id?: unknown })?.id);

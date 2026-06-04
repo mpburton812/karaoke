@@ -29,7 +29,5 @@ services:
         sync: false
       - key: PUBLIC_APP_URL
         sync: false
-      - key: GETSONGBPM_API_KEY
-        sync: false
-      - key: LASTFM_API_KEY
+      - key: ADMIN_USERNAMES
         sync: false
