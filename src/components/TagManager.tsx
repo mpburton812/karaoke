@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Box, 
   Typography, 
@@ -31,7 +31,16 @@ import {
   deleteTag,
 } from '../api/repertoire';
 import EmptyState from './EmptyState';
-import { KARAOKE_OPEN_SONG_EVENT, type KaraokeOpenSongDetail } from '../lib/karaokeEvents';
+import {
+  KARAOKE_OPEN_SONG_EVENT,
+  KARAOKE_SONGS_REFRESH_EVENT,
+  type KaraokeOpenSongDetail,
+} from '../lib/karaokeEvents';
+import {
+  getTagCloudChipMetrics,
+  normalizeTagCount,
+  tagCountBounds,
+} from '../utils/tagCloudScale';
 
 interface Tag {
   id: number;
@@ -101,6 +110,28 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
   useEffect(() => {
     Promise.resolve().then(() => fetchData());
   }, [fetchData]);
+
+  useEffect(() => {
+    const onRefresh = () => {
+      void fetchData();
+    };
+    window.addEventListener(KARAOKE_SONGS_REFRESH_EVENT, onRefresh);
+    return () => window.removeEventListener(KARAOKE_SONGS_REFRESH_EVENT, onRefresh);
+  }, [fetchData]);
+
+  const tagCountRange = useMemo(() => {
+    const counts = tags.map((t) => normalizeTagCount(t.count));
+    return tagCountBounds(counts);
+  }, [tags]);
+
+  const tagsForCloud = useMemo(() => {
+    return [...tags].sort((a, b) => {
+      const ca = normalizeTagCount(a.count);
+      const cb = normalizeTagCount(b.count);
+      if (cb !== ca) return cb - ca;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    });
+  }, [tags]);
 
   const fetchFilteredSongs = useCallback(async () => {
     if (selectedTagIds.length === 0) {
@@ -314,21 +345,31 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
               <Box component="span" sx={{ color: 'success.main' }}>Tags</Box>
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 3, alignItems: 'center' }}>
-              {tags.map(tag => (
-                <Chip 
-                  key={`tag-${tag.id}`} 
-                  label={tag.name} 
-                  onClick={() => toggleTagSelection(tag.id)}
-                  color={selectedTagIds.includes(tag.id) ? "primary" : "default"}
-                  variant={selectedTagIds.includes(tag.id) ? "filled" : "outlined"}
-                  sx={{ 
-                    fontSize: '1rem',
-                    height: 'auto',
-                    padding: '4px 0',
-                    '& .MuiChip-label': { px: 2 }
-                  }}
-                />
-              ))}
+              {tagsForCloud.map(tag => {
+                const count = normalizeTagCount(tag.count);
+                const metrics = getTagCloudChipMetrics(
+                  count,
+                  tagCountRange.min,
+                  tagCountRange.max
+                );
+                const selected = selectedTagIds.includes(tag.id);
+                return (
+                  <Chip
+                    key={`tag-${tag.id}`}
+                    label={`${tag.name} (${count})`}
+                    onClick={() => toggleTagSelection(tag.id)}
+                    aria-label={`${tag.name}, ${count} songs`}
+                    color={selected ? 'primary' : 'default'}
+                    variant={selected ? 'filled' : 'outlined'}
+                    sx={{
+                      fontSize: `${metrics.fontSizeRem}rem`,
+                      height: 'auto',
+                      padding: `${metrics.chipPaddingY}px 0`,
+                      '& .MuiChip-label': { px: metrics.labelPaddingX },
+                    }}
+                  />
+                );
+              })}
             </Box>
           </Paper>
 

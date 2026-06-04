@@ -275,6 +275,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
       await addSongTag(selectedSong.id, tagId);
       console.log('Successfully inserted/ignored song tag');
       await fetchSongTags(selectedSong.id);
+      window.dispatchEvent(new Event(KARAOKE_SONGS_REFRESH_EVENT));
       console.log('Refetched song tags');
     } catch (err) {
       console.error('Error in handleAddSongTag:', err);
@@ -286,7 +287,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     if (!selectedSong) return;
     try {
       await removeSongTag(selectedSong.id, tagId);
-      fetchSongTags(selectedSong.id);
+      await fetchSongTags(selectedSong.id);
+      window.dispatchEvent(new Event(KARAOKE_SONGS_REFRESH_EVENT));
     } catch (err) {
       console.error(err);
     }

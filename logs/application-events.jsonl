@@ -20,3 +20,18 @@
 {"at":"2026-05-20T20:36:40.115Z","level":"I","user":"mpburton","message":"Client loaded build 84d5885 (dev)","category":"release"}
 {"at":"2026-05-21T12:29:48.708Z","level":"I","user":null,"message":"API started — build 84d5885 on branch dev [development]","category":"release"}
 {"at":"2026-05-21T12:29:51.190Z","level":"I","user":null,"message":"API started — build 84d5885 on branch dev [development]","category":"release"}
+{"at":"2026-06-04T18:17:30.886Z","level":"I","user":null,"message":"API started — build c85814a on branch dev [development]","event":"application_configuration_load_success","category":"application_configuration_load_success"}
+{"at":"2026-06-04T18:17:50.092Z","level":"I","user":"api_integration_1780597069300","message":"User login success","event":"user_login_success","category":"user_login_success"}
+{"at":"2026-06-04T18:17:50.124Z","level":"I","user":"repertoire_1780597069299","message":"User login success","event":"user_login_success","category":"user_login_success"}
+{"at":"2026-06-04T18:17:50.463Z","level":"I","user":"repertoire_other_1780597069299","message":"User login success","event":"user_login_success","category":"user_login_success"}
+{"at":"2026-06-04T18:20:42.612Z","level":"I","user":null,"message":"API started — build c85814a on branch dev [development]","event":"application_configuration_load_success","category":"application_configuration_load_success"}
+{"at":"2026-06-04T18:28:36.957Z","level":"I","user":null,"message":"API started — build c85814a on branch dev [development]","event":"application_configuration_load_success","category":"application_configuration_load_success"}
+{"at":"2026-06-04T18:28:56.524Z","level":"I","user":"api_integration_1780597735760","message":"User login success","event":"user_login_success","category":"user_login_success"}
+{"at":"2026-06-04T18:28:56.540Z","level":"I","user":"repertoire_1780597735760","message":"User login success","event":"user_login_success","category":"user_login_success"}
+{"at":"2026-06-04T18:28:56.844Z","level":"I","user":"repertoire_other_1780597735760","message":"User login success","event":"user_login_success","category":"user_login_success"}
+{"at":"2026-06-04T18:59:15.158Z","level":"I","user":"api_integration_1780599554355","message":"User login success","event":"user_login_success","category":"user_login_success"}
+{"at":"2026-06-04T18:59:15.177Z","level":"I","user":"repertoire_1780599554357","message":"User login success","event":"user_login_success","category":"user_login_success"}
+{"at":"2026-06-04T18:59:15.485Z","level":"I","user":"repertoire_other_1780599554357","message":"User login success","event":"user_login_success","category":"user_login_success"}
+{"at":"2026-06-04T19:02:32.715Z","level":"I","user":"api_integration_1780599751966","message":"User login success","event":"user_login_success","category":"user_login_success"}
+{"at":"2026-06-04T19:02:32.826Z","level":"I","user":"repertoire_1780599751966","message":"User login success","event":"user_login_success","category":"user_login_success"}
+{"at":"2026-06-04T19:02:33.146Z","level":"I","user":"repertoire_other_1780599751966","message":"User login success","event":"user_login_success","category":"user_login_success"}

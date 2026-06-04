@@ -1,5 +1,9 @@
 # Changelog
 
+## [2026-06-04]
+
+- **Tags:** Tag cloud chips show song counts and scale size by repertoire usage; counts refresh when songs change.
+
 ## [2026-05-20]
 
 - **Places:** Songs sung here lists performance star ratings and a View notes link per entry.
