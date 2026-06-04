@@ -5,6 +5,13 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-20', description: 'Security (Track 2 Phase 1): Stricter sqlGuard + ownership checks on /api/execute, rate limits, production JWT_SECRET required; scoped client SQL for tags/venues' },
+  { date: '2026-05-20', description: 'Shared hosting (Track 1): Versioned schema migrations, ADMIN_USERNAMES env, drop unused setlist/metadata tables; docs and UI aligned for multi-user deploy' },
+  { date: '2026-05-20', description: 'Admin: Event log export CSV, clear logs, and 1000-entry cap; admin health endpoint requires admin access' },
+  { date: '2026-05-20', description: 'Songs: Remove KaraFun catalog, automated genre tags, and Musical qualities section; backend enrichment is lyrics-only' },
+  { date: '2026-05-20', description: 'Stats: Tap Performances or Average rating for drill-down lists; fix Typography props for production build' },
+  { date: '2026-05-20', description: 'Performances: Edit past performances from history or dialog list; previous performances always shown when recording' },
+  { date: '2026-05-20', description: 'UI: Clear buttons on Add songs from the web search and repertoire filter' },
   { date: '2026-05-20', description: 'God mode: Restore tab with event log viewer (C/W/I, last 10 + show more); Settings keeps health and enrichment' },
   { date: '2026-05-20', description: 'Ops: Structured event log in Turso and logs/application-events.jsonl (auth, SQL audit, API warnings, process crashes)' },
   { date: '2026-05-20', description: 'UI: Replace Admin tab with settings (gear) dialog; Restart and update at top; logout is icon-only' },

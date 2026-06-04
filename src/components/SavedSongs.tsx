@@ -233,8 +233,9 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
       const result = await db.execute({
         sql: `SELECT t.* FROM tags t 
               JOIN song_tags st ON t.id = st.tag_id 
-              WHERE st.song_id = ?`,
-        args: [songId]
+              JOIN songs s ON s.id = st.song_id
+              WHERE st.song_id = ? AND s.user_id = ?`,
+        args: [songId, currentUser.id]
       });
       setSelectedSongTags(result.rows as unknown as Tag[]);
     } catch (err) {
@@ -345,8 +346,10 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
 
   const fetchPerformanceTagIds = async (performanceId: number): Promise<number[]> => {
     const result = await db.execute({
-      sql: 'SELECT tag_id FROM performance_tags WHERE performance_id = ?',
-      args: [performanceId],
+      sql: `SELECT pt.tag_id FROM performance_tags pt
+            JOIN performances p ON p.id = pt.performance_id
+            WHERE pt.performance_id = ? AND p.user_id = ?`,
+      args: [performanceId, currentUser.id],
     });
     return (result.rows as unknown as { tag_id: number }[]).map((row) =>
       Number(row.tag_id)

@@ -423,6 +423,18 @@ describe("API routes", () => {
       expect(res.status).toBe(401);
     });
 
+    it("rejects unscoped SELECT on tenant data", async () => {
+      const token = signToken({ id: USER_ID, username: "tester" });
+      const res = await request(app)
+        .post("/api/execute")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ sql: "SELECT * FROM songs WHERE id = ?", args: [1] });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toMatch(/user_id/);
+      expect(mockExecute).not.toHaveBeenCalled();
+    });
+
     it("rejects DELETE without user_id scope", async () => {
       const token = signToken({ id: USER_ID, username: "tester" });
       const res = await request(app)

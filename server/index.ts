@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { assertProductionJwtSecret } from "./auth.js";
 import { createApp, registerProcessEventHandlers } from "./app.js";
 import { tursoConfigured } from "./db.js";
 import { initDb } from "./initDb.js";
@@ -11,6 +12,14 @@ const serveStatic =
 
 async function start() {
   registerProcessEventHandlers();
+
+  try {
+    assertProductionJwtSecret();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(message);
+    process.exit(1);
+  }
 
   if (!tursoConfigured) {
     console.error("Cannot start API: Turso credentials missing.");

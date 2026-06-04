@@ -6,7 +6,19 @@ import { db } from "./db.js";
 import { seedWelcomeSongForUser } from "./welcomeSong.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-insecure-change-me";
+const DEV_JWT_FALLBACK = "dev-insecure-change-me";
 const TOKEN_TTL = "7d";
+
+/** Refuse to start in production without a real signing secret. */
+export function assertProductionJwtSecret(): void {
+  if (process.env.NODE_ENV !== "production") return;
+  const secret = process.env.JWT_SECRET?.trim();
+  if (!secret || secret === DEV_JWT_FALLBACK) {
+    throw new Error(
+      "JWT_SECRET must be set to a strong random value in production."
+    );
+  }
+}
 
 export interface AuthUser {
   id: number;

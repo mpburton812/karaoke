@@ -194,8 +194,10 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
 
       // Record initial status in history
       const historyCheck = await db.execute({
-        sql: "SELECT COUNT(*) as count FROM song_status_history WHERE song_id = ?",
-        args: [songId]
+        sql: `SELECT COUNT(*) as count FROM song_status_history h
+              JOIN songs s ON s.id = h.song_id
+              WHERE h.song_id = ? AND s.user_id = ?`,
+        args: [songId, currentUser.id]
       });
 
       if (Number(historyCheck.rows[0].count) === 0) {

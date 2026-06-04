@@ -15,6 +15,8 @@ import {
   verifyToken,
 } from "./auth.js";
 import { assertSqlAllowed } from "./sqlGuard.js";
+import { assertSqlOwnership } from "./sqlOwnership.js";
+import { createRateLimiter } from "./rateLimit.js";
 import {
   spotifyOAuthConfigured,
   signSpotifyOAuthState,
@@ -57,6 +59,20 @@ import {
   logCatalogEvent,
   logEvent,
 } from "./eventLog.js";
+
+function sqlGuardStatus(message: string): number {
+  if (
+    message.includes("not allowed") ||
+    message.includes("user_id") ||
+    message.includes("not owned") ||
+    message.includes("must filter") ||
+    message.includes("must include") ||
+    message.includes("only allows")
+  ) {
+    return 403;
+  }
+  return 500;
+}
 
 function apiIndexPayload(serveStatic: boolean) {
   return {
@@ -104,6 +120,17 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
   app.use(cors({ origin: true, credentials: true }));
   app.use(express.json({ limit: "2mb" }));
 
+  const authRateLimit = createRateLimiter({
+    windowMs: 60_000,
+    max: 20,
+    keyPrefix: "auth",
+  });
+  const executeRateLimit = createRateLimiter({
+    windowMs: 60_000,
+    max: 120,
+    keyPrefix: "execute",
+  });
+
   /** Avoid 304 / disk cache on API JSON (Spotify status looked "not linked" after OAuth). */
   app.use((req, res, next) => {
     if (req.path.startsWith("/api")) {
@@ -129,7 +156,7 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     });
   });
 
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", authRateLimit, async (req, res) => {
     try {
       const { username, password } = req.body as {
         username?: string;
@@ -158,7 +185,7 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authRateLimit, async (req, res) => {
     try {
       const { username, password } = req.body as {
         username?: string;
@@ -1064,7 +1091,7 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     }
   );
 
-  app.post("/api/execute", requireAuth, async (req, res) => {
+  app.post("/api/execute", requireAuth, executeRateLimit, async (req, res) => {
     try {
       const { sql, args = [] } = req.body as { sql?: string; args?: InValue[] };
       const userId = (req as express.Request & { userId: number }).userId;
@@ -1075,16 +1102,14 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       }
 
       assertSqlAllowed(sql, userId, args);
+      await assertSqlOwnership(db, sql, userId, args);
       const user = await getAuthUserById(userId);
       await auditSqlMutation(userId, sql, user?.username, args);
       const result = await db.execute({ sql, args });
       res.json(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Query failed.";
-      const status =
-        message.includes("not allowed") || message.includes("user_id")
-          ? 403
-          : 500;
+      const status = sqlGuardStatus(message);
       if (status >= 500) {
         logApiWarning(message, {
           userId: (req as express.Request & { userId: number }).userId,
@@ -1095,7 +1120,7 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     }
   });
 
-  app.post("/api/batch", requireAuth, async (req, res) => {
+  app.post("/api/batch", requireAuth, executeRateLimit, async (req, res) => {
     try {
       const { statements } = req.body as {
         statements?: Array<string | { sql: string; args?: InValue[] }>;
@@ -1117,6 +1142,12 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
         return { sql: s.sql, args };
       });
 
+      for (const s of normalized) {
+        const sqlText = typeof s === "string" ? s : s.sql;
+        const stmtArgs = typeof s === "string" ? [] : s.args ?? [];
+        await assertSqlOwnership(db, sqlText, userId, stmtArgs);
+      }
+
       const user = await getAuthUserById(userId);
       for (const s of normalized) {
         const sqlText = typeof s === "string" ? s : s.sql;
@@ -1127,10 +1158,7 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       res.json({ results });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Batch failed.";
-      const status =
-        message.includes("not allowed") || message.includes("user_id")
-          ? 403
-          : 500;
+      const status = sqlGuardStatus(message);
       if (status >= 500) {
         logApiWarning(message, {
           userId: (req as express.Request & { userId: number }).userId,

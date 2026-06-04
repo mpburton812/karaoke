@@ -1,5 +1,26 @@
 # Changelog
 
+## [2026-05-20]
+
+- **Security (Track 2 Phase 1):** Hardened `sqlGuard` (scoped SELECTs, INSERT `user_id`, whitelisted song updates, block `event_logs`/`users`); async `sqlOwnership` on junction tables; rate limits on auth and execute; production requires `JWT_SECRET`; client SQL scoped for song/venue tags and performance tags.
+- **Shared hosting (Track 1):** One-time `schema_migrations` (KaraFun/genre cleanup, drop setlists/metadata tables, align `personal_key`); `ADMIN_USERNAMES` for admin accounts; README and enrichment copy updated for multi-user use; Track 2 security plan documented.
+- **Admin:** Event log export to CSV, clear all logs, automatic 1000-entry cap; `/api/admin/health` requires admin role; lyrics-only provider status in Settings.
+- **Songs:** Removed KaraFun catalog sync/API, automated genre on import, genre chips in Tag Manager, and Musical qualities on song detail; server enrichment fetches lyrics only.
+- **Stats:** Clickable **Performances** and **Average rating** hero cards open drill-down dialogs; MUI v7 Typography fix for Render builds.
+- **Performances:** Edit existing performances from performance history and from the record dialog’s previous-performances list.
+- **UI:** Clear buttons on web song search and repertoire search/filter.
+- **God mode / ops:** Event log viewer in God Mode tab; structured Turso + JSONL event logging; Settings gear replaces Admin tab; change username with password.
+
+## [2026-05-18]
+
+- Admin: Full-library re-enrichment for all users (sync or background).
+- God mode: Last sign-in on registration; latest performance date per user; clearer column labels.
+- Fix: Turso startup migration for Spotify playlist foreign-key backfill.
+- Perf: Parallel `/api/execute` loads on Stats, Tag Manager, Location Manager, and Songs.
+- Places: “Songs sung here” on venues; Record Performance CHECK for past dates and venues.
+- UI: Scrollable main tabs on small screens; mobile login shows Create account without clipping.
+- Admin: Update History preview (five entries + expand); provider links in `index.html` (since removed when enrichment simplified).
+
 ## [2026-05-17]
 - Admin: Add protected administrative access layer and GOD MODE tab for admin users.
 - Admin: Grant `mpburton` admin access during database initialization.

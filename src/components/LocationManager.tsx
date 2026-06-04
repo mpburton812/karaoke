@@ -108,14 +108,15 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
       const result = await db.execute({
         sql: `SELECT t.* FROM tags t 
               JOIN location_tags lt ON t.id = lt.tag_id 
-              WHERE lt.location_id = ?`,
-        args: [locationId]
+              JOIN locations l ON l.id = lt.location_id
+              WHERE lt.location_id = ? AND l.user_id = ?`,
+        args: [locationId, currentUser.id]
       });
       setLocationTagsMap(prev => ({ ...prev, [locationId]: result.rows as unknown as Tag[] }));
     } catch (err) {
       console.error(err);
     }
-  }, []);
+  }, [currentUser.id]);
 
   const fetchLocations = useCallback(async () => {
     try {
