@@ -9,12 +9,16 @@ const {
   mockAdminReenrichAll,
   mockScheduleAdminBg,
   mockListEventLogs,
+  mockExportEventLogsCsv,
+  mockClearEventLogs,
 } = vi.hoisted(() => ({
   mockExecute: vi.fn(),
   mockBatch: vi.fn(),
   mockAdminReenrichAll: vi.fn(),
   mockScheduleAdminBg: vi.fn(),
   mockListEventLogs: vi.fn().mockResolvedValue({ events: [], total: 0 }),
+  mockExportEventLogsCsv: vi.fn().mockResolvedValue("id,message\n1,test"),
+  mockClearEventLogs: vi.fn().mockResolvedValue(3),
 }));
 
 vi.mock("./db.js", () => ({
@@ -38,6 +42,8 @@ vi.mock("./eventLog.js", () => ({
   logApiCritical: vi.fn(),
   auditSqlMutation: vi.fn().mockResolvedValue(undefined),
   listEventLogs: mockListEventLogs,
+  exportEventLogsCsv: mockExportEventLogsCsv,
+  clearEventLogs: mockClearEventLogs,
 }));
 
 import { createApp } from "./app.js";
@@ -306,6 +312,52 @@ describe("API routes", () => {
     });
   });
 
+  describe("admin event log export and clear (Track 1)", () => {
+    const adminToken = () =>
+      signToken({ id: USER_ID, username: "mpburton", accessLevel: "admin" });
+
+    beforeEach(() => {
+      mockExportEventLogsCsv.mockClear();
+      mockClearEventLogs.mockClear();
+    });
+
+    it("GET /api/admin/event-logs/export returns CSV for admins", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+      });
+      const res = await request(app)
+        .get("/api/admin/event-logs/export")
+        .set("Authorization", `Bearer ${adminToken()}`);
+      expect(res.status).toBe(200);
+      expect(res.headers["content-type"]).toMatch(/text\/csv/);
+      expect(res.text).toContain("id,message");
+      expect(mockExportEventLogsCsv).toHaveBeenCalled();
+    });
+
+    it("DELETE /api/admin/event-logs clears logs for admins", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+      });
+      const res = await request(app)
+        .delete("/api/admin/event-logs")
+        .set("Authorization", `Bearer ${adminToken()}`);
+      expect(res.status).toBe(200);
+      expect(res.body.deleted).toBe(3);
+      expect(mockClearEventLogs).toHaveBeenCalled();
+    });
+
+    it("rejects export for non-admin", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [{ id: USER_ID, username: "tester", access_level: "user" }],
+      });
+      const token = signToken({ id: USER_ID, username: "tester", accessLevel: "user" });
+      const res = await request(app)
+        .get("/api/admin/event-logs/export")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(403);
+    });
+  });
+
   describe("POST /api/admin/enrichment/rebuild-all", () => {
     it("requires authentication", async () => {
       const res = await request(app).post("/api/admin/enrichment/rebuild-all").send({});
@@ -423,7 +475,7 @@ describe("API routes", () => {
       expect(res.status).toBe(401);
     });
 
-    it("rejects unscoped SELECT on tenant data", async () => {
+    it("rejects SQL on tenant tables (use repertoire API)", async () => {
       const token = signToken({ id: USER_ID, username: "tester" });
       const res = await request(app)
         .post("/api/execute")
@@ -431,50 +483,52 @@ describe("API routes", () => {
         .send({ sql: "SELECT * FROM songs WHERE id = ?", args: [1] });
 
       expect(res.status).toBe(403);
-      expect(res.body.error).toMatch(/user_id/);
+      expect(res.body.error).toMatch(/repertoire API/);
       expect(mockExecute).not.toHaveBeenCalled();
     });
 
-    it("rejects DELETE without user_id scope", async () => {
-      const token = signToken({ id: USER_ID, username: "tester" });
-      const res = await request(app)
-        .post("/api/execute")
-        .set("Authorization", `Bearer ${token}`)
-        .send({ sql: "DELETE FROM songs WHERE id = ?", args: [1] });
-
-      expect(res.status).toBe(403);
-      expect(res.body.error).toMatch(/user_id/);
-    });
-
-    it("runs allowed scoped DELETE", async () => {
-      mockExecute
-        .mockResolvedValueOnce({
-          rows: [{ id: USER_ID, username: "tester", access_level: "user" }],
-        })
-        .mockResolvedValueOnce({
-          columns: [],
-          columnTypes: [],
-          rows: [],
-          rowsAffected: 1,
-          lastInsertRowid: null,
-        });
+    it("allows SELECT 1", async () => {
+      mockExecute.mockResolvedValueOnce({
+        columns: [],
+        columnTypes: [],
+        rows: [{ "1": 1 }],
+        rowsAffected: 0,
+        lastInsertRowid: null,
+      });
 
       const token = signToken({ id: USER_ID, username: "tester" });
       const res = await request(app)
         .post("/api/execute")
         .set("Authorization", `Bearer ${token}`)
-        .send({
-          sql: "DELETE FROM songs WHERE id = ? AND user_id = ?",
-          args: [1, USER_ID],
-        });
+        .send({ sql: "SELECT 1", args: [] });
 
       expect(res.status).toBe(200);
-      expect(res.body.rowsAffected).toBe(1);
+    });
+  });
+
+  describe("GET /api/songs", () => {
+    it("requires authentication", async () => {
+      const res = await request(app).get("/api/songs");
+      expect(res.status).toBe(401);
+    });
+
+    it("returns songs for authenticated user", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [{ id: 1, track_name: "Test", artist_name: "Artist" }],
+      });
+
+      const token = signToken({ id: USER_ID, username: "tester" });
+      const res = await request(app)
+        .get("/api/songs")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.songs).toHaveLength(1);
     });
   });
 
   describe("POST /api/batch", () => {
-    it("rejects batch with unscoped user delete", async () => {
+    it("rejects batch touching tenant tables", async () => {
       const token = signToken({ id: USER_ID, username: "tester" });
       const res = await request(app)
         .post("/api/batch")
@@ -489,28 +543,7 @@ describe("API routes", () => {
         });
 
       expect(res.status).toBe(403);
-    });
-
-    it("runs batch with scoped statements", async () => {
-      mockBatch.mockResolvedValueOnce([
-        { rowsAffected: 1, columns: [], columnTypes: [], rows: [], lastInsertRowid: null },
-      ]);
-
-      const token = signToken({ id: USER_ID, username: "tester" });
-      const res = await request(app)
-        .post("/api/batch")
-        .set("Authorization", `Bearer ${token}`)
-        .send({
-          statements: [
-            {
-              sql: "DELETE FROM songs WHERE user_id = ?",
-              args: [USER_ID],
-            },
-          ],
-        });
-
-      expect(res.status).toBe(200);
-      expect(res.body.results).toHaveLength(1);
+      expect(res.body.error).toMatch(/repertoire API/);
     });
   });
 

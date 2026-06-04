@@ -5,6 +5,8 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-20', description: 'Tests: Track 1/2 unit + Turso integration + Playwright e2e smoke; repertoire and security routes covered' },
+  { date: '2026-05-20', description: 'Security (Track 2 Phase 2): Repertoire REST APIs for songs, tags, locations, stats, and portability; client no longer uses raw SQL' },
   { date: '2026-05-20', description: 'Security (Track 2 Phase 1): Stricter sqlGuard + ownership checks on /api/execute, rate limits, production JWT_SECRET required; scoped client SQL for tags/venues' },
   { date: '2026-05-20', description: 'Shared hosting (Track 1): Versioned schema migrations, ADMIN_USERNAMES env, drop unused setlist/metadata tables; docs and UI aligned for multi-user deploy' },
   { date: '2026-05-20', description: 'Admin: Event log export CSV, clear logs, and 1000-entry cap; admin health endpoint requires admin access' },

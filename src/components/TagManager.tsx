@@ -23,7 +23,13 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import { db } from '../db';
+import {
+  fetchTags,
+  fetchLocations,
+  searchSongsByTags,
+  createTag,
+  deleteTag,
+} from '../api/repertoire';
 import EmptyState from './EmptyState';
 import { KARAOKE_OPEN_SONG_EVENT, type KaraokeOpenSongDetail } from '../lib/karaokeEvents';
 
@@ -67,34 +73,15 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const uid = currentUser.id;
     try {
-      const [tagsRes, locsRes] = await Promise.all([
-        db.execute({
-          sql: `
-          SELECT t.id, t.name, COUNT(st.song_id) as count 
-          FROM tags t 
-          LEFT JOIN song_tags st ON t.id = st.tag_id 
-          WHERE t.user_id = ? 
-          GROUP BY t.id 
-          ORDER BY t.name ASC
-        `,
-          args: [uid],
-        }),
-        db.execute({
-          sql: `SELECT l.id, l.name, group_concat(lt.tag_id) AS tag_ids
-              FROM locations l
-              LEFT JOIN location_tags lt ON lt.location_id = l.id
-              WHERE l.user_id = ?
-              GROUP BY l.id, l.name
-              ORDER BY l.name ASC`,
-          args: [uid],
-        }),
+      const [tagsRows, locsRows] = await Promise.all([
+        fetchTags(true),
+        fetchLocations(true),
       ]);
 
-      setTags(tagsRes.rows as unknown as Tag[]);
+      setTags(tagsRows as unknown as Tag[]);
 
-      const locsWithTags: Location[] = (locsRes.rows as unknown as { id: number; name: string; tag_ids: string | null }[]).map(
+      const locsWithTags: Location[] = (locsRows as unknown as { id: number; name: string; tag_ids: string | null }[]).map(
         (row) => ({
           id: row.id,
           name: row.name,
@@ -123,34 +110,8 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
 
     setSearching(true);
     try {
-      // Build query
-      let sql = `SELECT DISTINCT s.id, s.track_name, s.artist_name, s.artwork_url, s.genre FROM songs s`;
-      const args: (string | number)[] = [];
-      const conditions: string[] = [`s.user_id = ?`];
-      args.push(currentUser.id);
-
-      if (selectedTagIds.length > 0) {
-        if (filterLogic === 'OR') {
-          // ANY of the tags
-          sql += ` JOIN song_tags st ON s.id = st.song_id`;
-          conditions.push(`st.tag_id IN (${selectedTagIds.map(() => '?').join(',')})`);
-          args.push(...selectedTagIds);
-        } else {
-          // ALL of the tags
-          // We need a song to have EVERY tag_id in selectedTagIds
-          for (let i = 0; i < selectedTagIds.length; i++) {
-            sql += ` JOIN song_tags st${i} ON s.id = st${i}.song_id`;
-            conditions.push(`st${i}.tag_id = ?`);
-            args.push(selectedTagIds[i]);
-          }
-        }
-      }
-
-      sql += ` WHERE ` + conditions.join(' AND ');
-      sql += ` ORDER BY s.track_name ASC`;
-
-      const result = await db.execute({ sql, args });
-      setFilteredSongs(result.rows as unknown as Song[]);
+      const songs = await searchSongsByTags(selectedTagIds, filterLogic);
+      setFilteredSongs(songs as unknown as Song[]);
     } catch (err) {
       console.error('Error searching songs by tags:', err);
     } finally {
@@ -166,10 +127,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
     if (!newTagName.trim()) return;
     setError(null);
     try {
-      await db.execute({
-        sql: "INSERT INTO tags (user_id, name) VALUES (?, ?)",
-        args: [currentUser.id, newTagName.trim()]
-      });
+      await createTag(newTagName.trim());
       setNewTagName('');
       fetchData();
     } catch (err: unknown) {
@@ -186,10 +144,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
   const handleDeleteTag = async (tagId: number) => {
     if (!window.confirm('Are you sure you want to delete this tag? It will be removed from all songs and locations.')) return;
     try {
-      await db.execute({
-        sql: "DELETE FROM tags WHERE id = ? AND user_id = ?",
-        args: [tagId, currentUser.id]
-      });
+      await deleteTag(tagId);
       fetchData();
       // Remove from selection if deleted
       setSelectedTagIds(prev => prev.filter(id => id !== tagId));

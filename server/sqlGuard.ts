@@ -201,10 +201,13 @@ export function assertSqlAllowed(
     return;
   }
 
+  if (referencesTenantTable(normalized)) {
+    throw new Error(
+      "Use the repertoire API instead of raw SQL for songs, tags, locations, and performances."
+    );
+  }
+
   if (!isMutation(normalized)) {
-    if (referencesTenantTable(normalized) && !hasTenantScope(normalized)) {
-      throw new Error("SELECT on user data must filter by user_id = ?.");
-    }
     return;
   }
 

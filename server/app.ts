@@ -17,6 +17,7 @@ import {
 import { assertSqlAllowed } from "./sqlGuard.js";
 import { assertSqlOwnership } from "./sqlOwnership.js";
 import { createRateLimiter } from "./rateLimit.js";
+import { registerRepertoireRoutes } from "./repertoireRoutes.js";
 import {
   spotifyOAuthConfigured,
   signSpotifyOAuthState,
@@ -67,7 +68,8 @@ function sqlGuardStatus(message: string): number {
     message.includes("not owned") ||
     message.includes("must filter") ||
     message.includes("must include") ||
-    message.includes("only allows")
+    message.includes("only allows") ||
+    message.includes("repertoire API")
   ) {
     return 403;
   }
@@ -106,7 +108,16 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/admin/event-logs/export",
       "/api/events/log",
     ],
-    data: ["/api/execute", "/api/batch"],
+    data: [
+      "/api/songs",
+      "/api/tags",
+      "/api/locations",
+      "/api/stats/dashboard",
+      "/api/portability/:table",
+      "/api/account/wipe",
+      "/api/execute",
+      "/api/batch",
+    ],
     note: serveStatic
       ? "Web app is served at / on this host."
       : "Use the web app at http://localhost:5173 — API-only mode on this port.",
@@ -1090,6 +1101,11 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       }
     }
   );
+
+  registerRepertoireRoutes(app, {
+    requireAuth,
+    repertoireRateLimit: executeRateLimit,
+  });
 
   app.post("/api/execute", requireAuth, executeRateLimit, async (req, res) => {
     try {

@@ -43,7 +43,11 @@ import {
   Legend, 
   ResponsiveContainer 
 } from 'recharts';
-import { db } from '../db';
+import {
+  fetchStatsDashboard,
+  fetchAllPerformancesList,
+  fetchSongsByRating,
+} from '../api/repertoire';
 import { karaokeTokens } from '../theme';
 
 interface GlobalStats {
@@ -107,7 +111,7 @@ interface SongByRatingRow {
 
 type StatsDetailDialog = 'performances' | 'ratings' | null;
 
-const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
+const Stats: React.FC<{ currentUser: { id: number } }> = () => {
   const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<GlobalStats | null>(null);
@@ -163,60 +167,9 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
-    const uid = currentUser.id;
     try {
-      const [globalRes, artistRes, songRes, venueRes, historyRes] = await Promise.all([
-        db.execute({
-          sql: `SELECT 
-                  (SELECT COUNT(*) FROM songs WHERE user_id = ?) as totalSongs,
-                  (SELECT COUNT(*) FROM performances WHERE user_id = ?) as totalPerformances,
-                  (SELECT AVG(rating) FROM performances WHERE user_id = ?) as avgRating,
-                  (SELECT COUNT(DISTINCT location) FROM performances WHERE user_id = ?) as uniqueVenues,
-                  (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Mastered') as masteredCount,
-                  (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Proficient') as proficientCount,
-                  (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Practicing') as practicingCount`,
-          args: [uid, uid, uid, uid, uid, uid, uid],
-        }),
-        db.execute({
-          sql: `SELECT artist_name, COUNT(*) as count 
-                FROM performances p 
-                JOIN songs s ON p.song_id = s.id 
-                WHERE p.user_id = ? 
-                GROUP BY s.artist_name 
-                ORDER BY count DESC 
-                LIMIT 5`,
-          args: [uid],
-        }),
-        db.execute({
-          sql: `SELECT s.id, s.track_name, s.artist_name, s.artwork_url, COUNT(*) as count 
-                FROM performances p 
-                JOIN songs s ON p.song_id = s.id 
-                WHERE p.user_id = ? 
-                GROUP BY s.id 
-                ORDER BY count DESC 
-                LIMIT 5`,
-          args: [uid],
-        }),
-        db.execute({
-          sql: `SELECT location, COUNT(*) as count, AVG(rating) as avgRating 
-                FROM performances 
-                WHERE user_id = ? AND location != ''
-                GROUP BY location 
-                ORDER BY count DESC 
-                LIMIT 5`,
-          args: [uid],
-        }),
-        db.execute({
-          sql: `SELECT h.song_id, h.status, h.changed_at
-                FROM song_status_history h
-                JOIN songs s ON h.song_id = s.id
-                WHERE s.user_id = ?
-                ORDER BY h.changed_at ASC`,
-          args: [uid],
-        }),
-      ]);
-
-      const g = globalRes.rows[0];
+      const dashboard = await fetchStatsDashboard();
+      const g = dashboard.global as Record<string, unknown>;
       setStats({
         totalSongs: Number(g.totalSongs),
         totalPerformances: Number(g.totalPerformances),
@@ -224,24 +177,23 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
         uniqueVenues: Number(g.uniqueVenues),
         masteredCount: Number(g.masteredCount),
         proficientCount: Number(g.proficientCount),
-        practicingCount: Number(g.practicingCount)
+        practicingCount: Number(g.practicingCount),
       });
 
-      setTopArtists(artistRes.rows as unknown as TopArtist[]);
-      setTopSongs(songRes.rows as unknown as TopSong[]);
-      setVenues(venueRes.rows as unknown as VenueStat[]);
+      setTopArtists(dashboard.topArtists as unknown as TopArtist[]);
+      setTopSongs(dashboard.topSongs as unknown as TopSong[]);
+      setVenues(dashboard.venues as unknown as VenueStat[]);
 
-      const history = historyRes.rows as unknown as HistoryEntry[];
+      const history = dashboard.statusHistory as unknown as HistoryEntry[];
       if (history.length > 0) {
         processChartData(history);
       }
-
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
     } finally {
       setLoading(false);
     }
-  }, [currentUser.id, processChartData]);
+  }, [processChartData]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -254,15 +206,8 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
     setDetailDialog('performances');
     setDetailLoading(true);
     try {
-      const result = await db.execute({
-        sql: `SELECT p.date, p.location, s.track_name, s.artist_name, p.rating
-              FROM performances p
-              JOIN songs s ON p.song_id = s.id
-              WHERE p.user_id = ?
-              ORDER BY p.date DESC, p.id DESC`,
-        args: [currentUser.id],
-      });
-      setPerformanceList(result.rows as unknown as PerformanceListRow[]);
+      const rows = await fetchAllPerformancesList();
+      setPerformanceList(rows as unknown as PerformanceListRow[]);
     } catch (err) {
       console.error('Error loading performance list:', err);
       setPerformanceList([]);
@@ -275,19 +220,13 @@ const Stats: React.FC<{ currentUser: { id: number } }> = ({ currentUser }) => {
     setDetailDialog('ratings');
     setDetailLoading(true);
     try {
-      const result = await db.execute({
-        sql: `SELECT s.id, s.track_name, s.artist_name, s.artwork_url,
-                     AVG(p.rating) AS avgRating, COUNT(*) AS perfCount
-              FROM performances p
-              JOIN songs s ON p.song_id = s.id
-              WHERE p.user_id = ? AND p.rating IS NOT NULL
-              GROUP BY s.id
-              ORDER BY avgRating DESC, perfCount DESC, s.track_name ASC`,
-        args: [currentUser.id],
-      });
+      const rows = await fetchSongsByRating();
       setSongsByRating(
-        (result.rows as unknown as SongByRatingRow[]).map((row) => ({
-          ...row,
+        rows.map((row) => ({
+          id: row.id,
+          track_name: row.track_name,
+          artist_name: row.artist_name,
+          artwork_url: row.artwork_url,
           avgRating: Number(row.avgRating),
           perfCount: Number(row.perfCount),
         }))

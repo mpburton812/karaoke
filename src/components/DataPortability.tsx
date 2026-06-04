@@ -12,14 +12,18 @@ import {
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadIcon from '@mui/icons-material/Upload';
 import Papa from 'papaparse';
-import { db, type InValue } from '../db';
+import {
+  exportPortabilityTable,
+  importPortabilityTable,
+  type PortabilityTable,
+} from '../api/repertoire';
 
 interface DataPortabilityProps {
   currentUser: { id: number; username: string };
   onDataChange?: () => void;
 }
 
-const DataPortability: React.FC<DataPortabilityProps> = ({ currentUser, onDataChange }) => {
+const DataPortability: React.FC<DataPortabilityProps> = ({ onDataChange }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
@@ -27,12 +31,9 @@ const DataPortability: React.FC<DataPortabilityProps> = ({ currentUser, onDataCh
     setLoading(true);
     setMessage(null);
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM ${table} WHERE user_id = ?`,
-        args: [currentUser.id]
-      });
+      const rows = await exportPortabilityTable(table as PortabilityTable);
 
-      const csv = Papa.unparse(result.rows);
+      const csv = Papa.unparse(rows);
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
@@ -71,25 +72,18 @@ const DataPortability: React.FC<DataPortabilityProps> = ({ currentUser, onDataCh
         skipEmptyLines: true,
         complete: async (results) => {
           try {
-            const data = results.data as Record<string, InValue>[];
+            const data = results.data as Record<string, unknown>[];
             if (data.length === 0) {
               setMessage({ text: 'CSV is empty.', type: 'error' });
               setLoading(false);
               return;
             }
 
-            // Map data to insert statements, ensuring user_id is set to current user
-            const columns = Object.keys(data[0]).filter(col => col !== 'id' && col !== 'user_id');
-            const placeholders = columns.map(() => '?').join(', ');
-            const sql = `INSERT OR IGNORE INTO ${table} (user_id, ${columns.join(', ')}) VALUES (?, ${placeholders})`;
-
-            const statements: { sql: string; args: InValue[] }[] = data.map(row => ({
-              sql,
-              args: [currentUser.id, ...columns.map(col => row[col])]
-            }));
-
-            await db.batch(statements);
-            setMessage({ text: `Successfully imported ${data.length} records into ${table}.`, type: 'success' });
+            const imported = await importPortabilityTable(
+              table as PortabilityTable,
+              data
+            );
+            setMessage({ text: `Successfully imported ${imported} records into ${table}.`, type: 'success' });
             if (onDataChange) onDataChange();
           } catch (err) {
             console.error(err);

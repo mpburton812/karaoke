@@ -25,7 +25,17 @@ import AddIcon from '@mui/icons-material/Add';
 import HistoryIcon from '@mui/icons-material/History';
 import PlaceIcon from '@mui/icons-material/Place';
 import EmptyState from './EmptyState';
-import { db } from '../db';
+import {
+  fetchLocations as apiListLocations,
+  fetchTags as apiListTags,
+  fetchLocationTags as apiListLocationTags,
+  createLocation,
+  deleteLocation,
+  addLocationTag,
+  removeLocationTag,
+  fetchLocationStats as apiLocationStats,
+  fetchLocationPerformances as apiLocationPerformances,
+} from '../api/repertoire';
 
 interface Location {
   id: number;
@@ -67,34 +77,17 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
 
   const fetchLocationStats = useCallback(async (location: Location) => {
     try {
-      const [basicStatsRes, topSongsRes] = await Promise.all([
-        db.execute({
-          sql: `SELECT COUNT(DISTINCT date) as days, COUNT(*) as total 
-                FROM performances 
-                WHERE user_id = ? AND location = ?`,
-          args: [currentUser.id, location.name],
-        }),
-        db.execute({
-          sql: `SELECT s.track_name, COUNT(*) as count 
-                FROM performances p 
-                JOIN songs s ON p.song_id = s.id 
-                WHERE p.user_id = ? AND p.location = ? 
-                GROUP BY p.song_id 
-                ORDER BY count DESC 
-                LIMIT 3`,
-          args: [currentUser.id, location.name],
-        }),
-      ]);
-
-      const days = Number(basicStatsRes.rows[0].days) || 0;
-      const total = Number(basicStatsRes.rows[0].total) || 0;
-      const avg = days > 0 ? parseFloat((total / days).toFixed(1)) : 0;
+      const raw = await apiLocationStats(location.name);
+      const avg =
+        raw.daysSung > 0
+          ? parseFloat((raw.totalSongs / raw.daysSung).toFixed(1))
+          : 0;
 
       const stats: LocationStats = {
-        daysSung: days,
-        totalSongs: total,
+        daysSung: raw.daysSung,
+        totalSongs: raw.totalSongs,
         avgSongsPerDay: avg,
-        topSongs: topSongsRes.rows as unknown as { track_name: string; count: number }[],
+        topSongs: raw.topSongs,
       };
 
       setLocationStatsMap((prev) => ({ ...prev, [location.id]: stats }));
@@ -105,14 +98,8 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
 
   const fetchLocationTags = useCallback(async (locationId: number) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT t.* FROM tags t 
-              JOIN location_tags lt ON t.id = lt.tag_id 
-              JOIN locations l ON l.id = lt.location_id
-              WHERE lt.location_id = ? AND l.user_id = ?`,
-        args: [locationId, currentUser.id]
-      });
-      setLocationTagsMap(prev => ({ ...prev, [locationId]: result.rows as unknown as Tag[] }));
+      const tags = await apiListLocationTags(locationId);
+      setLocationTagsMap(prev => ({ ...prev, [locationId]: tags as unknown as Tag[] }));
     } catch (err) {
       console.error(err);
     }
@@ -120,11 +107,7 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
 
   const fetchLocations = useCallback(async () => {
     try {
-      const result = await db.execute({
-        sql: "SELECT * FROM locations WHERE user_id = ? ORDER BY name ASC",
-        args: [currentUser.id]
-      });
-      const fetchedLocations = result.rows as unknown as Location[];
+      const fetchedLocations = (await apiListLocations(false)) as unknown as Location[];
       setLocations(fetchedLocations);
 
       await Promise.all(
@@ -140,11 +123,8 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
 
   const fetchAvailableTags = useCallback(async () => {
     try {
-      const result = await db.execute({
-        sql: "SELECT * FROM tags WHERE user_id = ? ORDER BY name ASC",
-        args: [currentUser.id]
-      });
-      setAvailableTags(result.rows as unknown as Tag[]);
+      const tags = await apiListTags(false);
+      setAvailableTags(tags as unknown as Tag[]);
     } catch (err) {
       console.error('Error fetching tags:', err);
     }
@@ -157,10 +137,7 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
   const handleAddLocation = async () => {
     if (!newLocation.trim()) return;
     try {
-      await db.execute({
-        sql: "INSERT INTO locations (user_id, name) VALUES (?, ?)",
-        args: [currentUser.id, newLocation.trim()]
-      });
+      await createLocation(newLocation.trim());
       setNewLocation('');
       fetchLocations();
     } catch (err) {
@@ -172,10 +149,7 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
   const handleDeleteLocation = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this location?')) return;
     try {
-      await db.execute({
-        sql: "DELETE FROM locations WHERE id = ? AND user_id = ?",
-        args: [id, currentUser.id]
-      });
+      await deleteLocation(id);
       fetchLocations();
     } catch (err) {
       console.error('Error deleting location:', err);
@@ -185,10 +159,7 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
   const handleAddTag = async (locationId: number, tagId: number) => {
     console.log(`Adding tag ${tagId} to location ${locationId}`);
     try {
-      await db.execute({
-        sql: "INSERT OR IGNORE INTO location_tags (location_id, tag_id) VALUES (?, ?)",
-        args: [locationId, tagId]
-      });
+      await addLocationTag(locationId, tagId);
       console.log('Successfully inserted/ignored tag');
       await fetchLocationTags(locationId);
       console.log('Refetched location tags');
@@ -204,15 +175,8 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
     setVenueSongsLoading(true);
     setVenueSongsRows([]);
     try {
-      const res = await db.execute({
-        sql: `SELECT s.track_name AS track_name, p.date AS date
-              FROM performances p
-              JOIN songs s ON p.song_id = s.id
-              WHERE p.user_id = ? AND p.location = ?
-              ORDER BY p.date DESC, p.id DESC`,
-        args: [currentUser.id, loc.name],
-      });
-      setVenueSongsRows(res.rows as unknown as VenueSongRow[]);
+      const rows = await apiLocationPerformances(loc.name);
+      setVenueSongsRows(rows as unknown as VenueSongRow[]);
     } catch (err) {
       console.error('Error loading songs for venue:', err);
     } finally {
@@ -222,10 +186,7 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
 
   const handleRemoveTag = async (locationId: number, tagId: number) => {
     try {
-      await db.execute({
-        sql: "DELETE FROM location_tags WHERE location_id = ? AND tag_id = ?",
-        args: [locationId, tagId]
-      });
+      await removeLocationTag(locationId, tagId);
       fetchLocationTags(locationId);
     } catch (err) {
       console.error(err);

@@ -24,7 +24,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import axios from 'axios';
-import { db } from '../db';
+import { checkDuplicateSong, createSong } from '../api/repertoire';
 import { KARAOKE_SONGS_REFRESH_EVENT } from '../lib/karaokeEvents';
 import { fetchLyrics } from '../utils/lyricsService';
 import { runEnrichmentForImportedSongIds } from '../utils/songEnrichment';
@@ -113,27 +113,11 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
     if (!selectedSong) return;
     setSaving(true);
     try {
-      const duplicate = await db.execute({
-        sql: `SELECT id, track_name, artist_name FROM songs
-              WHERE user_id = ?
-                AND (
-                  itunes_id = ?
-                  OR (
-                    lower(trim(track_name)) = lower(trim(?))
-                    AND lower(trim(artist_name)) = lower(trim(?))
-                  )
-                )
-              LIMIT 1`,
-        args: [
-          currentUser.id,
-          selectedSong.trackId,
-          selectedSong.trackName,
-          selectedSong.artistName,
-        ],
+      const existing = await checkDuplicateSong({
+        itunesId: selectedSong.trackId,
+        trackName: selectedSong.trackName,
+        artistName: selectedSong.artistName,
       });
-      const existing = duplicate.rows[0] as
-        | { id?: number; track_name?: string; artist_name?: string }
-        | undefined;
       if (existing?.id) {
         void runEnrichmentForImportedSongIds(currentUser.id, [existing.id]).catch(
           (e) => console.warn("[song lookup enrichment]", e)
@@ -148,63 +132,34 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
         return;
       }
 
-      const result = await db.execute({
-        sql: `INSERT INTO songs (
-          user_id, itunes_id, track_name, artist_name, artwork_url,
-          duration_ms, release_date, explicit, album, release_year, lyrics,
-          personal_key, vocal_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '0', 'Practicing')
-        ON CONFLICT(user_id, itunes_id) DO UPDATE SET
-          track_name = excluded.track_name,
-          artist_name = excluded.artist_name,
-          artwork_url = excluded.artwork_url,
-          duration_ms = excluded.duration_ms,
-          release_date = excluded.release_date,
-          explicit = excluded.explicit,
-          album = excluded.album,
-          release_year = excluded.release_year,
-          lyrics = excluded.lyrics
-        RETURNING id`,
-        args: [
-          currentUser.id,
-          selectedSong.trackId,
-          selectedSong.trackName,
-          selectedSong.artistName,
-          selectedSong.artworkUrl100,
-          selectedSong.trackTimeMillis,
-          selectedSong.releaseDate,
-          selectedSong.trackExplicitness === 'explicit' ? 1 : 0,
-          selectedSong.collectionName,
-          new Date(selectedSong.releaseDate).getFullYear(),
+      let songId: number;
+      try {
+        const created = await createSong({
+          itunesId: selectedSong.trackId,
+          trackName: selectedSong.trackName,
+          artistName: selectedSong.artistName,
+          artworkUrl: selectedSong.artworkUrl100,
+          durationMs: selectedSong.trackTimeMillis,
+          releaseDate: selectedSong.releaseDate,
+          explicit: selectedSong.trackExplicitness === 'explicit' ? 1 : 0,
+          album: selectedSong.collectionName,
+          releaseYear: new Date(selectedSong.releaseDate).getFullYear(),
           lyrics,
-        ],
-      });
-
-      const songId = (result.rows[0] as unknown as { id?: number })?.id;
-      if (typeof songId !== "number") {
-        setSnackbar({
-          open: true,
-          message: "That song is already in your song list. No duplicate was added.",
-          severity: "success",
         });
-        if (onSongAdded) onSongAdded();
-        setSaving(false);
-        return;
-      }
-
-      // Record initial status in history
-      const historyCheck = await db.execute({
-        sql: `SELECT COUNT(*) as count FROM song_status_history h
-              JOIN songs s ON s.id = h.song_id
-              WHERE h.song_id = ? AND s.user_id = ?`,
-        args: [songId, currentUser.id]
-      });
-
-      if (Number(historyCheck.rows[0].count) === 0) {
-        await db.execute({
-          sql: "INSERT INTO song_status_history (song_id, status) VALUES (?, 'Practicing')",
-          args: [songId]
-        });
+        songId = created.id;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.includes('already')) {
+          setSnackbar({
+            open: true,
+            message: "That song is already in your song list. No duplicate was added.",
+            severity: "success",
+          });
+          if (onSongAdded) onSongAdded();
+          setSaving(false);
+          return;
+        }
+        throw err;
       }
 
       void runEnrichmentForImportedSongIds(currentUser.id, [songId]).catch(

@@ -12,7 +12,6 @@ import {
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { db } from '../db';
 import { fetchAdminHealth, type AdminHealthResponse } from '../api/admin';
 import { fetchEnrichmentStatus, type EnrichmentStatus } from '../api/enrichment';
 import { fetchSpotifyStatus, type SpotifyStatusResponse } from '../api/spotify';
@@ -27,8 +26,12 @@ const SystemStatus = () => {
   const checkStatus = useCallback(async () => {
     setLoading(true);
     try {
+      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const healthUrl = apiBase ? `${apiBase}/api/health` : '/api/health';
       const [, adminHealth, enrichmentStatus, spotifyStatus] = await Promise.all([
-        db.execute('SELECT 1'),
+        fetch(healthUrl).then((r) => {
+          if (!r.ok) throw new Error('health failed');
+        }),
         fetchAdminHealth(),
         fetchEnrichmentStatus(),
         fetchSpotifyStatus().catch(() => null),

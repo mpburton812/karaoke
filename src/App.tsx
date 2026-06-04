@@ -16,7 +16,7 @@ import {
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { db } from './db';
+import { wipeAccountData } from './api/repertoire';
 import { clearSession, fetchCurrentUser, type AuthUser } from './api/auth';
 import { setSessionExpiredHandler } from './api/session';
 import {
@@ -245,14 +245,7 @@ function App() {
     if (confirmed) {
       logUserAction("User cleared all personal configuration (nuke)", "data");
       try {
-        await db.batch([
-          { sql: "DELETE FROM performance_tags WHERE performance_id IN (SELECT id FROM performances WHERE user_id = ?)", args: [currentUser.id] },
-          { sql: "DELETE FROM song_tags WHERE song_id IN (SELECT id FROM songs WHERE user_id = ?)", args: [currentUser.id] },
-          { sql: "DELETE FROM performances WHERE user_id = ?", args: [currentUser.id] },
-          { sql: "DELETE FROM songs WHERE user_id = ?", args: [currentUser.id] },
-          { sql: "DELETE FROM tags WHERE user_id = ?", args: [currentUser.id] },
-          { sql: "DELETE FROM locations WHERE user_id = ?", args: [currentUser.id] }
-        ]);
+        await wipeAccountData();
         alert("Account wiped successfully.");
         window.location.reload();
       } catch (err) {

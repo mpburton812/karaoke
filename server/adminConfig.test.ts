@@ -22,4 +22,10 @@ describe("adminConfig", () => {
     expect(accessLevelForNewUser("Alice")).toBe("admin");
     expect(accessLevelForNewUser("stranger")).toBe("user");
   });
+
+  it("ignores empty entries in ADMIN_USERNAMES", () => {
+    vi.stubEnv("ADMIN_USERNAMES", "  , AdminUser , , ");
+    expect(adminUsernameSet().has("adminuser")).toBe(true);
+    expect(adminUsernameSet().size).toBe(1);
+  });
 });

@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { assertSqlAllowed, hasTenantScope } from "./sqlGuard.js";
+import { assertSqlAllowed, hasTenantScope, TENANT_TABLES } from "./sqlGuard.js";
 
 const USER_ID = 42;
+
+describe("TENANT_TABLES", () => {
+  it("includes core repertoire tables", () => {
+    expect(TENANT_TABLES).toContain("songs");
+    expect(TENANT_TABLES).toContain("performances");
+    expect(TENANT_TABLES).toContain("song_tags");
+    expect(TENANT_TABLES).not.toContain("event_logs");
+  });
+});
 
 describe("hasTenantScope", () => {
   it("detects direct and aliased user_id filters", () => {
@@ -9,140 +18,83 @@ describe("hasTenantScope", () => {
     expect(hasTenantScope("SELECT * FROM songs s WHERE s.user_id = ?")).toBe(
       true
     );
-    expect(hasTenantScope("DELETE FROM song_tags WHERE song_id IN (SELECT id FROM songs WHERE user_id = ?)")).toBe(
-      true
-    );
+  });
+
+  it("detects subquery ownership for junction deletes", () => {
+    expect(
+      hasTenantScope(
+        "DELETE FROM song_tags WHERE song_id IN (SELECT id FROM songs WHERE user_id = ?)"
+      )
+    ).toBe(true);
+    expect(
+      hasTenantScope(
+        "DELETE FROM performance_tags WHERE performance_id IN (SELECT id FROM performances WHERE user_id = ?)"
+      )
+    ).toBe(true);
   });
 });
 
-describe("assertSqlAllowed", () => {
-  it("allows scoped SELECT", () => {
-    expect(() =>
-      assertSqlAllowed("SELECT * FROM songs WHERE user_id = ?", USER_ID, [
-        USER_ID,
-      ])
-    ).not.toThrow();
-  });
-
-  it("rejects unscoped SELECT on tenant tables", () => {
-    expect(() =>
-      assertSqlAllowed("SELECT * FROM songs WHERE id = ?", USER_ID, [1])
-    ).toThrow(/user_id/);
-  });
-
+describe("assertSqlAllowed (Track 2 Phase 2)", () => {
   it("allows SELECT 1 health check", () => {
     expect(() => assertSqlAllowed("SELECT 1", USER_ID, [])).not.toThrow();
   });
 
-  it("allows DELETE on songs with matching user_id", () => {
+  it("rejects any SQL touching tenant tables", () => {
+    const samples = [
+      "SELECT * FROM songs WHERE user_id = ?",
+      "DELETE FROM songs WHERE id = ? AND user_id = ?",
+      "INSERT INTO songs (user_id, track_name) VALUES (?, ?)",
+      "UPDATE performances SET rating = ? WHERE id = ? AND user_id = ?",
+      "SELECT * FROM song_tags WHERE song_id = ?",
+    ];
+    for (const sql of samples) {
+      expect(() => assertSqlAllowed(sql, USER_ID, [USER_ID])).toThrow();
+    }
+  });
+
+  it("rejects tenant SELECT with repertoire API message", () => {
     expect(() =>
-      assertSqlAllowed("DELETE FROM songs WHERE id = ? AND user_id = ?", USER_ID, [
-        1,
+      assertSqlAllowed("SELECT * FROM songs WHERE user_id = ?", USER_ID, [
         USER_ID,
       ])
-    ).not.toThrow();
+    ).toThrow(/repertoire API/);
   });
 
-  it("rejects DELETE on songs without user_id filter", () => {
+  it("blocks chained statements", () => {
     expect(() =>
-      assertSqlAllowed("DELETE FROM songs WHERE id = ?", USER_ID, [1])
-    ).toThrow(/user_id/);
-  });
-
-  it("rejects DELETE when user_id arg does not match session", () => {
-    expect(() =>
-      assertSqlAllowed("DELETE FROM tags WHERE id = ? AND user_id = ?", USER_ID, [
-        1,
-        99,
-      ])
-    ).toThrow(/authenticated user/);
-  });
-
-  it("blocks DROP statements", () => {
-    expect(() =>
-      assertSqlAllowed("SELECT 1; DROP TABLE users", USER_ID, [])
+      assertSqlAllowed("SELECT 1; DELETE FROM songs", USER_ID, [])
     ).toThrow(/not allowed/);
   });
 
-  it("blocks PRAGMA", () => {
+  it("blocks PRAGMA and ATTACH", () => {
     expect(() =>
-      assertSqlAllowed("PRAGMA table_info(users)", USER_ID, [])
+      assertSqlAllowed("PRAGMA table_info(songs)", USER_ID, [])
     ).toThrow(/not allowed/);
+    expect(() => assertSqlAllowed("ATTACH DATABASE 'x' AS y", USER_ID, [])).toThrow(
+      /not allowed/
+    );
   });
 
-  it("blocks event_logs access", () => {
+  it("blocks users and event_logs tables", () => {
+    expect(() =>
+      assertSqlAllowed("SELECT * FROM users", USER_ID, [])
+    ).toThrow(/not allowed/);
     expect(() =>
       assertSqlAllowed("DELETE FROM event_logs", USER_ID, [])
     ).toThrow(/not allowed/);
   });
 
-  it("allows INSERT into songs with matching user_id column", () => {
+  it("blocks dynamic export of non-portability tables", () => {
     expect(() =>
-      assertSqlAllowed(
-        "INSERT INTO songs (user_id, track_name) VALUES (?, ?)",
-        USER_ID,
-        [USER_ID, "Test"]
-      )
-    ).not.toThrow();
-  });
-
-  it("rejects INSERT into songs without user_id column", () => {
-    expect(() =>
-      assertSqlAllowed(
-        "INSERT INTO songs (track_name) VALUES (?)",
-        USER_ID,
-        ["Test"]
-      )
-    ).toThrow(/user_id/);
-  });
-
-  it("requires user_id on UPDATE performances", () => {
-    expect(() =>
-      assertSqlAllowed(
-        "UPDATE performances SET rating = ? WHERE id = ?",
-        USER_ID,
-        [5, 1]
-      )
-    ).toThrow(/user_id/);
-  });
-
-  it("whitelists UPDATE songs columns", () => {
-    expect(() =>
-      assertSqlAllowed(
-        "UPDATE songs SET personal_key = ? WHERE id = ? AND user_id = ?",
-        USER_ID,
-        ["0", 1, USER_ID]
-      )
-    ).not.toThrow();
-    expect(() =>
-      assertSqlAllowed(
-        "UPDATE songs SET password_hash = ? WHERE id = ? AND user_id = ?",
-        USER_ID,
-        ["x", 1, USER_ID]
-      )
-    ).toThrow(/only allows/);
-  });
-
-  it("allows portability export table whitelist", () => {
-    expect(() =>
-      assertSqlAllowed("SELECT * FROM tags WHERE user_id = ?", USER_ID, [
-        USER_ID,
-      ])
-    ).not.toThrow();
-    expect(() =>
-      assertSqlAllowed("SELECT * FROM users WHERE user_id = ?", USER_ID, [
+      assertSqlAllowed("SELECT * FROM passwords WHERE user_id = ?", USER_ID, [
         USER_ID,
       ])
     ).toThrow(/not allowed/);
   });
 
-  it("allows junction DELETE with ownership subquery (nuke batch)", () => {
+  it("blocks INSERT into unknown tables", () => {
     expect(() =>
-      assertSqlAllowed(
-        "DELETE FROM performance_tags WHERE performance_id IN (SELECT id FROM performances WHERE user_id = ?)",
-        USER_ID,
-        [USER_ID]
-      )
-    ).not.toThrow();
+      assertSqlAllowed("INSERT INTO evil (x) VALUES (?)", USER_ID, [1])
+    ).toThrow(/not allowed/);
   });
 });

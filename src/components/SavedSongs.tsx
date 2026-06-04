@@ -21,25 +21,24 @@ import YouTubeIcon from '@mui/icons-material/YouTube';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SongLookup from './SongLookup';
 import EmptyState from './EmptyState';
-import { db } from '../db';
+import {
+  fetchSongs as loadSongs,
+  fetchSong,
+  fetchTagsAndLocations as loadTagsAndLocations,
+  fetchSongTags as loadSongTags,
+  fetchPerformances as loadPerformances,
+  patchSong,
+  addSongTag,
+  removeSongTag,
+  deleteSong,
+  fetchPerformanceTagIds,
+  createPerformance,
+  updatePerformance,
+  deletePerformance,
+} from '../api/repertoire';
 import { fetchLyrics } from '../utils/lyricsService';
 import { KARAOKE_SONGS_REFRESH_EVENT } from '../lib/karaokeEvents';
 import { karaokeTokens, spotifySx } from '../theme';
-
-/** Shared SELECT for repertoire rows (Spotify playlist name join). */
-const REPERTOIRE_SONG_SELECT = `
-  SELECT s.*, sp.spotify_source_playlist_name
-  FROM songs s
-  LEFT JOIN (
-    SELECT ps.user_id, ps.song_id, group_concat(p.playlist_name, ', ') AS spotify_source_playlist_name
-    FROM spotify_playlist_songs ps
-    JOIN spotify_synced_playlists p
-      ON p.user_id = ps.user_id
-     AND p.spotify_playlist_id = ps.spotify_playlist_id
-    GROUP BY ps.user_id, ps.song_id
-  ) sp
-    ON s.user_id = sp.user_id AND s.id = sp.song_id
-`;
 
 interface SavedSongsProps {
   currentUser: { id: number; username: string };
@@ -143,39 +142,25 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
   const fetchSongs = useCallback(async (skipLoading?: boolean) => {
     if (!skipLoading) setLoading(true);
     try {
-      const result = await db.execute({
-        sql: `${REPERTOIRE_SONG_SELECT}
-              WHERE s.user_id = ?
-              ORDER BY s.id DESC`,
-        args: [currentUser.id]
-      });
-      setSongs(result.rows as unknown as Song[]);
+      const rows = await loadSongs();
+      setSongs(rows as unknown as Song[]);
     } catch (err) {
       console.error('Error fetching songs:', err);
       setError('Failed to load saved songs.');
     } finally {
       if (!skipLoading) setLoading(false);
     }
-  }, [currentUser.id]);
+  }, []);
 
   const fetchTagsAndLocations = useCallback(async () => {
     try {
-      const [tagsRes, locRes] = await Promise.all([
-        db.execute({
-          sql: "SELECT * FROM tags WHERE user_id = ? ORDER BY name ASC",
-          args: [currentUser.id],
-        }),
-        db.execute({
-          sql: "SELECT * FROM locations WHERE user_id = ? ORDER BY name ASC",
-          args: [currentUser.id],
-        }),
-      ]);
-      setAvailableTags(tagsRes.rows as unknown as Tag[]);
-      setLocations(locRes.rows as unknown as Location[]);
+      const { tags, locations } = await loadTagsAndLocations();
+      setAvailableTags(tags as unknown as Tag[]);
+      setLocations(locations as unknown as Location[]);
     } catch (err) {
       console.error(err);
     }
-  }, [currentUser.id]);
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -203,18 +188,14 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     let cancelled = false;
     void (async () => {
       try {
-        const result = await db.execute({
-          sql: `${REPERTOIRE_SONG_SELECT}
-                WHERE s.user_id = ? AND s.id = ?`,
-          args: [currentUser.id, songIdToOpen],
-        });
+        const row = await fetchSong(songIdToOpen);
         if (cancelled) return;
-        const row = result.rows[0] as unknown as Song | undefined;
         if (row) {
-          setSelectedSong(row);
+          const song = row as unknown as Song;
+          setSelectedSong(song);
           setSongs((prev) => {
-            if (prev.some((s) => s.id === row.id)) return prev;
-            return [row, ...prev];
+            if (prev.some((s) => s.id === song.id)) return prev;
+            return [song, ...prev];
           });
         }
       } catch (err) {
@@ -226,18 +207,12 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [songIdToOpen, currentUser.id, onSongIdOpenConsumed]);
+  }, [songIdToOpen, onSongIdOpenConsumed]);
 
   const fetchSongTags = useCallback(async (songId: number) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT t.* FROM tags t 
-              JOIN song_tags st ON t.id = st.tag_id 
-              JOIN songs s ON s.id = st.song_id
-              WHERE st.song_id = ? AND s.user_id = ?`,
-        args: [songId, currentUser.id]
-      });
-      setSelectedSongTags(result.rows as unknown as Tag[]);
+      const tags = await loadSongTags(songId);
+      setSelectedSongTags(tags as unknown as Tag[]);
     } catch (err) {
       console.error(err);
     }
@@ -245,15 +220,12 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
 
   const fetchPerformances = useCallback(async (songId: number) => {
     try {
-      const result = await db.execute({
-        sql: "SELECT * FROM performances WHERE song_id = ? AND user_id = ? ORDER BY date DESC",
-        args: [songId, currentUser.id]
-      });
-      setPerformances(result.rows as unknown as Performance[]);
+      const rows = await loadPerformances(songId);
+      setPerformances(rows as unknown as Performance[]);
     } catch (err) {
       console.error('Error fetching performances:', err);
     }
-  }, [currentUser.id]);
+  }, []);
 
   useEffect(() => {
     if (selectedSong) {
@@ -272,16 +244,12 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
       return;
     }
     try {
-      await db.execute({
-        sql: `UPDATE songs SET ${field} = ? WHERE id = ? AND user_id = ?`,
-        args: [value, songId, currentUser.id]
-      });
-
-      if (field === 'vocal_status') {
-        await db.execute({
-          sql: "INSERT INTO song_status_history (song_id, status) VALUES (?, ?)",
-          args: [songId, value]
-        });
+      if (field === 'personal_key') {
+        await patchSong(songId, { personal_key: value ?? '0' });
+      } else if (field === 'vocal_status') {
+        await patchSong(songId, { vocal_status: value ?? 'Practicing' });
+      } else if (field === 'lyrics') {
+        await patchSong(songId, { lyrics: value ?? undefined });
       }
 
       setSongs(prevSongs => prevSongs.map(s => s.id === songId ? { ...s, [field]: value } : s));
@@ -297,10 +265,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     if (!selectedSong) return;
     console.log(`Adding tag ${tagId} to song ${selectedSong.id}`);
     try {
-      await db.execute({
-        sql: "INSERT OR IGNORE INTO song_tags (song_id, tag_id) VALUES (?, ?)",
-        args: [selectedSong.id, tagId]
-      });
+      await addSongTag(selectedSong.id, tagId);
       console.log('Successfully inserted/ignored song tag');
       await fetchSongTags(selectedSong.id);
       console.log('Refetched song tags');
@@ -313,10 +278,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
   const handleRemoveSongTag = async (tagId: number) => {
     if (!selectedSong) return;
     try {
-      await db.execute({
-        sql: "DELETE FROM song_tags WHERE song_id = ? AND tag_id = ?",
-        args: [selectedSong.id, tagId]
-      });
+      await removeSongTag(selectedSong.id, tagId);
       fetchSongTags(selectedSong.id);
     } catch (err) {
       console.error(err);
@@ -325,10 +287,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
 
   const handleRemove = async (id: number) => {
     try {
-      await db.execute({
-        sql: "DELETE FROM songs WHERE id = ? AND user_id = ?",
-        args: [id, currentUser.id]
-      });
+      await deleteSong(id);
       setSongs(songs.filter(s => s.id !== id));
       setSelectedSong(null);
       setPendingDeleteSong(null);
@@ -344,17 +303,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     return date.slice(0, 10);
   };
 
-  const fetchPerformanceTagIds = async (performanceId: number): Promise<number[]> => {
-    const result = await db.execute({
-      sql: `SELECT pt.tag_id FROM performance_tags pt
-            JOIN performances p ON p.id = pt.performance_id
-            WHERE pt.performance_id = ? AND p.user_id = ?`,
-      args: [performanceId, currentUser.id],
-    });
-    return (result.rows as unknown as { tag_id: number }[]).map((row) =>
-      Number(row.tag_id)
-    );
-  };
+  const loadPerformanceTagIds = async (performanceId: number): Promise<number[]> =>
+    fetchPerformanceTagIds(performanceId);
 
   const refreshPerfDialogHistory = async () => {
     if (!selectedSong) return;
@@ -385,7 +335,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     setPerfNotes(perf.notes || '');
     setPerfRating(perf.rating ?? 3);
     try {
-      setSelectedPerfTags(await fetchPerformanceTagIds(perf.id));
+      setSelectedPerfTags(await loadPerformanceTagIds(perf.id));
     } catch (err) {
       console.error('Error loading performance tags:', err);
       setSelectedPerfTags([]);
@@ -403,48 +353,18 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     if (!selectedSong) return;
     setSavingPerf(true);
     try {
-      let perfId = editingPerfId;
+      const perfPayload = {
+        date: perfDate,
+        location: perfLocation,
+        notes: perfNotes,
+        rating: perfRating ?? 3,
+        tagIds: selectedPerfTags,
+      };
 
       if (editingPerfId != null) {
-        await db.execute({
-          sql: `UPDATE performances SET date = ?, location = ?, notes = ?, rating = ?
-                WHERE id = ? AND user_id = ?`,
-          args: [
-            perfDate,
-            perfLocation,
-            perfNotes,
-            perfRating,
-            editingPerfId,
-            currentUser.id,
-          ],
-        });
-        await db.execute({
-          sql: 'DELETE FROM performance_tags WHERE performance_id = ?',
-          args: [editingPerfId],
-        });
+        await updatePerformance(editingPerfId, perfPayload);
       } else {
-        const result = await db.execute({
-          sql: `INSERT INTO performances (song_id, user_id, date, location, notes, rating)
-                VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-          args: [
-            selectedSong.id,
-            currentUser.id,
-            perfDate,
-            perfLocation,
-            perfNotes,
-            perfRating,
-          ],
-        });
-        perfId = (result.rows[0] as unknown as { id: number }).id;
-      }
-
-      if (perfId != null) {
-        for (const tagId of selectedPerfTags) {
-          await db.execute({
-            sql: 'INSERT INTO performance_tags (performance_id, tag_id) VALUES (?, ?)',
-            args: [perfId, tagId],
-          });
-        }
+        await createPerformance(selectedSong.id, perfPayload);
       }
 
       closePerfDialog();
@@ -464,10 +384,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
   const handleDeletePerformance = async (perfId: number) => {
     if (!window.confirm('Delete this performance record?')) return;
     try {
-      await db.execute({
-        sql: "DELETE FROM performances WHERE id = ? AND user_id = ?",
-        args: [perfId, currentUser.id]
-      });
+      await deletePerformance(perfId);
       setPerformances(performances.filter(p => p.id !== perfId));
     } catch (err) {
       console.error('Error deleting performance:', err);

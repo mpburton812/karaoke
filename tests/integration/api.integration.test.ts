@@ -56,30 +56,36 @@ describe.skipIf(!canRun)("API + Turso integration", () => {
     expect(typeof token).toBe("string");
   });
 
-  it("POST /api/execute returns named row objects via JSON", async () => {
-    await db.execute({
-      sql: `INSERT INTO songs (user_id, itunes_id, track_name, artist_name)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(user_id, itunes_id) DO NOTHING`,
-      args: [userId, 999002, "API Test Song", "API Artist"],
-    });
-
-    const res = await request(app)
-      .post("/api/execute")
+  it("GET /api/songs returns JSON rows (replaces /api/execute)", async () => {
+    await request(app)
+      .post("/api/songs")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        sql: "SELECT id, track_name FROM songs WHERE user_id = ? AND itunes_id = ?",
-        args: [userId, 999002],
+        itunesId: 999002 + userId,
+        trackName: "API Test Song",
+        artistName: "API Artist",
+        artworkUrl: "",
+        durationMs: 0,
+        releaseDate: "2020",
+        explicit: 0,
+        album: "",
+        releaseYear: 2020,
+        lyrics: null,
       });
 
+    const res = await request(app)
+      .get("/api/songs")
+      .set("Authorization", `Bearer ${token}`);
+
     expect(res.status).toBe(200);
-    expect(res.body.columns).toContain("track_name");
-    const row = res.body.rows[0];
-    expect(Array.isArray(row)).toBe(true);
-    expect(row[1]).toBe("API Test Song");
+    const song = res.body.songs.find(
+      (s: { track_name: string }) => s.track_name === "API Test Song"
+    );
+    expect(song).toBeDefined();
+    expect(song.artist_name).toBe("API Artist");
   });
 
-  it("rejects unscoped DELETE on songs", async () => {
+  it("rejects tenant SQL on /api/execute (Track 2)", async () => {
     const res = await request(app)
       .post("/api/execute")
       .set("Authorization", `Bearer ${token}`)
@@ -89,5 +95,14 @@ describe.skipIf(!canRun)("API + Turso integration", () => {
       });
 
     expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/repertoire API/i);
+  });
+
+  it("allows SELECT 1 on /api/execute", async () => {
+    const res = await request(app)
+      .post("/api/execute")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ sql: "SELECT 1", args: [] });
+    expect(res.status).toBe(200);
   });
 });

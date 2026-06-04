@@ -2,6 +2,8 @@
 
 ## [2026-05-20]
 
+- **Security (Track 2 Phase 2):** Repertoire REST APIs (`/api/songs`, tags, locations, stats, portability, account wipe); UI uses `src/api/repertoire.ts`; `/api/execute` accepts only `SELECT 1`.
+- **Tests:** Expanded coverage for Track 1/2 (repertoire routes, schema migrations, sqlGuard/ownership, JWT/rate limits, admin event log export/clear); Turso integration suite for repertoire + IDOR; Playwright smoke across Chromium/Firefox/WebKit/mobile; `tests/README.md` and `scripts/check-turso-env.mjs`.
 - **Security (Track 2 Phase 1):** Hardened `sqlGuard` (scoped SELECTs, INSERT `user_id`, whitelisted song updates, block `event_logs`/`users`); async `sqlOwnership` on junction tables; rate limits on auth and execute; production requires `JWT_SECRET`; client SQL scoped for song/venue tags and performance tags.
 - **Shared hosting (Track 1):** One-time `schema_migrations` (KaraFun/genre cleanup, drop setlists/metadata tables, align `personal_key`); `ADMIN_USERNAMES` for admin accounts; README and enrichment copy updated for multi-user use; Track 2 security plan documented.
 - **Admin:** Event log export to CSV, clear all logs, automatic 1000-entry cap; `/api/admin/health` requires admin role; lyrics-only provider status in Settings.

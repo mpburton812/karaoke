@@ -11,7 +11,9 @@ Track 1 (cleanup) is done. Before wide public signup, complete this track.
 
 **Phase 1 implemented:** expanded `sqlGuard`, async `sqlOwnership`, rate limits on auth/execute, production `JWT_SECRET` check, client query scoping fixes.
 
-**Still open:** REST APIs to replace client `db.execute`, full integration IDOR suite.
+**Phase 2 implemented:** repertoire REST APIs (`/api/songs`, `/api/tags`, `/api/locations`, `/api/stats`, `/api/portability`, `/api/account/wipe`); client migrated off `db.execute`; `/api/execute` limited to `SELECT 1`.
+
+**Still open:** integration IDOR test suite against live Turso (optional).
 
 ## Recommended order
 
@@ -20,9 +22,9 @@ Track 1 (cleanup) is done. Before wide public signup, complete this track.
    - Validate INSERT `performances` / `song_tags` against owning `songs.user_id`.
    - Block unscoped `DELETE FROM event_logs` for non-admin (or admin-only route only).
 
-2. **REST layer**
-   - `GET/PATCH /api/songs`, `POST/PUT/DELETE /api/songs/:id/performances`, tags, locations.
-   - Deprecate client `db.execute` for those tables.
+2. **REST layer** ✅
+   - `GET/PATCH/DELETE /api/songs`, performances, tags, locations, stats, portability, account wipe.
+   - Client uses `src/api/repertoire.ts`; `/api/execute` no longer accepts tenant-table SQL.
 
 3. **Tests**
    - IDOR cases in `server/sqlGuard.test.ts` and route integration tests.
