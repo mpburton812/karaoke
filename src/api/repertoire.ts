@@ -295,9 +295,16 @@ export async function fetchLocationStats(locationName: string): Promise<{
 
 export async function fetchLocationPerformances(
   locationName: string
-): Promise<{ track_name: string; date: string }[]> {
+): Promise<
+  { track_name: string; date: string; rating: number | null; notes: string | null }[]
+> {
   const { performances } = await apiFetch<{
-    performances: { track_name: string; date: string }[];
+    performances: {
+      track_name: string;
+      date: string;
+      rating: number | null;
+      notes: string | null;
+    }[];
   }>(`/api/locations/performances?name=${encodeURIComponent(locationName)}`);
   return performances;
 }

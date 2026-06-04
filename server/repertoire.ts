@@ -576,7 +576,7 @@ export async function listLocationPerformances(
   locationName: string
 ): Promise<unknown[]> {
   const result = await db.execute({
-    sql: `SELECT s.track_name AS track_name, p.date AS date
+    sql: `SELECT s.track_name AS track_name, p.date AS date, p.rating AS rating, p.notes AS notes
           FROM performances p
           JOIN songs s ON p.song_id = s.id
           WHERE p.user_id = ? AND p.location = ?

@@ -2,6 +2,8 @@
 
 ## [2026-05-20]
 
+- **Places:** Songs sung here lists performance star ratings and a View notes link per entry.
+- **UI:** Fix horizontal star ratings in performance history; prevent repertoire list text overlapping action icons on mobile.
 - **Repertoire:** Songs sorted A–Z by title; letter chips with counts filter by first letter; **Clear filters** resets search, status, and letter.
 - **Security (Track 2 Phase 2):** Repertoire REST APIs (`/api/songs`, tags, locations, stats, portability, account wipe); UI uses `src/api/repertoire.ts`; `/api/execute` accepts only `SELECT 1`.
 - **Tests:** Expanded coverage for Track 1/2 (repertoire routes, schema migrations, sqlGuard/ownership, JWT/rate limits, admin event log export/clear); Turso integration suite for repertoire + IDOR; Playwright smoke across Chromium/Firefox/WebKit/mobile; `tests/README.md` and `scripts/check-turso-env.mjs`.

@@ -19,11 +19,14 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
+  Rating,
+  Link,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import HistoryIcon from '@mui/icons-material/History';
 import PlaceIcon from '@mui/icons-material/Place';
+import NotesIcon from '@mui/icons-material/Notes';
 import EmptyState from './EmptyState';
 import {
   fetchLocations as apiListLocations,
@@ -57,6 +60,8 @@ interface LocationStats {
 interface VenueSongRow {
   track_name: string;
   date: string;
+  rating: number | null;
+  notes: string | null;
 }
 
 interface LocationManagerProps {
@@ -74,6 +79,8 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
   const [venueSongsTitle, setVenueSongsTitle] = useState('');
   const [venueSongsRows, setVenueSongsRows] = useState<VenueSongRow[]>([]);
   const [venueSongsLoading, setVenueSongsLoading] = useState(false);
+  const [venueNotesOpen, setVenueNotesOpen] = useState(false);
+  const [venueNotesText, setVenueNotesText] = useState('');
 
   const fetchLocationStats = useCallback(async (location: Location) => {
     try {
@@ -182,6 +189,11 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
     } finally {
       setVenueSongsLoading(false);
     }
+  };
+
+  const handleShowVenueNotes = (notes: string) => {
+    setVenueNotesText(notes);
+    setVenueNotesOpen(true);
   };
 
   const handleRemoveTag = async (locationId: number, tagId: number) => {
@@ -333,19 +345,84 @@ const LocationManager: React.FC<LocationManagerProps> = ({ currentUser }) => {
             <Typography color="text.secondary">No performances recorded at this venue yet.</Typography>
           ) : (
             <List dense disablePadding>
-              {venueSongsRows.map((row, idx) => (
-                <ListItem key={`${row.track_name}-${row.date}-${idx}`} divider={idx < venueSongsRows.length - 1}>
-                  <ListItemText
-                    primary={row.track_name}
-                    secondary={new Date(row.date).toLocaleDateString()}
-                  />
-                </ListItem>
-              ))}
+              {venueSongsRows.map((row, idx) => {
+                const rating =
+                  row.rating != null && Number(row.rating) > 0 ? Number(row.rating) : null;
+                const notes = row.notes?.trim() ?? '';
+                return (
+                  <ListItem
+                    key={`${row.track_name}-${row.date}-${idx}`}
+                    divider={idx < venueSongsRows.length - 1}
+                    alignItems="flex-start"
+                  >
+                    <ListItemText
+                      primary={row.track_name}
+                      secondary={
+                        <Box
+                          component="span"
+                          sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 0.5,
+                            mt: 0.25,
+                          }}
+                        >
+                          <Typography component="span" variant="body2" color="text.secondary">
+                            {new Date(row.date).toLocaleDateString()}
+                          </Typography>
+                          <Box
+                            component="span"
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            {rating != null ? (
+                              <Rating
+                                value={rating}
+                                readOnly
+                                size="small"
+                                sx={{ flexShrink: 0, display: 'inline-flex' }}
+                              />
+                            ) : null}
+                            {notes ? (
+                              <Link
+                                component="button"
+                                variant="body2"
+                                underline="hover"
+                                onClick={() => handleShowVenueNotes(notes)}
+                                sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+                              >
+                                <NotesIcon sx={{ fontSize: 16 }} />
+                                View notes
+                              </Link>
+                            ) : null}
+                          </Box>
+                        </Box>
+                      }
+                    />
+                  </ListItem>
+                );
+              })}
             </List>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setVenueSongsOpen(false)} disabled={venueSongsLoading}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={venueNotesOpen} onClose={() => setVenueNotesOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Performance notes</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+            {venueNotesText}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setVenueNotesOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>
