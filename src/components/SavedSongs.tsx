@@ -752,12 +752,34 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                         <ListItemText
                           primary={new Date(p.date).toLocaleDateString()}
                           secondary={
-                            <>
-                              {p.location?.trim() ? p.location : '—'}
+                            <Box
+                              component="span"
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                flexWrap: 'wrap',
+                                mt: 0.25,
+                              }}
+                            >
+                              <Typography
+                                component="span"
+                                variant="body2"
+                                color="text.secondary"
+                                noWrap
+                                sx={{ minWidth: 0, maxWidth: '100%' }}
+                              >
+                                {p.location?.trim() ? p.location : '—'}
+                              </Typography>
                               {p.rating ? (
-                                <Rating value={p.rating} readOnly size="small" sx={{ display: 'block', mt: 0.25 }} />
+                                <Rating
+                                  value={p.rating}
+                                  readOnly
+                                  size="small"
+                                  sx={{ flexShrink: 0, display: 'inline-flex' }}
+                                />
                               ) : null}
-                            </>
+                            </Box>
                           }
                         />
                       </ListItem>
@@ -991,34 +1013,32 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
           <List>
             {filteredSongs.map((song) => (
               <React.Fragment key={song.id}>
-                <ListItem 
+                <ListItem
                   disablePadding
-                  secondaryAction={
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <IconButton edge="end" aria-label="perform" color="primary" sx={{ mr: 1 }} onClick={(e) => { e.stopPropagation(); handleDirectPerform(song); }}><MicIcon /></IconButton>
-                      <IconButton edge="end" aria-label="delete" color="error" onClick={(e) => { e.stopPropagation(); setPendingDeleteSong(song); }}><DeleteIcon /></IconButton>
-                    </Box>
-                  }
+                  sx={{ display: 'flex', alignItems: 'center' }}
                 >
-                  <ListItemButton onClick={() => setSelectedSong(song)} sx={{ pr: 14 }}>
+                  <ListItemButton
+                    onClick={() => setSelectedSong(song)}
+                    sx={{ flex: 1, minWidth: 0, py: 1 }}
+                  >
                     <ListItemAvatar><Avatar variant="rounded" src={song.artwork_url} /></ListItemAvatar>
-                    <ListItemText 
-                      sx={{ 
-                        '& .MuiListItemText-primary': { 
-                          overflow: 'hidden', 
-                          textOverflow: 'ellipsis', 
+                    <ListItemText
+                      sx={{
+                        minWidth: 0,
+                        flex: '1 1 auto',
+                        '& .MuiListItemText-primary': {
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
-                          pr: 2
                         },
                         '& .MuiListItemText-secondary': {
-                          overflow: 'hidden', 
-                          textOverflow: 'ellipsis', 
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
-                          pr: 2
-                        }
+                        },
                       }}
                       primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden', minWidth: 0 }}>
                           {song.spotify_track_id && (
                             <Tooltip
                               title={
@@ -1045,9 +1065,31 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                             ? ` • ${song.spotify_source_playlist_name}`
                             : ''}
                         </Typography>
-                      } 
+                      }
                     />
                   </ListItemButton>
+                  <Box sx={{ display: 'flex', flexShrink: 0, alignItems: 'center', pr: 0.5 }}>
+                    <IconButton
+                      aria-label="perform"
+                      color="primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDirectPerform(song);
+                      }}
+                    >
+                      <MicIcon />
+                    </IconButton>
+                    <IconButton
+                      aria-label="delete"
+                      color="error"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPendingDeleteSong(song);
+                      }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
                 </ListItem>
                 <Divider variant="inset" component="li" />
               </React.Fragment>
