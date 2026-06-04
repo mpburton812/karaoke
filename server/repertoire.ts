@@ -76,7 +76,7 @@ async function assertPerformanceOwned(
 
 export async function listSongs(userId: number): Promise<unknown[]> {
   const result = await db.execute({
-    sql: `${REPERTOIRE_SONG_SELECT} WHERE s.user_id = ? ORDER BY s.id DESC`,
+    sql: `${REPERTOIRE_SONG_SELECT} WHERE s.user_id = ? ORDER BY s.track_name ASC`,
     args: [userId],
   });
   return result.rows;

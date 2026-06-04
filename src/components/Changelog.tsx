@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-05-20', description: 'Repertoire: A–Z title sort, letter chips with counts, and Clear filters for search, status, and letter' },
   { date: '2026-05-20', description: 'Tests: Track 1/2 unit + Turso integration + Playwright e2e smoke; repertoire and security routes covered' },
   { date: '2026-05-20', description: 'Security (Track 2 Phase 2): Repertoire REST APIs for songs, tags, locations, stats, and portability; client no longer uses raw SQL' },
   { date: '2026-05-20', description: 'Security (Track 2 Phase 1): Stricter sqlGuard + ownership checks on /api/execute, rate limits, production JWT_SECRET required; scoped client SQL for tags/venues' },

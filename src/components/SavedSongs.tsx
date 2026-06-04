@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { 
   Box, List, ListItem, ListItemText, ListItemAvatar, ListItemButton,
   Avatar, Typography, Paper, Divider, Button, ButtonGroup, Grid, Chip, IconButton,
@@ -39,6 +39,12 @@ import {
 import { fetchLyrics } from '../utils/lyricsService';
 import { KARAOKE_SONGS_REFRESH_EVENT } from '../lib/karaokeEvents';
 import { karaokeTokens, spotifySx } from '../theme';
+import {
+  buildLetterCounts,
+  filterRepertoireSongs,
+  letterKeysWithCounts,
+  sortSongsByTrackName,
+} from '../utils/repertoireSort';
 
 interface SavedSongsProps {
   currentUser: { id: number; username: string };
@@ -117,6 +123,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [letterFilter, setLetterFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
   const [pendingDeleteSong, setPendingDeleteSong] = useState<Song | null>(null);
 
@@ -420,15 +427,31 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     }
   };
 
-  const filteredSongs = songs.filter(song => {
-    const title = (song.track_name ?? '').toLowerCase();
-    const artist = (song.artist_name ?? '').toLowerCase();
-    const q = searchQuery.toLowerCase();
-    const matchesSearch = title.includes(q) || artist.includes(q);
-    const status = song.vocal_status || 'Practicing';
-    const matchesStatus = statusFilter.length === 0 || statusFilter.includes(status);
-    return matchesSearch && matchesStatus;
-  });
+  const sortedSongs = useMemo(() => sortSongsByTrackName(songs), [songs]);
+  const letterCounts = useMemo(
+    () => buildLetterCounts(sortedSongs, statusFilter),
+    [sortedSongs, statusFilter]
+  );
+  const letterKeys = useMemo(() => letterKeysWithCounts(letterCounts), [letterCounts]);
+  const filteredSongs = useMemo(
+    () =>
+      filterRepertoireSongs(sortedSongs, {
+        searchQuery,
+        statusFilter,
+        letterFilter,
+      }),
+    [sortedSongs, searchQuery, statusFilter, letterFilter]
+  );
+  const hasActiveFilters =
+    searchQuery.trim() !== '' || statusFilter.length > 0 || letterFilter != null;
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setStatusFilter([]);
+    setLetterFilter(null);
+  };
+  const handleLetterClick = (letter: string) => {
+    setLetterFilter((prev) => (prev === letter ? null : letter));
+  };
 
   const statusOptions = ['Mastered', 'Proficient', 'Practicing'];
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
@@ -834,10 +857,10 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
               <Button
                 size="small"
                 variant="outlined"
-                onClick={() => setSearchQuery('')}
-                disabled={!searchQuery}
+                onClick={clearAllFilters}
+                disabled={!hasActiveFilters}
               >
-                Clear
+                Clear filters
               </Button>
               <FormControl size="small" sx={{ minWidth: 220 }}>
                 <InputLabel shrink>Status</InputLabel>
@@ -881,6 +904,36 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                 </Button>
               </ButtonGroup>
             </Box>
+            {letterKeys.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Browse by title (A–Z)
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                  {letterKeys.map((letter) => {
+                    const count = letterCounts[letter] ?? 0;
+                    const selected = letterFilter === letter;
+                    return (
+                      <Chip
+                        key={letter}
+                        label={letter === '#' ? `# (${count})` : `${letter} (${count})`}
+                        size="small"
+                        clickable
+                        color={selected ? 'primary' : 'default'}
+                        variant={selected ? 'filled' : 'outlined'}
+                        onClick={() => handleLetterClick(letter)}
+                      />
+                    );
+                  })}
+                </Box>
+              </Box>
+            )}
+            {filteredSongs.length > 0 && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                Showing {filteredSongs.length} of {songs.length} songs
+                {letterFilter != null ? ` · titles starting with “${letterFilter === '#' ? '#' : letterFilter}”` : ''}
+              </Typography>
+            )}
           </AccordionDetails>
         </Accordion>
       </Box>
@@ -893,7 +946,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
           description={
             songs.length === 0
               ? 'Search above to find a track and add it — your first karaoke pick is one click away.'
-              : 'Try clearing search text or widening your status filters.'
+              : 'Try Clear filters or pick a different letter, status, or search.'
           }
         />
       ) : viewMode === 'cards' ? (

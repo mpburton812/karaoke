@@ -2,6 +2,7 @@
 
 ## [2026-05-20]
 
+- **Repertoire:** Songs sorted A–Z by title; letter chips with counts filter by first letter; **Clear filters** resets search, status, and letter.
 - **Security (Track 2 Phase 2):** Repertoire REST APIs (`/api/songs`, tags, locations, stats, portability, account wipe); UI uses `src/api/repertoire.ts`; `/api/execute` accepts only `SELECT 1`.
 - **Tests:** Expanded coverage for Track 1/2 (repertoire routes, schema migrations, sqlGuard/ownership, JWT/rate limits, admin event log export/clear); Turso integration suite for repertoire + IDOR; Playwright smoke across Chromium/Firefox/WebKit/mobile; `tests/README.md` and `scripts/check-turso-env.mjs`.
 - **Security (Track 2 Phase 1):** Hardened `sqlGuard` (scoped SELECTs, INSERT `user_id`, whitelisted song updates, block `event_logs`/`users`); async `sqlOwnership` on junction tables; rate limits on auth and execute; production requires `JWT_SECRET`; client SQL scoped for song/venue tags and performance tags.
