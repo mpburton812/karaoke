@@ -58,8 +58,6 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
   
   const [lookupStatus, setLookupStatus] = useState({
     lyrics: 'idle' as LookupState,
-    musicbrainz: 'idle' as LookupState,
-    acousticbrainz: 'idle' as LookupState
   });
 
   const [lyrics, setLyrics] = useState<string | null>(null);
@@ -93,11 +91,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
 
   const handleSelectSong = async (song: iTunesSong) => {
     setSelectedSong(song);
-    setLookupStatus({
-      lyrics: 'loading',
-      musicbrainz: 'idle',
-      acousticbrainz: 'idle'
-    });
+    setLookupStatus({ lyrics: 'loading' });
     setLyrics(null);
 
     try {
@@ -252,7 +246,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
 
       setSnackbar({
         open: true,
-        message: "Song saved. Lyrics, MusicBrainz, and AcousticBrainz finish in the background.",
+        message: "Song saved. Lyrics lookup continues in the background if needed.",
         severity: "success",
       });
 
@@ -349,22 +343,10 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
               <Box sx={{ mt: 3, mb: 2, p: 2, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
                 <Typography variant="subtitle2" gutterBottom align="left" color="primary">Data sources</Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {[
-                    { key: 'lyrics', label: 'Lyrics Database' },
-                    { key: 'musicbrainz', label: 'MusicBrainz (MBID)' },
-                    { key: 'acousticbrainz', label: 'AcousticBrainz (Features)' }
-                  ].map((source) => (
-                    <Box key={source.key} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="body2">{source.label}</Typography>
-                      {source.key === 'musicbrainz' || source.key === 'acousticbrainz' ? (
-                        <Typography variant="caption" color="text.secondary" sx={{ maxWidth: '55%', textAlign: 'right' }}>
-                          After save (background)
-                        </Typography>
-                      ) : (
-                        <StatusIcon status={lookupStatus[source.key as keyof typeof lookupStatus]} />
-                      )}
-                    </Box>
-                  ))}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2">Lyrics database</Typography>
+                    <StatusIcon status={lookupStatus.lyrics} />
+                  </Box>
                 </Box>
               </Box>
 

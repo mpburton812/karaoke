@@ -18,9 +18,12 @@ vi.mock("fs/promises", () => ({
 
 import {
   auditSqlMutation,
+  clearEventLogs,
+  exportEventLogsCsv,
   listEventLogs,
   logEvent,
   logServerStartup,
+  MAX_EVENT_LOG_ENTRIES,
   resetEventLogTestState,
 } from "./eventLog.js";
 
@@ -108,5 +111,47 @@ describe("eventLog", () => {
     expect(events).toHaveLength(1);
     expect(events[0]?.level).toBe("W");
     expect(events[0]?.message).toContain("Spotify");
+  });
+
+  it("prunes old rows after insert beyond the max entry count", async () => {
+    mockExecute.mockResolvedValue({ rows: [] });
+    logEvent({ level: "I", message: "one", event: "user_login_success" });
+    await new Promise((r) => setTimeout(r, 20));
+    const prune = mockExecute.mock.calls.find((c) =>
+      String(c[0]?.sql).includes("DELETE FROM event_logs")
+    );
+    expect(prune).toBeDefined();
+    expect(prune![0].args).toContain(MAX_EVENT_LOG_ENTRIES);
+  });
+
+  it("exports event logs as CSV", async () => {
+    mockExecute.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 1,
+          occurred_at: "2026-05-20T10:00:00.000Z",
+          level: "I",
+          user_id: 1,
+          username: "admin",
+          message: "Hello",
+          category: "user_login_success",
+          details: null,
+        },
+      ],
+    });
+    const csv = await exportEventLogsCsv();
+    expect(csv).toContain("id,occurred_at");
+    expect(csv).toContain("Hello");
+  });
+
+  it("clears all event logs", async () => {
+    mockExecute
+      .mockResolvedValueOnce({ rows: [{ c: 3 }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const deleted = await clearEventLogs();
+    expect(deleted).toBe(3);
+    expect(mockExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ sql: "DELETE FROM event_logs" })
+    );
   });
 });

@@ -5,6 +5,10 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Paper,
   Table,
   TableBody,
@@ -14,7 +18,11 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import {
+  clearAdminEventLogs,
+  downloadAdminEventLogsCsv,
   fetchAdminEventLogs,
   type EventLevel,
   type EventLogEntry,
@@ -22,7 +30,8 @@ import {
 import { isEventCode, labelForEvent, levelTitle } from "../lib/eventCatalog";
 import { panelTitleSx } from "../theme";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
+const MAX_LOG_ENTRIES = 1000;
 
 function levelColor(level: EventLevel): "error" | "warning" | "info" {
   if (level === "C") return "error";
@@ -61,12 +70,19 @@ const EventLogViewer: React.FC = () => {
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const load = useCallback(async (count: number) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchAdminEventLogs(count, 0);
+      const res = await fetchAdminEventLogs(
+        Math.min(count, MAX_LOG_ENTRIES),
+        0
+      );
       setEvents(res.events);
       setTotal(res.total);
     } catch (err) {
@@ -82,27 +98,91 @@ const EventLogViewer: React.FC = () => {
   }, [load, visible]);
 
   const showMore = () => {
-    setVisible((v) => Math.min(v + PAGE_SIZE, Math.max(total, v + PAGE_SIZE)));
+    setVisible((v) =>
+      Math.min(v + PAGE_SIZE, MAX_LOG_ENTRIES, Math.max(total, v + PAGE_SIZE))
+    );
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    setError(null);
+    try {
+      await downloadAdminEventLogsCsv();
+      setNotice("Event log exported as CSV.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export failed.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleClear = async () => {
+    setClearing(true);
+    setError(null);
+    try {
+      const result = await clearAdminEventLogs();
+      setClearConfirmOpen(false);
+      setNotice(`Cleared ${result.deleted} log entries.`);
+      setVisible(PAGE_SIZE);
+      await load(PAGE_SIZE);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to clear logs.");
+    } finally {
+      setClearing(false);
+    }
   };
 
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 4, textAlign: "left" }}>
-      <Typography variant="subtitle2" gutterBottom sx={{ ...panelTitleSx, color: "primary.main" }}>
-        Event log
-      </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+          gap: 1,
+          mb: 2,
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ ...panelTitleSx, color: "primary.main" }}>
+          Event log
+        </Typography>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<FileDownloadIcon />}
+            onClick={() => void handleExport()}
+            disabled={exporting || loading}
+          >
+            {exporting ? "Exporting…" : "Export CSV"}
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteSweepIcon />}
+            onClick={() => setClearConfirmOpen(true)}
+            disabled={loading || total === 0}
+          >
+            Clear logs
+          </Button>
+        </Box>
+      </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Canonical event types with fixed severities (C = critical, W = warning,
-        I = informational). Mirrored
-        to{" "}
-        <Typography component="span" variant="body2" sx={{ fontFamily: "monospace" }}>
-          logs/application-events.jsonl
-        </Typography>{" "}
-        in the repository.
+        I = informational). The database keeps at most {MAX_LOG_ENTRIES} entries
+        (oldest removed automatically).
       </Typography>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
+        </Alert>
+      )}
+      {notice && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice(null)}>
+          {notice}
         </Alert>
       )}
 
@@ -166,13 +246,39 @@ const EventLogViewer: React.FC = () => {
         </TableContainer>
       )}
 
-      {visible < total && (
+      {visible < total && visible < MAX_LOG_ENTRIES && (
         <Box sx={{ mt: 2, display: "flex", justifyContent: "center" }}>
           <Button variant="outlined" onClick={showMore} disabled={loading}>
-            Show more ({visible} of {total})
+            Show more ({visible} of {Math.min(total, MAX_LOG_ENTRIES)})
           </Button>
         </Box>
       )}
+
+      <Dialog
+        open={clearConfirmOpen}
+        onClose={() => !clearing && setClearConfirmOpen(false)}
+      >
+        <DialogTitle>Clear all event logs?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            This permanently deletes all {total} entries in the event log database.
+            This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setClearConfirmOpen(false)} disabled={clearing}>
+            Cancel
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => void handleClear()}
+            disabled={clearing}
+          >
+            {clearing ? "Clearing…" : "Clear all"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };

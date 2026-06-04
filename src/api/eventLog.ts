@@ -54,6 +54,35 @@ export function fetchAdminEventLogs(
   );
 }
 
+export async function downloadAdminEventLogsCsv(): Promise<void> {
+  const token = getStoredToken();
+  if (!token) throw new Error("Not authenticated.");
+  const res = await fetch(apiUrl("/api/admin/event-logs/export"), {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      typeof body.error === "string" ? body.error : `Export failed (${res.status})`
+    );
+  }
+  const blob = await res.blob();
+  const stamp = new Date().toISOString().slice(0, 10);
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `event-logs-${stamp}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+export function clearAdminEventLogs(): Promise<{ ok: boolean; deleted: number }> {
+  return authedFetch<{ ok: boolean; deleted: number }>("/api/admin/event-logs", {
+    method: "DELETE",
+  });
+}
+
 function postClientEvent(
   event: EventCode,
   message: string

@@ -49,6 +49,8 @@ import {
 import { isEventCode } from "../src/lib/eventCatalog.js";
 import {
   auditSqlMutation,
+  clearEventLogs,
+  exportEventLogsCsv,
   listEventLogs,
   logApiCritical,
   logApiWarning,
@@ -85,6 +87,7 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/admin/enrichment/rebuild-all",
       "/api/admin/health",
       "/api/admin/event-logs",
+      "/api/admin/event-logs/export",
       "/api/events/log",
     ],
     data: ["/api/execute", "/api/batch"],
@@ -525,7 +528,7 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     async (req, res) => {
       try {
         const limit = Math.min(
-          100,
+          1000,
           Math.max(1, Number(req.query.limit) || 10)
         );
         const offset = Math.max(0, Number(req.query.offset) || 0);
@@ -534,6 +537,49 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to list event logs.";
+        res.status(500).json({ error: message });
+      }
+    }
+  );
+
+  app.get(
+    "/api/admin/event-logs/export",
+    requireAuth,
+    requireAdmin,
+    async (_req, res) => {
+      try {
+        const csv = await exportEventLogsCsv();
+        const stamp = new Date().toISOString().slice(0, 10);
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="event-logs-${stamp}.csv"`
+        );
+        res.send(csv);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to export event logs.";
+        res.status(500).json({ error: message });
+      }
+    }
+  );
+
+  app.delete(
+    "/api/admin/event-logs",
+    requireAuth,
+    requireAdmin,
+    async (req, res) => {
+      const userId = (req as express.Request & { userId: number }).userId;
+      try {
+        const deleted = await clearEventLogs();
+        logCatalogEvent("feature_utilization_metrics", {
+          userId,
+          message: `Cleared ${deleted} event log entries`,
+        });
+        res.json({ ok: true, deleted });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to clear event logs.";
         res.status(500).json({ error: message });
       }
     }

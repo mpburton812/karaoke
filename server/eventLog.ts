@@ -36,7 +36,10 @@ export interface EventLogRow {
   message: string;
   /** Event catalog code, or legacy grouping label. */
   category: string | null;
+  details: string | null;
 }
+
+export const MAX_EVENT_LOG_ENTRIES = 1000;
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -153,6 +156,8 @@ export function logEvent(input: LogEventInput): void {
         args: [occurredAt, level, userId, username, message, category, detailsJson],
       });
 
+      await pruneEventLogs();
+
       await appendGithubJsonl({
         at: occurredAt,
         level,
@@ -167,16 +172,41 @@ export function logEvent(input: LogEventInput): void {
   })();
 }
 
+async function pruneEventLogs(): Promise<void> {
+  await db.execute({
+    sql: `DELETE FROM event_logs
+          WHERE id NOT IN (
+            SELECT id FROM event_logs
+            ORDER BY occurred_at DESC, id DESC
+            LIMIT ?
+          )`,
+    args: [MAX_EVENT_LOG_ENTRIES],
+  });
+}
+
+function mapEventLogRow(row: Record<string, unknown>): EventLogRow {
+  return {
+    id: Number(row.id),
+    occurredAt: String(row.occurred_at ?? ""),
+    level: normalizeLevel(String(row.level ?? "I")),
+    userId: row.user_id != null ? Number(row.user_id) : null,
+    username: typeof row.username === "string" ? row.username : null,
+    message: String(row.message ?? ""),
+    category: typeof row.category === "string" ? row.category : null,
+    details: typeof row.details === "string" ? row.details : null,
+  };
+}
+
 export async function listEventLogs(options: {
   limit: number;
   offset: number;
 }): Promise<{ events: EventLogRow[]; total: number }> {
-  const limit = Math.min(Math.max(1, options.limit), 100);
+  const limit = Math.min(Math.max(1, options.limit), MAX_EVENT_LOG_ENTRIES);
   const offset = Math.max(0, options.offset);
 
   const [rowsRes, countRes] = await Promise.all([
     db.execute({
-      sql: `SELECT id, occurred_at, level, user_id, username, message, category
+      sql: `SELECT id, occurred_at, level, user_id, username, message, category, details
             FROM event_logs
             ORDER BY occurred_at DESC, id DESC
             LIMIT ? OFFSET ?`,
@@ -186,20 +216,53 @@ export async function listEventLogs(options: {
   ]);
 
   const total = Number((countRes.rows[0] as { c?: unknown } | undefined)?.c ?? 0);
-  const events = rowsRes.rows.map((row) => {
-    const o = row as Record<string, unknown>;
-    return {
-      id: Number(o.id),
-      occurredAt: String(o.occurred_at ?? ""),
-      level: normalizeLevel(String(o.level ?? "I")),
-      userId: o.user_id != null ? Number(o.user_id) : null,
-      username: typeof o.username === "string" ? o.username : null,
-      message: String(o.message ?? ""),
-      category: typeof o.category === "string" ? o.category : null,
-    };
-  });
+  const events = rowsRes.rows.map((row) =>
+    mapEventLogRow(row as Record<string, unknown>)
+  );
 
   return { events, total };
+}
+
+function csvEscape(value: string): string {
+  if (/[",\r\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+  return value;
+}
+
+/** Export up to {@link MAX_EVENT_LOG_ENTRIES} rows as CSV (newest first). */
+export async function exportEventLogsCsv(): Promise<string> {
+  const res = await db.execute({
+    sql: `SELECT id, occurred_at, level, user_id, username, message, category, details
+          FROM event_logs
+          ORDER BY occurred_at DESC, id DESC
+          LIMIT ?`,
+    args: [MAX_EVENT_LOG_ENTRIES],
+  });
+  const header =
+    "id,occurred_at,level,user_id,username,category,message,details";
+  const lines = res.rows.map((row) => {
+    const e = mapEventLogRow(row as Record<string, unknown>);
+    return [
+      String(e.id),
+      csvEscape(e.occurredAt),
+      csvEscape(e.level),
+      e.userId != null ? String(e.userId) : "",
+      csvEscape(e.username ?? ""),
+      csvEscape(e.category ?? ""),
+      csvEscape(e.message),
+      csvEscape(e.details ?? ""),
+    ].join(",");
+  });
+  return [header, ...lines].join("\r\n");
+}
+
+export async function clearEventLogs(): Promise<number> {
+  const countRes = await db.execute({
+    sql: "SELECT COUNT(*) AS c FROM event_logs",
+    args: [],
+  });
+  const count = Number((countRes.rows[0] as { c?: unknown } | undefined)?.c ?? 0);
+  await db.execute({ sql: "DELETE FROM event_logs", args: [] });
+  return count;
 }
 
 export function logApiWarning(
@@ -399,6 +462,32 @@ export async function auditSqlMutation(
     const ref = await lookupSongRef(userId, argAt(args, songIdIdx));
     message = "Recorded performance";
     suffix = ref ? `: ${ref}` : "";
+  } else if (/^UPDATE\s+PERFORMANCES\b/i.test(normalized)) {
+    const rawPerfId = argAt(args, 4);
+    const perfId =
+      typeof rawPerfId === "number"
+        ? rawPerfId
+        : Number(rawPerfId);
+    if (Number.isFinite(perfId) && perfId > 0) {
+      try {
+        const res = await db.execute({
+          sql: `SELECT s.track_name, s.artist_name FROM performances p
+                JOIN songs s ON s.id = p.song_id
+                WHERE p.id = ? AND p.user_id = ?`,
+          args: [perfId, userId],
+        });
+        const row = res?.rows?.[0] as
+          | { track_name?: string; artist_name?: string }
+          | undefined;
+        const ref = formatSongRef(row?.track_name, row?.artist_name);
+        message = "Updated performance";
+        suffix = ref ? `: ${ref}` : "";
+      } catch {
+        message = "Updated performance";
+      }
+    } else {
+      message = "Updated performance";
+    }
   } else if (/^DELETE\s+FROM\s+SONGS\b/i.test(normalized)) {
     const ref = await lookupSongRef(userId, argAt(args, 0));
     message = "Removed song from repertoire";

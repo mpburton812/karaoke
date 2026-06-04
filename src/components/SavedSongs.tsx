@@ -609,8 +609,6 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                 <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>Data sources</Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
                   <Chip label={selectedSong.lyrics ? 'Lyrics found' : 'Lyrics missing'} color={selectedSong.lyrics ? 'success' : 'default'} variant="outlined" />
-                  <Chip label={selectedSong.bpm ? `BPM ${selectedSong.bpm}` : 'BPM missing'} color={selectedSong.bpm ? 'success' : 'warning'} variant="outlined" />
-                  <Chip label={selectedSong.key && selectedSong.key !== 'DNF' ? `Key ${selectedSong.key}` : 'Key missing'} color={selectedSong.key && selectedSong.key !== 'DNF' ? 'success' : 'warning'} variant="outlined" />
                   {selectedSong.spotify_source_playlist_name && (
                     <Chip
                       icon={<SpotifyGlyphIcon />}
@@ -664,37 +662,22 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
               </Grid>
 
               <Box sx={{ mt: 4 }}>
-                <Typography variant="h6" gutterBottom>Musical qualities</Typography>
-                <Grid container spacing={1}>
-                  {[
-                    { label: 'Energy', value: selectedSong.energy },
-                    { label: 'Danceability', value: selectedSong.danceability },
-                    { label: 'Happiness', value: selectedSong.happiness },
-                    { label: 'Acousticness', value: selectedSong.acousticness },
-                    { label: 'Instrumentalness', value: selectedSong.instrumentalness },
-                    { label: 'Liveness', value: selectedSong.liveness },
-                    { label: 'Speechiness', value: selectedSong.speechiness }
-                  ].map((quality) => (
-                    <Grid size={{ xs: 6, sm: 4, md: 3 }} key={quality.label}>
-                      <Box sx={{ textAlign: 'center', p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                        <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>{quality.label}</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                          {quality.value !== null ? `${(quality.value * 100).toFixed(0)}%` : "DNF"}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  ))}
-                </Grid>
-
-                <Box sx={{ mt: 3 }}>
-                  <Typography variant="body2" color="textSecondary">
-                    <strong>BPM:</strong> {selectedSong.bpm || "DNF"} | <strong>Key:</strong> {selectedSong.key || "DNF"}<br />
-                    <strong>Album:</strong> {selectedSong.album}<br />
-                    <strong>Duration:</strong> {Math.floor(selectedSong.duration_ms / 60000)}:{( (selectedSong.duration_ms % 60000) / 1000).toFixed(0).padStart(2, '0')}<br />
-                    <strong>Popularity:</strong> {selectedSong.popularity ? `${selectedSong.popularity}/100` : "DNF"} | <strong>Loudness:</strong> {selectedSong.loudness !== null ? `${selectedSong.loudness} dB` : "DNF"}<br />
-                    <strong>Release date:</strong> {new Date(selectedSong.release_date).toLocaleDateString()}
-                  </Typography>
-                </Box>
+                <Typography variant="h6" gutterBottom>Track details</Typography>
+                <Typography variant="body2" color="textSecondary">
+                  <strong>Album:</strong> {selectedSong.album || '—'}<br />
+                  <strong>Duration:</strong>{' '}
+                  {selectedSong.duration_ms
+                    ? `${Math.floor(selectedSong.duration_ms / 60000)}:${((selectedSong.duration_ms % 60000) / 1000).toFixed(0).padStart(2, '0')}`
+                    : '—'}
+                  <br />
+                  <strong>Popularity:</strong>{' '}
+                  {selectedSong.popularity != null ? `${selectedSong.popularity}/100` : '—'}
+                  <br />
+                  <strong>Release date:</strong>{' '}
+                  {selectedSong.release_date
+                    ? new Date(selectedSong.release_date).toLocaleDateString()
+                    : '—'}
+                </Typography>
               </Box>
             </Grid>
           </Grid>
@@ -819,7 +802,23 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                 ) : (
                   <List dense disablePadding>
                     {performances.map((p) => (
-                      <ListItem key={p.id} disablePadding sx={{ py: 0.5 }}>
+                      <ListItem
+                        key={p.id}
+                        disablePadding
+                        sx={{ py: 0.5 }}
+                        secondaryAction={
+                          <Tooltip title="Edit this performance">
+                            <IconButton
+                              edge="end"
+                              size="small"
+                              aria-label="Edit performance"
+                              onClick={() => void handleOpenEditPerformance(p)}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        }
+                      >
                         <ListItemText
                           primary={new Date(p.date).toLocaleDateString()}
                           secondary={
