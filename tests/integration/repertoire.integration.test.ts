@@ -4,6 +4,7 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createClient } from "@libsql/client";
 import { createApp } from "../../server/app.js";
+import { initDb } from "../../server/initDb.js";
 
 const url = process.env.TURSO_DATABASE_URL || process.env.VITE_TURSO_DATABASE_URL;
 const authToken =
@@ -23,8 +24,10 @@ describe.skipIf(!canRun)("Repertoire API + Turso integration (Track 2)", () => {
   let otherToken: string;
   let songId: number;
   let tagId: number;
+  let shareId: number;
 
   beforeAll(async () => {
+    await initDb();
     const hash = await bcrypt.hash(password, 12);
     for (const name of [username, otherUsername]) {
       const result = await db.execute({
@@ -51,6 +54,10 @@ describe.skipIf(!canRun)("Repertoire API + Turso integration (Track 2)", () => {
     for (const id of [userId, otherUserId]) {
       if (!id) continue;
       await db.batch([
+        {
+          sql: "DELETE FROM song_shares WHERE sender_user_id = ? OR recipient_user_id = ?",
+          args: [id, id],
+        },
         {
           sql: "DELETE FROM performance_tags WHERE performance_id IN (SELECT id FROM performances WHERE user_id = ?)",
           args: [id],
@@ -158,6 +165,78 @@ describe.skipIf(!canRun)("Repertoire API + Turso integration (Track 2)", () => {
     expect(res.status).toBe(200);
     expect(res.body.global.totalSongs).toBeGreaterThanOrEqual(1);
     expect(res.body.global.totalPerformances).toBeGreaterThanOrEqual(1);
+  });
+
+  it("POST /api/song-shares sends song to another user", async () => {
+    const res = await request(app)
+      .post("/api/song-shares")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        recipientUserId: otherUserId,
+        songId,
+        message: "Try this one",
+      });
+    expect(res.status).toBe(201);
+    shareId = res.body.id;
+    expect(typeof shareId).toBe("number");
+  });
+
+  it("GET /api/song-shares/inbox shows share for recipient", async () => {
+    const res = await request(app)
+      .get("/api/song-shares/inbox")
+      .set("Authorization", `Bearer ${otherToken}`);
+    expect(res.status).toBe(200);
+    expect(
+      res.body.shares.some((s: { id: number }) => s.id === shareId)
+    ).toBe(true);
+  });
+
+  it("recipient can accept shared song into their repertoire", async () => {
+    const res = await request(app)
+      .post(`/api/song-shares/${shareId}/accept`)
+      .set("Authorization", `Bearer ${otherToken}`);
+    expect(res.status).toBe(200);
+    expect(typeof res.body.savedSongId).toBe("number");
+
+    const songs = await request(app)
+      .get("/api/songs")
+      .set("Authorization", `Bearer ${otherToken}`);
+    expect(
+      songs.body.songs.some(
+        (s: { track_name: string }) => s.track_name === "Integration Track"
+      )
+    ).toBe(true);
+  });
+
+  it("recipient response appears in sender notification queue", async () => {
+    const respond = await request(app)
+      .post(`/api/song-shares/${shareId}/respond`)
+      .set("Authorization", `Bearer ${otherToken}`)
+      .send({ message: "Added to my list!" });
+    expect(respond.status).toBe(200);
+
+    const res = await request(app)
+      .get("/api/song-shares/notifications/sender-replies")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(
+      res.body.shares.some(
+        (s: { id: number; responseMessage: string }) =>
+          s.id === shareId && s.responseMessage === "Added to my list!"
+      )
+    ).toBe(true);
+  });
+
+  it("GET /api/stats/dashboard counts sent and received shares", async () => {
+    const senderStats = await request(app)
+      .get("/api/stats/dashboard")
+      .set("Authorization", `Bearer ${token}`);
+    expect(senderStats.body.global.songsSent).toBeGreaterThanOrEqual(1);
+
+    const recipientStats = await request(app)
+      .get("/api/stats/dashboard")
+      .set("Authorization", `Bearer ${otherToken}`);
+    expect(recipientStats.body.global.songsReceived).toBeGreaterThanOrEqual(1);
   });
 
   it("cannot PATCH another users song (IDOR)", async () => {

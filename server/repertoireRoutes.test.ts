@@ -241,6 +241,8 @@ describe("Repertoire API (Track 2)", () => {
               masteredCount: 0,
               proficientCount: 1,
               practicingCount: 0,
+              songsSent: 0,
+              songsReceived: 0,
             },
           ],
         })
@@ -253,6 +255,8 @@ describe("Repertoire API (Track 2)", () => {
         .set(auth());
       expect(res.status).toBe(200);
       expect(res.body.global.totalSongs).toBe(1);
+      expect(res.body.global.songsSent).toBe(0);
+      expect(res.body.global.songsReceived).toBe(0);
     });
   });
 
