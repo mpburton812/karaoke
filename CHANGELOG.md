@@ -2,6 +2,7 @@
 
 ## [2026-06-04]
 
+- **Sharing:** Send songs to other users from song detail (message up to 255 chars); inbox in Settings; in-app pop-ups when notifications are enabled; Save/Close with duplicate protection; optional reply to sender; Stats tab shows songs sent and received.
 - **Tags:** Tag cloud chips show song counts and scale size by repertoire usage; counts refresh when songs change.
 
 ## [2026-05-20]

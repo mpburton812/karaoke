@@ -24,6 +24,7 @@ export interface AuthUser {
   id: number;
   username: string;
   accessLevel: "user" | "admin";
+  notificationsEnabled?: boolean;
 }
 
 export interface JwtPayload {
@@ -249,17 +250,25 @@ export async function changeUsername(
 
 export async function getAuthUserById(userId: number): Promise<AuthUser | null> {
   const result = await db.execute({
-    sql: "SELECT id, username, access_level FROM users WHERE id = ?",
+    sql: `SELECT id, username, access_level,
+                 COALESCE(notifications_enabled, 1) AS notifications_enabled
+          FROM users WHERE id = ?`,
     args: [userId],
   });
   const row = result?.rows?.[0] as
-    | { id: number; username: string; access_level?: string | null }
+    | {
+        id: number;
+        username: string;
+        access_level?: string | null;
+        notifications_enabled?: number;
+      }
     | undefined;
   if (!row) return null;
   return {
     id: row.id,
     username: row.username,
     accessLevel: row.access_level === "admin" ? "admin" : "user",
+    notificationsEnabled: Number(row.notifications_enabled ?? 1) !== 0,
   };
 }
 

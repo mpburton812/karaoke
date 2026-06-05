@@ -18,6 +18,7 @@ import { assertSqlAllowed } from "./sqlGuard.js";
 import { assertSqlOwnership } from "./sqlOwnership.js";
 import { createRateLimiter } from "./rateLimit.js";
 import { registerRepertoireRoutes } from "./repertoireRoutes.js";
+import { registerSongShareRoutes } from "./songShareRoutes.js";
 import {
   spotifyOAuthConfigured,
   signSpotifyOAuthState,
@@ -111,6 +112,10 @@ function apiIndexPayload(serveStatic: boolean) {
     data: [
       "/api/songs",
       "/api/tags",
+      "/api/users/directory",
+      "/api/users/me/preferences",
+      "/api/users/me/share-stats",
+      "/api/song-shares",
       "/api/locations",
       "/api/stats/dashboard",
       "/api/portability/:table",
@@ -1103,6 +1108,11 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
   );
 
   registerRepertoireRoutes(app, {
+    requireAuth,
+    repertoireRateLimit: executeRateLimit,
+  });
+
+  registerSongShareRoutes(app, {
     requireAuth,
     repertoireRateLimit: executeRateLimit,
   });

@@ -160,7 +160,14 @@ describe("API routes", () => {
   describe("GET /api/auth/me", () => {
     it("returns current user with access level", async () => {
       mockExecute.mockResolvedValueOnce({
-        rows: [{ id: USER_ID, username: "tester", access_level: "admin" }],
+        rows: [
+          {
+            id: USER_ID,
+            username: "tester",
+            access_level: "admin",
+            notifications_enabled: 1,
+          },
+        ],
       });
 
       const token = signToken({ id: USER_ID, username: "tester", accessLevel: "admin" });
@@ -173,6 +180,7 @@ describe("API routes", () => {
         id: USER_ID,
         username: "tester",
         accessLevel: "admin",
+        notificationsEnabled: true,
       });
     });
   });

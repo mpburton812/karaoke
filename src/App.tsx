@@ -26,6 +26,7 @@ import {
 import { lazyRetry } from './lib/lazyRetry';
 import AppConfigDialog from './components/AppConfigDialog';
 import WelcomeMessageDialog from './components/WelcomeMessageDialog';
+import SongShareNotifications from './components/SongShareNotifications';
 import { logCatalogClientEvent, logUserAction } from './api/eventLog';
 import { reportClientBuildOnce } from './lib/reportBuild';
 import { isWelcomeDismissed } from './lib/welcomeMessage';
@@ -395,6 +396,7 @@ function App() {
         userId={currentUser.id}
         onClose={() => setWelcomeOpen(false)}
       />
+      <SongShareNotifications active />
 
       <AppConfigDialog
         open={configOpen}

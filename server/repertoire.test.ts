@@ -161,8 +161,9 @@ describe("repertoire", () => {
       await wipeUserRepertoire(USER_ID);
       expect(mockBatch).toHaveBeenCalledOnce();
       const stmts = mockBatch.mock.calls[0][0] as { sql: string }[];
-      expect(stmts).toHaveLength(6);
-      expect(stmts[0].sql).toMatch(/performance_tags/);
+      expect(stmts).toHaveLength(7);
+      expect(stmts[0].sql).toMatch(/song_shares/);
+      expect(stmts[1].sql).toMatch(/performance_tags/);
       expect(stmts[stmts.length - 1].sql).toMatch(/locations/);
     });
   });

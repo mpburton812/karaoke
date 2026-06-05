@@ -35,6 +35,7 @@ export const initDb = async () => {
       "spotify_refresh_token TEXT",
       "spotify_user_id TEXT",
       "spotify_display_name TEXT",
+      "notifications_enabled INTEGER DEFAULT 1",
     ]) {
       try {
         await db.execute(`ALTER TABLE users ADD COLUMN ${col}`);
@@ -42,6 +43,37 @@ export const initDb = async () => {
         /* already exists */
       }
     }
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS song_shares (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_user_id INTEGER NOT NULL,
+        recipient_user_id INTEGER NOT NULL,
+        sender_song_id INTEGER NOT NULL,
+        song_snapshot TEXT NOT NULL,
+        send_message TEXT NOT NULL DEFAULT '',
+        response_message TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        intro_ack_at TEXT,
+        preview_resolved_at TEXT,
+        responded_at TEXT,
+        sender_reply_ack_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (sender_user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (recipient_user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (sender_song_id) REFERENCES songs (id) ON DELETE CASCADE
+      )
+    `);
+
+    await db.execute(`
+      CREATE INDEX IF NOT EXISTS idx_song_shares_recipient
+      ON song_shares(recipient_user_id, status, created_at)
+    `);
+
+    await db.execute(`
+      CREATE INDEX IF NOT EXISTS idx_song_shares_sender
+      ON song_shares(sender_user_id, created_at)
+    `);
 
     await db.execute(`
       CREATE TABLE IF NOT EXISTS songs (

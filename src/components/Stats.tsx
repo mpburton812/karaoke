@@ -30,6 +30,8 @@ import MicIcon from '@mui/icons-material/Mic';
 import StarIcon from '@mui/icons-material/Star';
 import PlaceIcon from '@mui/icons-material/Place';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import ForwardToInboxIcon from '@mui/icons-material/ForwardToInbox';
+import MoveToInboxIcon from '@mui/icons-material/MoveToInbox';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import SchoolIcon from '@mui/icons-material/School';
@@ -58,6 +60,8 @@ interface GlobalStats {
   masteredCount: number;
   proficientCount: number;
   practicingCount: number;
+  songsSent: number;
+  songsReceived: number;
 }
 
 interface TopArtist {
@@ -178,6 +182,8 @@ const Stats: React.FC<{ currentUser: { id: number } }> = () => {
         masteredCount: Number(g.masteredCount),
         proficientCount: Number(g.proficientCount),
         practicingCount: Number(g.practicingCount),
+        songsSent: Number(g.songsSent ?? 0),
+        songsReceived: Number(g.songsReceived ?? 0),
       });
 
       setTopArtists(dashboard.topArtists as unknown as TopArtist[]);
@@ -277,8 +283,18 @@ const Stats: React.FC<{ currentUser: { id: number } }> = () => {
             value: stats?.uniqueVenues,
             icon: <PlaceIcon color="info" />,
           },
+          {
+            label: 'Songs sent',
+            value: stats?.songsSent,
+            icon: <ForwardToInboxIcon color="primary" />,
+          },
+          {
+            label: 'Songs received',
+            value: stats?.songsReceived,
+            icon: <MoveToInboxIcon color="secondary" />,
+          },
         ].map((item, i) => (
-          <Grid size={{ xs: 6, md: 3 }} key={i}>
+          <Grid size={{ xs: 6, md: 4 }} key={i}>
             <Paper
               elevation={3}
               onClick={item.onClick}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -7,8 +7,10 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControlLabel,
   IconButton,
   Link,
+  Switch,
   Typography,
   alpha,
 } from "@mui/material";
@@ -21,6 +23,12 @@ import AdminAppReload from "./AdminAppReload";
 import ChangePassword from "./ChangePassword";
 import ChangeUsername from "./ChangeUsername";
 import Changelog from "./Changelog";
+import SongShareInbox from "./SongShareInbox";
+import {
+  fetchNotificationPreferences,
+  updateNotificationPreferences,
+} from "../api/songShares";
+import { KARAOKE_SHARES_REFRESH_EVENT } from "../lib/karaokeEvents";
 import DataPortability from "./DataPortability";
 import EnrichmentAdmin from "./EnrichmentAdmin";
 import SpotifyConnect from "./SpotifyConnect";
@@ -50,6 +58,29 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
   onNukeData,
   onOpenWelcome,
 }) => {
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [prefsLoading, setPrefsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setPrefsLoading(true);
+    void fetchNotificationPreferences()
+      .then((p) => setNotificationsEnabled(p.notificationsEnabled))
+      .catch(console.error)
+      .finally(() => setPrefsLoading(false));
+  }, [open]);
+
+  const handleNotificationsToggle = async (enabled: boolean) => {
+    setNotificationsEnabled(enabled);
+    try {
+      await updateNotificationPreferences(enabled);
+      window.dispatchEvent(new Event(KARAOKE_SHARES_REFRESH_EVENT));
+    } catch (e) {
+      console.error(e);
+      setNotificationsEnabled(!enabled);
+    }
+  };
+
   return (
     <Dialog
       open={open}
@@ -145,6 +176,22 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
           </Box>
 
           <SpotifyConnect currentUser={currentUser} />
+
+          <Divider sx={{ my: 4 }} />
+          <Typography variant="subtitle2" gutterBottom sx={{ ...sectionTitleSx, mb: 2 }}>
+            Song sharing
+          </Typography>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={notificationsEnabled}
+                disabled={prefsLoading}
+                onChange={(e) => void handleNotificationsToggle(e.target.checked)}
+              />
+            }
+            label="Show pop-up notifications when I open the app"
+          />
+          <SongShareInbox />
 
           <Divider sx={{ my: 4 }} />
           <DataPortability currentUser={currentUser} />

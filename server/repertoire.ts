@@ -603,8 +603,10 @@ export async function getStatsDashboard(userId: number): Promise<{
               (SELECT COUNT(DISTINCT location) FROM performances WHERE user_id = ?) as uniqueVenues,
               (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Mastered') as masteredCount,
               (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Proficient') as proficientCount,
-              (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Practicing') as practicingCount`,
-      args: [uid, uid, uid, uid, uid, uid, uid],
+              (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Practicing') as practicingCount,
+              (SELECT COUNT(*) FROM song_shares WHERE sender_user_id = ?) as songsSent,
+              (SELECT COUNT(*) FROM song_shares WHERE recipient_user_id = ?) as songsReceived`,
+      args: [uid, uid, uid, uid, uid, uid, uid, uid, uid],
     }),
     db.execute({
       sql: `SELECT artist_name, COUNT(*) as count
@@ -721,6 +723,10 @@ export async function importPortabilityRows(
 
 export async function wipeUserRepertoire(userId: number): Promise<void> {
   await db.batch([
+    {
+      sql: "DELETE FROM song_shares WHERE sender_user_id = ? OR recipient_user_id = ?",
+      args: [userId, userId],
+    },
     {
       sql: "DELETE FROM performance_tags WHERE performance_id IN (SELECT id FROM performances WHERE user_id = ?)",
       args: [userId],

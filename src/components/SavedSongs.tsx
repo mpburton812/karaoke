@@ -9,6 +9,7 @@ import {
   Autocomplete, Rating, SvgIcon, Tooltip
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EmailIcon from '@mui/icons-material/Email';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MicIcon from '@mui/icons-material/Mic';
 import NotesIcon from '@mui/icons-material/Notes';
@@ -20,6 +21,7 @@ import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SongLookup from './SongLookup';
+import SendSongShareDialog from './SendSongShareDialog';
 import EmptyState from './EmptyState';
 import {
   fetchSongs as loadSongs,
@@ -37,7 +39,10 @@ import {
   deletePerformance,
 } from '../api/repertoire';
 import { fetchLyrics } from '../utils/lyricsService';
-import { KARAOKE_SONGS_REFRESH_EVENT } from '../lib/karaokeEvents';
+import {
+  KARAOKE_SHARES_REFRESH_EVENT,
+  KARAOKE_SONGS_REFRESH_EVENT,
+} from '../lib/karaokeEvents';
 import { karaokeTokens, spotifySx } from '../theme';
 import {
   buildLetterCounts,
@@ -126,6 +131,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
   const [letterFilter, setLetterFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
   const [pendingDeleteSong, setPendingDeleteSong] = useState<Song | null>(null);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   // Performance Dialog State
   const [perfDialogOpen, setPerfDialogOpen] = useState(false);
@@ -464,7 +470,16 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
       <Box sx={{ mt: 2 }}>
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Button startIcon={<ArrowBackIcon />} onClick={() => setSelectedSong(null)}>Back to list</Button>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Chip
+              icon={<EmailIcon />}
+              label="Share"
+              onClick={() => setShareDialogOpen(true)}
+              color="primary"
+              variant="outlined"
+              clickable
+              aria-label="Share song with another user"
+            />
             <Button variant="contained" color="primary" startIcon={<MicIcon />} onClick={handleOpenPerfDialog}>Record performance</Button>
             <Button variant="contained" color="error" startIcon={<DeleteIcon />} onClick={() => setPendingDeleteSong(selectedSong)}>Remove from list</Button>
           </Box>
@@ -843,6 +858,15 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
             </Button>
           </DialogActions>
         </Dialog>
+        {selectedSong && (
+          <SendSongShareDialog
+            open={shareDialogOpen}
+            songId={selectedSong.id}
+            songTitle={selectedSong.track_name}
+            onClose={() => setShareDialogOpen(false)}
+            onSent={() => window.dispatchEvent(new Event(KARAOKE_SHARES_REFRESH_EVENT))}
+          />
+        )}
       </Box>
     );
   }

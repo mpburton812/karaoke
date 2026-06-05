@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-06-04', description: 'Sharing: Send songs to other users, inbox, in-app notifications, replies, and sent/received stats' },
   { date: '2026-06-04', description: 'Tags: Tag cloud shows song counts on chips and scales chip size by usage' },
   { date: '2026-05-20', description: 'Places: Songs sung here shows star ratings and View notes for each performance' },
   { date: '2026-05-20', description: 'UI: Horizontal performance stars and repertoire list text no longer underlaps action icons on mobile' },
