@@ -1,4 +1,9 @@
-import { getStoredToken } from "./auth";
+import {
+  getStoredToken,
+  persistSession,
+  type AuthUser,
+  type ImpersonationInfo,
+} from "./auth";
 
 const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
@@ -72,4 +77,31 @@ export async function fetchGodModePerformances(
     `/api/admin/users/${userId}/performances`
   );
   return Array.isArray(body.performances) ? body.performances : [];
+}
+
+export async function impersonateGodModeUser(userId: number): Promise<{
+  user: AuthUser;
+  token: string;
+  impersonation: ImpersonationInfo;
+}> {
+  const body = await godFetch<{
+    user: AuthUser;
+    token: string;
+    impersonation: ImpersonationInfo;
+  }>(`/api/admin/users/${userId}/impersonate`, { method: "POST" });
+  persistSession(body.user, body.token);
+  return body;
+}
+
+export async function exitGodModeImpersonation(): Promise<{
+  user: AuthUser;
+  token: string;
+}> {
+  const body = await godFetch<{
+    user: AuthUser;
+    token: string;
+    impersonation: null;
+  }>("/api/admin/impersonate/exit", { method: "POST" });
+  persistSession(body.user, body.token);
+  return body;
 }

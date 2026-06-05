@@ -47,7 +47,7 @@ vi.mock("./eventLog.js", () => ({
 }));
 
 import { createApp } from "./app.js";
-import { signToken } from "./auth.js";
+import { signImpersonationToken, signToken, verifyToken } from "./auth.js";
 
 let app: Express;
 const USER_ID = 42;
@@ -182,6 +182,35 @@ describe("API routes", () => {
         accessLevel: "admin",
         notificationsEnabled: true,
       });
+      expect(res.body.impersonation).toBeNull();
+    });
+
+    it("returns impersonation metadata when session is impersonated", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 9,
+            username: "singer",
+            access_level: "user",
+            notifications_enabled: 1,
+          },
+        ],
+      });
+
+      const token = signImpersonationToken(
+        { id: USER_ID, username: "mpburton", accessLevel: "admin" },
+        { id: 9, username: "singer", accessLevel: "user" }
+      );
+      const res = await request(app)
+        .get("/api/auth/me")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.id).toBe(9);
+      expect(res.body.impersonation).toEqual({
+        active: true,
+        impersonatorUsername: "mpburton",
+      });
     });
   });
 
@@ -237,6 +266,105 @@ describe("API routes", () => {
           venueCount: 1,
         },
       ]);
+    });
+
+    it("POST /api/admin/users/:id/impersonate returns impersonation session", async () => {
+      const adminRow = {
+        id: USER_ID,
+        username: "mpburton",
+        access_level: "admin",
+        notifications_enabled: 1,
+      };
+      mockExecute
+        .mockResolvedValueOnce({ rows: [adminRow] })
+        .mockResolvedValueOnce({ rows: [adminRow] })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 7,
+              username: "singer",
+              access_level: "user",
+              notifications_enabled: 1,
+            },
+          ],
+        });
+
+      const token = signToken({ id: USER_ID, username: "mpburton", accessLevel: "admin" });
+      const res = await request(app)
+        .post("/api/admin/users/7/impersonate")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.user).toMatchObject({ id: 7, username: "singer" });
+      expect(res.body.impersonation).toEqual({
+        active: true,
+        impersonatorUsername: "mpburton",
+      });
+      const payload = verifyToken(res.body.token);
+      expect(payload.sub).toBe(7);
+      expect(payload.impersonatorId).toBe(USER_ID);
+    });
+
+    it("rejects impersonating yourself", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+      });
+
+      const token = signToken({ id: USER_ID, username: "mpburton", accessLevel: "admin" });
+      const res = await request(app)
+        .post(`/api/admin/users/${USER_ID}/impersonate`)
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/yourself/i);
+    });
+
+    it("allows admin god-mode routes while impersonating via impersonator id", async () => {
+      mockExecute
+        .mockResolvedValueOnce({
+          rows: [{ id: USER_ID, username: "mpburton", access_level: "admin" }],
+        })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const token = signImpersonationToken(
+        { id: USER_ID, username: "mpburton", accessLevel: "admin" },
+        { id: 7, username: "singer", accessLevel: "user" }
+      );
+      const res = await request(app)
+        .get("/api/admin/users")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.users).toEqual([]);
+    });
+
+    it("POST /api/admin/impersonate/exit restores admin session", async () => {
+      mockExecute.mockResolvedValueOnce({
+        rows: [
+          {
+            id: USER_ID,
+            username: "mpburton",
+            access_level: "admin",
+            notifications_enabled: 1,
+          },
+        ],
+      });
+
+      const token = signImpersonationToken(
+        { id: USER_ID, username: "mpburton", accessLevel: "admin" },
+        { id: 7, username: "singer", accessLevel: "user" }
+      );
+      const res = await request(app)
+        .post("/api/admin/impersonate/exit")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.user).toMatchObject({
+        id: USER_ID,
+        username: "mpburton",
+        accessLevel: "admin",
+      });
+      expect(res.body.impersonation).toBeNull();
     });
   });
 

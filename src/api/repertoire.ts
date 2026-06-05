@@ -369,28 +369,46 @@ export async function fetchSongsByRating(): Promise<
   return songs;
 }
 
-export type PortabilityTable = "songs" | "tags" | "locations";
-
-export async function exportPortabilityTable(
-  table: PortabilityTable
-): Promise<Record<string, unknown>[]> {
-  const { rows } = await apiFetch<{ rows: Record<string, unknown>[] }>(
-    `/api/portability/${table}`
-  );
-  return rows;
+export interface UserBackupPayload {
+  version: number;
+  exportedAt: string;
+  data: {
+    tags: Record<string, unknown>[];
+    locations: Record<string, unknown>[];
+    songs: Record<string, unknown>[];
+    performances: Record<string, unknown>[];
+    song_tags: Record<string, unknown>[];
+    performance_tags: Record<string, unknown>[];
+    location_tags: Record<string, unknown>[];
+    song_status_history: Record<string, unknown>[];
+    spotify_synced_playlists: Record<string, unknown>[];
+    spotify_playlist_songs: Record<string, unknown>[];
+  };
 }
 
-export async function importPortabilityTable(
-  table: PortabilityTable,
-  rows: Record<string, unknown>[]
-): Promise<number> {
-  const { imported } = await apiFetch<{ imported: number }>(
-    `/api/portability/${table}`,
-    { method: "POST", body: JSON.stringify({ rows }) }
+export async function exportUserBackup(): Promise<UserBackupPayload> {
+  const { backup } = await apiFetch<{ backup: UserBackupPayload }>(
+    "/api/portability/export"
   );
-  return imported;
+  return backup;
 }
 
-export async function wipeAccountData(): Promise<void> {
-  await apiFetch("/api/account/wipe", { method: "POST" });
+export async function importUserBackup(
+  backup: UserBackupPayload
+): Promise<{ imported: Record<string, number> }> {
+  return apiFetch("/api/portability/import", {
+    method: "POST",
+    body: JSON.stringify({ backup }),
+  });
+}
+
+export async function wipeAccountData(options?: {
+  deleteAccount?: boolean;
+}): Promise<void> {
+  await apiFetch("/api/account/wipe", {
+    method: "POST",
+    body: JSON.stringify({
+      deleteAccount: Boolean(options?.deleteAccount),
+    }),
+  });
 }

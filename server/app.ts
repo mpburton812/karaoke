@@ -10,6 +10,8 @@ import {
   getAuthUserById,
   loginUser,
   registerUser,
+  adminUserIdFromPayload,
+  signImpersonationToken,
   signToken,
   userIsAdmin,
   verifyToken,
@@ -118,7 +120,8 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/song-shares",
       "/api/locations",
       "/api/stats/dashboard",
-      "/api/portability/:table",
+      "/api/portability/export",
+      "/api/portability/import",
       "/api/account/wipe",
       "/api/execute",
       "/api/batch",
@@ -237,7 +240,12 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     }
     try {
       const payload = verifyToken(token);
-      (req as express.Request & { userId: number }).userId = payload.sub;
+      const authed = req as express.Request & {
+        userId: number;
+        jwtPayload: ReturnType<typeof verifyToken>;
+      };
+      authed.userId = payload.sub;
+      authed.jwtPayload = payload;
       next();
     } catch {
       res.status(401).json({ error: "Invalid or expired session." });
@@ -250,8 +258,14 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     next: express.NextFunction
   ) {
     try {
-      const userId = (req as express.Request & { userId: number }).userId;
-      if (!(await userIsAdmin(userId))) {
+      const authed = req as express.Request & {
+        userId: number;
+        jwtPayload?: ReturnType<typeof verifyToken>;
+      };
+      const adminId = adminUserIdFromPayload(
+        authed.jwtPayload ?? { sub: authed.userId, username: "" }
+      );
+      if (!(await userIsAdmin(adminId))) {
         res.status(403).json({ error: "Administrative access required." });
         return;
       }
@@ -415,16 +429,114 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
 
   app.get("/api/auth/me", requireAuth, async (req, res) => {
     try {
-      const userId = (req as express.Request & { userId: number }).userId;
-      const user = await getAuthUserById(userId);
+      const authed = req as express.Request & {
+        userId: number;
+        jwtPayload?: ReturnType<typeof verifyToken>;
+      };
+      const user = await getAuthUserById(authed.userId);
       if (!user) {
         res.status(404).json({ error: "User not found." });
         return;
       }
-      res.json({ user });
+      const payload = authed.jwtPayload;
+      const impersonation =
+        payload?.impersonatorId != null
+          ? {
+              active: true,
+              impersonatorUsername:
+                payload.impersonatorUsername ?? "Admin",
+            }
+          : null;
+      res.json({ user, impersonation });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to read current user.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.post(
+    "/api/admin/users/:id/impersonate",
+    requireAuth,
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const authed = req as express.Request & {
+          userId: number;
+          jwtPayload?: ReturnType<typeof verifyToken>;
+        };
+        const payload = authed.jwtPayload;
+        if (payload?.impersonatorId != null) {
+          res.status(400).json({
+            error: "Exit impersonation before impersonating another user.",
+          });
+          return;
+        }
+        const targetUserId = Number(req.params.id);
+        if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
+          res.status(400).json({ error: "Invalid user id." });
+          return;
+        }
+        const adminId = adminUserIdFromPayload(
+          payload ?? { sub: authed.userId, username: "" }
+        );
+        if (targetUserId === adminId) {
+          res.status(400).json({ error: "You cannot impersonate yourself." });
+          return;
+        }
+        const admin = await getAuthUserById(adminId);
+        const target = await getAuthUserById(targetUserId);
+        if (!admin || !target) {
+          res.status(404).json({ error: "User not found." });
+          return;
+        }
+        const token = signImpersonationToken(admin, target);
+        logCatalogEvent("feature_utilization_metrics", {
+          userId: admin.id,
+          username: admin.username,
+          message: `Admin impersonating ${target.username}`,
+        });
+        res.json({
+          user: target,
+          token,
+          impersonation: {
+            active: true,
+            impersonatorUsername: admin.username,
+          },
+        });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to impersonate user.";
+        res.status(500).json({ error: message });
+      }
+    }
+  );
+
+  app.post("/api/admin/impersonate/exit", requireAuth, async (req, res) => {
+    try {
+      const authed = req as express.Request & {
+        jwtPayload?: ReturnType<typeof verifyToken>;
+      };
+      const payload = authed.jwtPayload;
+      if (payload?.impersonatorId == null) {
+        res.status(400).json({ error: "Not impersonating." });
+        return;
+      }
+      const admin = await getAuthUserById(payload.impersonatorId);
+      if (!admin) {
+        res.status(404).json({ error: "Admin account not found." });
+        return;
+      }
+      const token = signToken(admin);
+      logCatalogEvent("feature_utilization_metrics", {
+        userId: admin.id,
+        username: admin.username,
+        message: `Admin exited impersonation of ${payload.username}`,
+      });
+      res.json({ user: admin, token, impersonation: null });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to exit impersonation.";
       res.status(500).json({ error: message });
     }
   });

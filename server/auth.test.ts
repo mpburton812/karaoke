@@ -19,11 +19,13 @@ vi.mock("./welcomeSong.js", () => ({
 }));
 
 import {
+  adminUserIdFromPayload,
   changePassword,
   changeUsername,
   getBearerToken,
   loginUser,
   registerUser,
+  signImpersonationToken,
   signToken,
   verifyToken,
 } from "./auth.js";
@@ -32,6 +34,21 @@ describe("auth helpers", () => {
   it("signs and verifies JWT payload", () => {
     const token = signToken({ id: 7, username: "alice", accessLevel: "user" });
     expect(verifyToken(token)).toMatchObject({ sub: 7, username: "alice" });
+  });
+
+  it("signs impersonation tokens with impersonator metadata", () => {
+    const token = signImpersonationToken(
+      { id: 1, username: "admin", accessLevel: "admin" },
+      { id: 9, username: "singer", accessLevel: "user" }
+    );
+    const payload = verifyToken(token);
+    expect(payload).toMatchObject({
+      sub: 9,
+      username: "singer",
+      impersonatorId: 1,
+      impersonatorUsername: "admin",
+    });
+    expect(adminUserIdFromPayload(payload)).toBe(1);
   });
 
   it("extracts bearer token from Authorization header", () => {

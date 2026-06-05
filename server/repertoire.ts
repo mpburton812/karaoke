@@ -14,10 +14,6 @@ const REPERTOIRE_SONG_SELECT = `
     ON s.user_id = sp.user_id AND s.id = sp.song_id
 `;
 
-const PORTABILITY_TABLES = new Set(["songs", "tags", "locations"]);
-
-export type PortabilityTable = "songs" | "tags" | "locations";
-
 export class RepertoireError extends Error {
   constructor(
     message: string,
@@ -682,45 +678,6 @@ export async function listSongsByRating(userId: number): Promise<unknown[]> {
   return result.rows;
 }
 
-export function assertPortabilityTable(table: string): PortabilityTable {
-  if (!PORTABILITY_TABLES.has(table)) {
-    throw new RepertoireError("Invalid export table.");
-  }
-  return table as PortabilityTable;
-}
-
-export async function exportPortabilityTable(
-  userId: number,
-  table: PortabilityTable
-): Promise<unknown[]> {
-  const result = await db.execute({
-    sql: `SELECT * FROM ${table} WHERE user_id = ?`,
-    args: [userId],
-  });
-  return result.rows;
-}
-
-export async function importPortabilityRows(
-  userId: number,
-  table: PortabilityTable,
-  rows: Record<string, unknown>[]
-): Promise<number> {
-  if (rows.length === 0) return 0;
-  const columns = Object.keys(rows[0]).filter(
-    (col) => col !== "id" && col !== "user_id"
-  );
-  const placeholders = columns.map(() => "?").join(", ");
-  const sql = `INSERT OR IGNORE INTO ${table} (user_id, ${columns.join(", ")}) VALUES (?, ${placeholders})`;
-
-  for (const row of rows) {
-    await db.execute({
-      sql,
-      args: [userId, ...columns.map((col) => row[col] as string | number | null)],
-    });
-  }
-  return rows.length;
-}
-
 export async function wipeUserRepertoire(userId: number): Promise<void> {
   await db.batch([
     {
@@ -735,9 +692,33 @@ export async function wipeUserRepertoire(userId: number): Promise<void> {
       sql: "DELETE FROM song_tags WHERE song_id IN (SELECT id FROM songs WHERE user_id = ?)",
       args: [userId],
     },
+    {
+      sql: "DELETE FROM location_tags WHERE location_id IN (SELECT id FROM locations WHERE user_id = ?)",
+      args: [userId],
+    },
+    {
+      sql: "DELETE FROM spotify_playlist_songs WHERE user_id = ?",
+      args: [userId],
+    },
+    {
+      sql: `DELETE FROM song_status_history WHERE song_id IN (SELECT id FROM songs WHERE user_id = ?)`,
+      args: [userId],
+    },
     { sql: "DELETE FROM performances WHERE user_id = ?", args: [userId] },
     { sql: "DELETE FROM songs WHERE user_id = ?", args: [userId] },
+    {
+      sql: "DELETE FROM spotify_synced_playlists WHERE user_id = ?",
+      args: [userId],
+    },
     { sql: "DELETE FROM tags WHERE user_id = ?", args: [userId] },
     { sql: "DELETE FROM locations WHERE user_id = ?", args: [userId] },
   ]);
+}
+
+export async function deleteUserAccount(userId: number): Promise<void> {
+  await wipeUserRepertoire(userId);
+  await db.execute({
+    sql: "DELETE FROM users WHERE id = ?",
+    args: [userId],
+  });
 }

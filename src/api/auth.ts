@@ -14,6 +14,16 @@ export interface AuthUser {
   accessLevel?: "user" | "admin";
 }
 
+export interface ImpersonationInfo {
+  active: boolean;
+  impersonatorUsername: string;
+}
+
+export interface CurrentUserResponse {
+  user: AuthUser;
+  impersonation: ImpersonationInfo | null;
+}
+
 export async function register(
   username: string,
   password: string
@@ -60,7 +70,7 @@ export function getStoredToken(): string | null {
   return localStorage.getItem("karaoke_token");
 }
 
-export async function fetchCurrentUser(): Promise<AuthUser> {
+export async function fetchCurrentUser(): Promise<CurrentUserResponse> {
   const token = getStoredToken();
   if (!token) {
     throw new Error("Not authenticated. Please log in again.");
@@ -77,7 +87,19 @@ export async function fetchCurrentUser(): Promise<AuthUser> {
     }
     throw new Error(message);
   }
-  return body.user as AuthUser;
+  const impersonation =
+    body.impersonation?.active === true
+      ? {
+          active: true as const,
+          impersonatorUsername: String(
+            body.impersonation.impersonatorUsername ?? "Admin"
+          ),
+        }
+      : null;
+  return {
+    user: body.user as AuthUser,
+    impersonation,
+  };
 }
 
 export async function changePassword(

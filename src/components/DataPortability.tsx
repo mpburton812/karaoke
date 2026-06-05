@@ -1,21 +1,18 @@
 import React, { useState } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Button, 
-  Paper, 
-  Grid, 
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
   Alert,
   CircularProgress,
-  ButtonGroup
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadIcon from '@mui/icons-material/Upload';
-import Papa from 'papaparse';
 import {
-  exportPortabilityTable,
-  importPortabilityTable,
-  type PortabilityTable,
+  exportUserBackup,
+  importUserBackup,
+  type UserBackupPayload,
 } from '../api/repertoire';
 
 interface DataPortabilityProps {
@@ -25,94 +22,112 @@ interface DataPortabilityProps {
 
 const DataPortability: React.FC<DataPortabilityProps> = ({ onDataChange }) => {
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+  const [message, setMessage] = useState<{
+    text: string;
+    type: 'success' | 'error';
+  } | null>(null);
 
-  const exportData = async (table: string) => {
+  const exportAll = async () => {
     setLoading(true);
     setMessage(null);
     try {
-      const rows = await exportPortabilityTable(table as PortabilityTable);
-
-      const csv = Papa.unparse(rows);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const backup = await exportUserBackup();
+      const json = JSON.stringify(backup, null, 2);
+      const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
-      
+      const date = new Date().toISOString().split('T')[0];
+
       link.setAttribute('href', url);
-      link.setAttribute('download', `${table}_export_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `karaoke-backup_${date}.json`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      setMessage({ text: `Successfully exported ${table}.`, type: 'success' });
+      URL.revokeObjectURL(url);
+
+      const counts = backup.data;
+      const total =
+        counts.songs.length +
+        counts.performances.length +
+        counts.tags.length +
+        counts.locations.length;
+      setMessage({
+        text: `Backup saved (${total} primary records plus tags, history, and Spotify links).`,
+        type: 'success',
+      });
     } catch (err) {
       console.error(err);
-      setMessage({ text: `Failed to export ${table}.`, type: 'error' });
+      setMessage({
+        text: err instanceof Error ? err.message : 'Failed to export backup.',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const importData = (table: string) => {
+  const importAll = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.csv';
+    input.accept = '.json,application/json';
     input.onchange = async (event: Event) => {
       const target = event.target as HTMLInputElement;
       const file = target.files?.[0];
       if (!file) return;
 
+      const confirmed = window.confirm(
+        'Importing a backup replaces all of your current songs, performances, tags, venues, and related data. This cannot be undone. Continue?'
+      );
+      if (!confirmed) return;
+
       setLoading(true);
       setMessage(null);
 
-      Papa.parse(file, {
-        header: true,
-        dynamicTyping: true,
-        skipEmptyLines: true,
-        complete: async (results) => {
-          try {
-            const data = results.data as Record<string, unknown>[];
-            if (data.length === 0) {
-              setMessage({ text: 'CSV is empty.', type: 'error' });
-              setLoading(false);
-              return;
-            }
-
-            const imported = await importPortabilityTable(
-              table as PortabilityTable,
-              data
-            );
-            setMessage({ text: `Successfully imported ${imported} records into ${table}.`, type: 'success' });
-            if (onDataChange) onDataChange();
-          } catch (err) {
-            console.error(err);
-            setMessage({ text: `Failed to import ${table}. Ensure CSV format matches export.`, type: 'error' });
-          } finally {
-            setLoading(false);
-          }
-        },
-        error: (err) => {
-          console.error(err);
-          setMessage({ text: 'Error parsing CSV.', type: 'error' });
+      try {
+        const text = await file.text();
+        let backup: UserBackupPayload;
+        try {
+          backup = JSON.parse(text) as UserBackupPayload;
+        } catch {
+          setMessage({ text: 'File is not valid JSON.', type: 'error' });
           setLoading(false);
+          return;
         }
-      });
+
+        const result = await importUserBackup(backup);
+        const total = Object.values(result.imported).reduce((a, b) => a + b, 0);
+        setMessage({
+          text: `Backup restored (${total} rows imported).`,
+          type: 'success',
+        });
+        if (onDataChange) onDataChange();
+        window.dispatchEvent(new Event('karaoke-songs-refresh'));
+        window.dispatchEvent(new Event('karaoke-shares-refresh'));
+      } catch (err) {
+        console.error(err);
+        setMessage({
+          text:
+            err instanceof Error
+              ? err.message
+              : 'Failed to import backup. Use a file exported from this app.',
+          type: 'error',
+        });
+      } finally {
+        setLoading(false);
+      }
     };
     input.click();
   };
 
-  const tables = [
-    { name: 'songs', label: 'Songs' },
-    { name: 'locations', label: 'Locations' },
-    { name: 'tags', label: 'Tags' }
-  ];
-
   return (
     <Box sx={{ mt: 4 }}>
-      <Typography variant="h5" gutterBottom align="center">Data portability</Typography>
+      <Typography variant="h5" gutterBottom align="center">
+        Data portability
+      </Typography>
       <Typography variant="body2" color="textSecondary" align="center" sx={{ mb: 3 }}>
-        Export your data to CSV or import from a previous backup.
+        Export or import your full repertoire in one JSON file (songs, performances,
+        tags, venues, status history, and Spotify playlist links).
       </Typography>
 
       {message && (
@@ -128,33 +143,28 @@ const DataPortability: React.FC<DataPortabilityProps> = ({ onDataChange }) => {
         </Box>
       )}
 
-      <Grid container spacing={2}>
-        {tables.map((table) => (
-          <Grid size={{ xs: 12, sm: 6 }} key={table.name}>
-            <Paper sx={{ p: 2, textAlign: 'center' }}>
-              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-                {table.label}
-              </Typography>
-              <ButtonGroup variant="outlined" fullWidth size="small">
-                <Button 
-                  startIcon={<DownloadIcon />} 
-                  onClick={() => exportData(table.name)}
-                  disabled={loading}
-                >
-                  Export
-                </Button>
-                <Button 
-                  startIcon={<UploadIcon />} 
-                  onClick={() => importData(table.name)}
-                  disabled={loading}
-                >
-                  Import
-                </Button>
-              </ButtonGroup>
-            </Paper>
-          </Grid>
-        ))}
-      </Grid>
+      <Paper sx={{ p: 3, maxWidth: 420, mx: 'auto' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Button
+            variant="contained"
+            startIcon={<DownloadIcon />}
+            onClick={() => void exportAll()}
+            disabled={loading}
+            fullWidth
+          >
+            Export all my data
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<UploadIcon />}
+            onClick={importAll}
+            disabled={loading}
+            fullWidth
+          >
+            Import backup (replaces current data)
+          </Button>
+        </Box>
+      </Paper>
     </Box>
   );
 };

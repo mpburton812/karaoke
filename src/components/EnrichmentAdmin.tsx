@@ -9,10 +9,8 @@ import {
 } from "@mui/material";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import GroupsIcon from "@mui/icons-material/Groups";
 import {
   fetchEnrichmentStatus,
-  startAdminRebuildAllEnrichment,
   startEnrichmentRun,
   type EnrichmentStatus,
 } from "../api/enrichment";
@@ -40,9 +38,6 @@ const EnrichmentAdmin: React.FC = () => {
   const [status, setStatus] = useState<EnrichmentStatus>(emptyStatus);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [adminRebuildLoading, setAdminRebuildLoading] = useState(false);
-  const [adminRebuildInfo, setAdminRebuildInfo] = useState<string | null>(null);
-
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -135,16 +130,6 @@ const EnrichmentAdmin: React.FC = () => {
         </Alert>
       )}
 
-      {adminRebuildInfo && (
-        <Alert
-          severity="success"
-          sx={{ mb: 2 }}
-          onClose={() => setAdminRebuildInfo(null)}
-        >
-          {adminRebuildInfo}
-        </Alert>
-      )}
-
       <Typography variant="body2" sx={{ mb: 1 }}>
         {status.running
           ? `Processing ${status.processed} of ${status.requested}`
@@ -212,84 +197,6 @@ const EnrichmentAdmin: React.FC = () => {
         >
           Refresh status
         </Button>
-      </Box>
-
-      <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: "divider" }}>
-        <Typography variant="subtitle2" gutterBottom sx={{ ...panelTitleSx, color: "secondary.main" }}>
-          All users
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Re-run enrichment for every song in every user&apos;s library so new
-          provider data (for example GetSongBPM and Last.fm) is written to the
-          database. Runs one user at a time on the server. Prefer{" "}
-          <strong>background</strong> on hosted environments so the request does
-          not time out.
-        </Typography>
-        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<GroupsIcon />}
-            disabled={adminRebuildLoading}
-            onClick={async () => {
-              setAdminRebuildLoading(true);
-              setAdminRebuildInfo(null);
-              setError(null);
-              try {
-                const res = await startAdminRebuildAllEnrichment({ async: true });
-                if (res.ok && res.async && res.started) {
-                  setAdminRebuildInfo(res.message);
-                }
-              } catch (err) {
-                setError(
-                  err instanceof Error
-                    ? err.message
-                    : "Failed to start full-library re-enrichment."
-                );
-              } finally {
-                setAdminRebuildLoading(false);
-              }
-            }}
-          >
-            {adminRebuildLoading ? "Starting…" : "Re-enrich all users (background)"}
-          </Button>
-          <Button
-            variant="outlined"
-            color="secondary"
-            disabled={adminRebuildLoading}
-            onClick={async () => {
-              if (
-                !window.confirm(
-                  "Run full re-enrichment for every user now? This can take a very long time and may time out behind a proxy. Prefer the background option unless the library is small."
-                )
-              ) {
-                return;
-              }
-              setAdminRebuildLoading(true);
-              setAdminRebuildInfo(null);
-              setError(null);
-              try {
-                const res = await startAdminRebuildAllEnrichment({ async: false });
-                if (res.ok && !res.async) {
-                  setAdminRebuildInfo(
-                    `Done: ${res.usersProcessed} user(s), ${res.totalSongsRequested} song(s) processed (${res.usersInLibrary} user(s) with libraries).`
-                  );
-                  window.dispatchEvent(new Event(KARAOKE_SONGS_REFRESH_EVENT));
-                }
-              } catch (err) {
-                setError(
-                  err instanceof Error
-                    ? err.message
-                    : "Failed to run full-library re-enrichment."
-                );
-              } finally {
-                setAdminRebuildLoading(false);
-              }
-            }}
-          >
-            Re-enrich all users (wait for completion)
-          </Button>
-        </Box>
       </Box>
     </Paper>
   );

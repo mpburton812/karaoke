@@ -31,6 +31,9 @@ export interface JwtPayload {
   sub: number;
   username: string;
   accessLevel?: "user" | "admin";
+  /** Present when an admin is viewing the app as another user. */
+  impersonatorId?: number;
+  impersonatorUsername?: string;
 }
 
 export function signToken(user: AuthUser): string {
@@ -43,6 +46,27 @@ export function signToken(user: AuthUser): string {
     JWT_SECRET,
     { expiresIn: TOKEN_TTL }
   );
+}
+
+export function signImpersonationToken(
+  impersonator: AuthUser,
+  target: AuthUser
+): string {
+  return jwt.sign(
+    {
+      sub: target.id,
+      username: target.username,
+      accessLevel: target.accessLevel,
+      impersonatorId: impersonator.id,
+      impersonatorUsername: impersonator.username,
+    } satisfies JwtPayload,
+    JWT_SECRET,
+    { expiresIn: TOKEN_TTL }
+  );
+}
+
+export function adminUserIdFromPayload(payload: JwtPayload): number {
+  return payload.impersonatorId ?? payload.sub;
 }
 
 export function verifyToken(token: string): JwtPayload {

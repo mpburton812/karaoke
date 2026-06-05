@@ -9,7 +9,6 @@ import {
   Divider,
   Alert,
   CircularProgress,
-  Grid,
   List,
   ListItem,
   ListItemText,
@@ -155,20 +154,38 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
   }, [fetchFilteredSongs]);
 
   const handleAddTag = async () => {
-    if (!newTagName.trim()) return;
+    const names = newTagName
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (names.length === 0) return;
     setError(null);
+    const failed: string[] = [];
     try {
-      await createTag(newTagName.trim());
+      for (const name of names) {
+        try {
+          await createTag(name);
+        } catch (err: unknown) {
+          if (err instanceof Error && err.message?.includes('UNIQUE constraint failed')) {
+            failed.push(`"${name}" already exists`);
+          } else {
+            failed.push(name);
+          }
+        }
+      }
       setNewTagName('');
       fetchData();
+      if (failed.length > 0) {
+        setError(
+          failed.length === names.length
+            ? `Could not add: ${failed.join(', ')}.`
+            : `Some tags were skipped: ${failed.join(', ')}.`
+        );
+      }
     } catch (err: unknown) {
       console.error('Error adding tag:', err);
-      if (err instanceof Error && err.message?.includes('UNIQUE constraint failed')) {
-        setError('This tag already exists.');
-      } else {
-        const errorMsg = err instanceof Error ? err.message : 'Failed to add tag.';
-        setError(`Failed to add tag: ${errorMsg}`);
-      }
+      const errorMsg = err instanceof Error ? err.message : 'Failed to add tag.';
+      setError(`Failed to add tag: ${errorMsg}`);
     }
   };
 
@@ -232,58 +249,8 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
         Repertoire Explorer
       </Typography>
 
-      <Grid container spacing={4}>
-        {/* Left Side: Tag Management */}
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Paper sx={{ p: 3, mb: 4 }}>
-            <Typography variant="h6" gutterBottom>Create new tag</Typography>
-            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-              <TextField 
-                fullWidth 
-                size="small" 
-                label="Tag name" 
-                value={newTagName} 
-                onChange={(e) => setNewTagName(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') handleAddTag();
-                }}
-              />
-              <Button 
-                variant="contained" 
-                startIcon={<AddIcon />} 
-                onClick={handleAddTag}
-              >
-                Create
-              </Button>
-            </Box>
-            
-            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-
-            <Divider sx={{ my: 2 }} />
-            
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>All tags</Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-              {tags.length === 0 ? (
-                <Typography variant="body2" color="textSecondary">No tags yet.</Typography>
-              ) : (
-                tags.map(tag => (
-                  <Chip 
-                    key={tag.id} 
-                    label={`${tag.name} (${tag.count || 0})`} 
-                    size="small"
-                    onDelete={() => handleDeleteTag(tag.id)}
-                    color="default"
-                    variant="outlined"
-                  />
-                ))
-              )}
-            </Box>
-          </Paper>
-        </Grid>
-
-        {/* Right Side: Tag Cloud & Filter */}
-        <Grid size={{ xs: 12, md: 8 }}>
-          <Paper sx={{ p: 3, mb: 3 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Paper sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>Tag cloud</Typography>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -373,7 +340,6 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
             </Box>
           </Paper>
 
-          {/* Results */}
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               Matches ({filteredSongs.length})
@@ -391,7 +357,7 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
                 }
                 description={
                   selectedTagIds.length === 0
-                    ? 'Select tags in the cloud above to find songs in your repertoire.'
+                    ? 'Select tags in the tag cloud to find songs in your repertoire.'
                     : 'No songs match this combination — try fewer tags or switch between + and − filter modes.'
                 }
               />
@@ -416,8 +382,56 @@ const TagManager: React.FC<TagManagerProps> = ({ currentUser }) => {
               </List>
             )}
           </Paper>
-        </Grid>
-      </Grid>
+
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>Create new tag</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Enter one or more tag names separated by commas.
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Tag name(s)"
+                placeholder="e.g. rock, party, slow"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleAddTag();
+                }}
+              />
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => void handleAddTag()}
+              >
+                Create
+              </Button>
+            </Box>
+
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+            <Divider sx={{ my: 2 }} />
+
+            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>All tags</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              {tags.length === 0 ? (
+                <Typography variant="body2" color="textSecondary">No tags yet.</Typography>
+              ) : (
+                tags.map(tag => (
+                  <Chip
+                    key={tag.id}
+                    label={`${tag.name} (${tag.count || 0})`}
+                    size="small"
+                    onDelete={() => handleDeleteTag(tag.id)}
+                    color="default"
+                    variant="outlined"
+                  />
+                ))
+              )}
+            </Box>
+          </Paper>
+      </Box>
     </Box>
   );
 };

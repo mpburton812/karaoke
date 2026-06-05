@@ -261,22 +261,23 @@ describe("Repertoire API (Track 2)", () => {
   });
 
   describe("portability", () => {
-    it("GET /api/portability/users is rejected", async () => {
+    it("GET /api/portability/export returns full backup", async () => {
+      mockExecute.mockResolvedValue({ rows: [] });
       const res = await request(app)
-        .get("/api/portability/users")
-        .set(auth());
-      expect(res.status).toBe(400);
-    });
-
-    it("GET /api/portability/songs exports rows", async () => {
-      mockExecute.mockResolvedValueOnce({
-        rows: [{ id: 1, track_name: "X", user_id: USER_ID }],
-      });
-      const res = await request(app)
-        .get("/api/portability/songs")
+        .get("/api/portability/export")
         .set(auth());
       expect(res.status).toBe(200);
-      expect(res.body.rows).toHaveLength(1);
+      expect(res.body.backup.version).toBe(1);
+      expect(res.body.backup.data).toHaveProperty("songs");
+      expect(res.body.backup.data).toHaveProperty("performances");
+    });
+
+    it("POST /api/portability/import requires backup object", async () => {
+      const res = await request(app)
+        .post("/api/portability/import")
+        .set(auth())
+        .send({});
+      expect(res.status).toBe(400);
     });
   });
 
@@ -303,6 +304,24 @@ describe("Repertoire API (Track 2)", () => {
       for (const s of stmts) {
         expect(s.args).not.toContain(OTHER_USER);
       }
+    });
+
+    it("deletes the user row when deleteAccount is true", async () => {
+      mockBatch.mockResolvedValueOnce([]);
+      mockExecute.mockResolvedValueOnce({ rowsAffected: 1 });
+      const res = await request(app)
+        .post("/api/account/wipe")
+        .set(auth(USER_ID))
+        .send({ deleteAccount: true });
+      expect(res.status).toBe(200);
+      expect(res.body.deleteAccount).toBe(true);
+      expect(mockBatch).toHaveBeenCalledOnce();
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sql: "DELETE FROM users WHERE id = ?",
+          args: [USER_ID],
+        })
+      );
     });
   });
 

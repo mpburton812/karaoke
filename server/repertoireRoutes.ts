@@ -3,7 +3,6 @@ import {
   RepertoireError,
   addLocationTag,
   addSongTag,
-  assertPortabilityTable,
   createLocation,
   createPerformance,
   createTag,
@@ -11,13 +10,11 @@ import {
   deletePerformance,
   deleteSong,
   deleteTag,
-  exportPortabilityTable,
   findDuplicateSong,
   getLocationStats,
   getPerformanceTagIds,
   getSong,
   getStatsDashboard,
-  importPortabilityRows,
   listAllPerformances,
   listLocationPerformances,
   listLocationTags,
@@ -34,8 +31,14 @@ import {
   searchSongsByTags,
   updatePerformance,
   upsertSong,
+  deleteUserAccount,
   wipeUserRepertoire,
 } from "./repertoire.js";
+import {
+  PortabilityError,
+  exportUserBackup,
+  importUserBackup,
+} from "./userPortability.js";
 
 type AuthedRequest = Request & { userId: number };
 
@@ -474,35 +477,48 @@ export function registerRepertoireRoutes(
     }
   });
 
-  app.get("/api/portability/:table", ...guard, async (req, res) => {
+  app.get("/api/portability/export", ...guard, async (req, res) => {
     try {
-      const table = assertPortabilityTable(req.params.table);
-      const rows = await exportPortabilityTable(userId(req), table);
-      res.json({ rows });
+      const backup = await exportUserBackup(userId(req));
+      res.json({ backup });
     } catch (err) {
+      if (err instanceof PortabilityError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
       handleRepertoireError(err, res);
     }
   });
 
-  app.post("/api/portability/:table", ...guard, async (req, res) => {
+  app.post("/api/portability/import", ...guard, async (req, res) => {
     try {
-      const table = assertPortabilityTable(req.params.table);
-      const { rows } = req.body as { rows?: Record<string, unknown>[] };
-      if (!Array.isArray(rows)) {
-        res.status(400).json({ error: "rows array is required." });
+      const { backup } = req.body as { backup?: unknown };
+      if (!backup) {
+        res.status(400).json({ error: "backup object is required." });
         return;
       }
-      const count = await importPortabilityRows(userId(req), table, rows);
-      res.json({ imported: count });
+      const result = await importUserBackup(userId(req), backup);
+      res.json(result);
     } catch (err) {
+      if (err instanceof PortabilityError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
       handleRepertoireError(err, res);
     }
   });
 
   app.post("/api/account/wipe", ...guard, async (req, res) => {
     try {
-      await wipeUserRepertoire(userId(req));
-      res.json({ ok: true });
+      const deleteAccount = Boolean(
+        (req.body as { deleteAccount?: boolean } | undefined)?.deleteAccount
+      );
+      if (deleteAccount) {
+        await deleteUserAccount(userId(req));
+      } else {
+        await wipeUserRepertoire(userId(req));
+      }
+      res.json({ ok: true, deleteAccount });
     } catch (err) {
       handleRepertoireError(err, res);
     }

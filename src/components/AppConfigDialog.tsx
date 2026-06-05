@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  Checkbox,
   FormControlLabel,
   IconButton,
   Link,
@@ -30,20 +31,17 @@ import {
 } from "../api/songShares";
 import { KARAOKE_SHARES_REFRESH_EVENT } from "../lib/karaokeEvents";
 import DataPortability from "./DataPortability";
-import EnrichmentAdmin from "./EnrichmentAdmin";
 import SpotifyConnect from "./SpotifyConnect";
-import SystemStatus from "./SystemStatus";
 import { sectionTitleSx, transTokens, type ThemeMode } from "../theme";
 
 interface AppConfigDialogProps {
   open: boolean;
   onClose: () => void;
   currentUser: AuthUser;
-  isAdmin: boolean;
   themeMode: ThemeMode;
   onThemeChange: (mode: ThemeMode) => void;
   onUserUpdated: (user: AuthUser, token: string) => void;
-  onNukeData: () => void;
+  onNukeData: (options: { deleteAccount: boolean }) => void;
   onOpenWelcome: () => void;
 }
 
@@ -51,7 +49,6 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
   open,
   onClose,
   currentUser,
-  isAdmin,
   themeMode,
   onThemeChange,
   onUserUpdated,
@@ -60,6 +57,7 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
 }) => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [prefsLoading, setPrefsLoading] = useState(false);
+  const [deleteAccountToo, setDeleteAccountToo] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -199,17 +197,6 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
           <Divider sx={{ my: 4 }} />
           <Changelog />
 
-          {isAdmin && (
-            <>
-              <Divider sx={{ my: 4 }} />
-              <Typography variant="h6" sx={{ ...sectionTitleSx, mb: 2 }}>
-                Administrator
-              </Typography>
-              <SystemStatus />
-              <EnrichmentAdmin />
-            </>
-          )}
-
           <Divider sx={{ my: 6, borderColor: "error.main" }} />
           <Box
             sx={{
@@ -224,15 +211,26 @@ const AppConfigDialog: React.FC<AppConfigDialogProps> = ({
             </Typography>
             <Typography variant="body2" sx={{ mb: 2 }}>
               Clearing your configuration will delete all personal data associated with your
-              account.
+              account. You can optionally delete your login account as well.
             </Typography>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={deleteAccountToo}
+                  onChange={(e) => setDeleteAccountToo(e.target.checked)}
+                  color="error"
+                />
+              }
+              label="Also delete my user account (you will need to sign up again)"
+              sx={{ display: "block", mb: 2, textAlign: "left" }}
+            />
             <Button
               variant="outlined"
               color="error"
-              onClick={onNukeData}
+              onClick={() => onNukeData({ deleteAccount: deleteAccountToo })}
               sx={{ fontWeight: "bold" }}
             >
-              Clear all my data
+              {deleteAccountToo ? "Clear data and delete account" : "Clear all my data"}
             </Button>
           </Box>
         </Box>

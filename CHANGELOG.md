@@ -2,6 +2,9 @@
 
 ## [2026-06-04]
 
+- **God mode:** Admin impersonation of any user with a red exit banner; admin health and all-users enrichment moved from Settings; optional account deletion when clearing data in Danger zone.
+- **UI:** Song detail action order (Record, Remove, Share); Repertoire Explorer section order (Tag cloud, Matches, Create tag); comma-separated tag creation on songs and tags.
+- **Data portability:** Single JSON export/import for all repertoire data (songs, performances, tags, venues, links, status history, Spotify playlist metadata).
 - **Sharing:** Send songs to other users from song detail (message up to 255 chars); inbox in Settings; in-app pop-ups when notifications are enabled; Save/Close with duplicate protection; optional reply to sender; Stats tab shows songs sent and received.
 - **Tags:** Tag cloud chips show song counts and scale size by repertoire usage; counts refresh when songs change.
 

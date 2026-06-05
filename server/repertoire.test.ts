@@ -11,12 +11,9 @@ vi.mock("./db.js", () => ({
 
 import {
   RepertoireError,
-  assertPortabilityTable,
   createTag,
   deleteSong,
-  exportPortabilityTable,
   findDuplicateSong,
-  importPortabilityRows,
   patchSong,
   searchSongsByTags,
   upsertSong,
@@ -29,17 +26,6 @@ describe("repertoire", () => {
   beforeEach(() => {
     mockExecute.mockReset();
     mockBatch.mockReset();
-  });
-
-  describe("assertPortabilityTable", () => {
-    it("allows songs, tags, locations", () => {
-      expect(assertPortabilityTable("songs")).toBe("songs");
-      expect(assertPortabilityTable("tags")).toBe("tags");
-    });
-
-    it("rejects unknown tables", () => {
-      expect(() => assertPortabilityTable("users")).toThrow(RepertoireError);
-    });
   });
 
   describe("findDuplicateSong", () => {
@@ -136,32 +122,13 @@ describe("repertoire", () => {
     });
   });
 
-  describe("portability", () => {
-    it("exports rows for a valid table", async () => {
-      mockExecute.mockResolvedValueOnce({
-        rows: [{ id: 1, name: "Tag" }],
-      });
-      const rows = await exportPortabilityTable(USER_ID, "tags");
-      expect(rows).toHaveLength(1);
-    });
-
-    it("imports rows with user_id prefix", async () => {
-      mockExecute.mockResolvedValue({ rows: [] });
-      const count = await importPortabilityRows(USER_ID, "tags", [
-        { name: "Imported" },
-      ]);
-      expect(count).toBe(1);
-      expect(mockExecute.mock.calls[0][0].args[0]).toBe(USER_ID);
-    });
-  });
-
   describe("wipeUserRepertoire", () => {
     it("runs ordered batch deletes", async () => {
       mockBatch.mockResolvedValueOnce([]);
       await wipeUserRepertoire(USER_ID);
       expect(mockBatch).toHaveBeenCalledOnce();
       const stmts = mockBatch.mock.calls[0][0] as { sql: string }[];
-      expect(stmts).toHaveLength(7);
+      expect(stmts).toHaveLength(11);
       expect(stmts[0].sql).toMatch(/song_shares/);
       expect(stmts[1].sql).toMatch(/performance_tags/);
       expect(stmts[stmts.length - 1].sql).toMatch(/locations/);

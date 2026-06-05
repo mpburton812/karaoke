@@ -17,7 +17,8 @@ import {
 import LogoutIcon from '@mui/icons-material/Logout';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { wipeAccountData } from './api/repertoire';
-import { clearSession, fetchCurrentUser, type AuthUser } from './api/auth';
+import { clearSession, fetchCurrentUser, type AuthUser, type ImpersonationInfo } from './api/auth';
+import { exitGodModeImpersonation } from './api/godMode';
 import { setSessionExpiredHandler } from './api/session';
 import {
   KARAOKE_OPEN_SONG_EVENT,
@@ -94,6 +95,7 @@ function App() {
   };
 
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  const [impersonation, setImpersonation] = useState<ImpersonationInfo | null>(null);
 
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
     const savedUser = localStorage.getItem('karaoke_user');
@@ -125,8 +127,9 @@ function App() {
     if (!currentUserId) return;
     const id = window.setTimeout(() => {
       void fetchCurrentUser()
-        .then((user) => {
+        .then(({ user, impersonation: imp }) => {
           setCurrentUser(user);
+          setImpersonation(imp);
           localStorage.setItem('karaoke_user', JSON.stringify(user));
         })
         .catch(() => {
@@ -218,6 +221,7 @@ function App() {
 
   const handleLogin = (user: AuthUser) => {
     setSessionNotice(null);
+    setImpersonation(null);
     setCurrentUser(user);
     localStorage.setItem('karaoke_user', JSON.stringify(user));
   };
@@ -232,23 +236,54 @@ function App() {
       logCatalogClientEvent("user_logout", "User signed out");
     }
     setCurrentUser(null);
+    setImpersonation(null);
     setSessionNotice(null);
     clearSession();
     setValue(0);
   };
 
-  const handleNukeData = async () => {
+  const handleExitImpersonation = async () => {
+    try {
+      const { user } = await exitGodModeImpersonation();
+      setCurrentUser(user);
+      setImpersonation(null);
+      setValue(SONGS_TAB_INDEX);
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      alert(
+        err instanceof Error ? err.message : "Failed to exit impersonation."
+      );
+    }
+  };
+
+  const handleNukeData = async ({ deleteAccount }: { deleteAccount: boolean }) => {
     if (!currentUser) return;
+    const accountLine = deleteAccount
+      ? " Your login account will also be permanently deleted."
+      : "";
     const confirmed = window.confirm(
-      "CRITICAL WARNING: This will permanently delete ALL your songs, performances, tags, and locations. This action CANNOT be undone. Are you absolutely sure?"
+      `CRITICAL WARNING: This will permanently delete ALL your songs, performances, tags, and locations.${accountLine} This action CANNOT be undone. Are you absolutely sure?`
     );
-    
+
     if (confirmed) {
-      logUserAction("User cleared all personal configuration (nuke)", "data");
+      logUserAction(
+        deleteAccount
+          ? "User cleared all data and deleted account"
+          : "User cleared all personal configuration (nuke)",
+        "data"
+      );
       try {
-        await wipeAccountData();
-        alert("Account wiped successfully.");
-        window.location.reload();
+        await wipeAccountData({ deleteAccount });
+        if (deleteAccount) {
+          clearSession();
+          setCurrentUser(null);
+          setConfigOpen(false);
+          alert("Your data and account have been deleted.");
+        } else {
+          alert("Account wiped successfully.");
+          window.location.reload();
+        }
       } catch (err) {
         console.error("Nuke failed:", err);
         alert("Failed to wipe data. Check console for details.");
@@ -306,6 +341,29 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      {impersonation?.active && (
+        <Box
+          component="button"
+          type="button"
+          onClick={() => void handleExitImpersonation()}
+          sx={{
+            width: '100%',
+            border: 'none',
+            cursor: 'pointer',
+            bgcolor: 'error.main',
+            color: 'error.contrastText',
+            py: 0.75,
+            px: 2,
+            typography: 'caption',
+            fontWeight: 700,
+            letterSpacing: 0.5,
+            textAlign: 'center',
+            '&:hover': { bgcolor: 'error.dark' },
+          }}
+        >
+          IMPERSONATING - Click here to exit out.
+        </Box>
+      )}
       <AppBar position="static" elevation={0}>
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
@@ -385,7 +443,15 @@ function App() {
           {isAdmin && (
             <CustomTabPanel value={value} index={GOD_MODE_TAB_INDEX}>
               <EventLogViewer />
-              <GodMode />
+              <GodMode
+                adminUserId={currentUser.id}
+                onImpersonated={(user, imp) => {
+                  setCurrentUser(user);
+                  setImpersonation(imp);
+                  setValue(SONGS_TAB_INDEX);
+                  window.location.reload();
+                }}
+              />
             </CustomTabPanel>
           )}
         </Suspense>
@@ -402,7 +468,6 @@ function App() {
         open={configOpen}
         onClose={() => setConfigOpen(false)}
         currentUser={currentUser}
-        isAdmin={isAdmin}
         themeMode={themeMode}
         onThemeChange={handleThemeChange}
         onUserUpdated={handleUserUpdated}

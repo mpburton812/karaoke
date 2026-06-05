@@ -18,12 +18,19 @@ import {
 
 const MAX_LEN = 255;
 
+export type ShareSendStatus = {
+  severity: 'success' | 'error';
+  message: string;
+};
+
 interface SendSongShareDialogProps {
   open: boolean;
   songId: number;
   songTitle: string;
   onClose: () => void;
   onSent?: () => void;
+  /** Notifies the parent after send completes (success or failure). */
+  onSendStatus?: (status: ShareSendStatus) => void;
 }
 
 const SendSongShareDialog: React.FC<SendSongShareDialogProps> = ({
@@ -32,6 +39,7 @@ const SendSongShareDialog: React.FC<SendSongShareDialogProps> = ({
   songTitle,
   onClose,
   onSent,
+  onSendStatus,
 }) => {
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -39,11 +47,13 @@ const SendSongShareDialog: React.FC<SendSongShareDialogProps> = ({
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setLoadingUsers(true);
     setError(null);
+    setSuccessMessage(null);
     setRecipient(null);
     setMessage('');
     void fetchUserDirectory()
@@ -52,23 +62,47 @@ const SendSongShareDialog: React.FC<SendSongShareDialogProps> = ({
       .finally(() => setLoadingUsers(false));
   }, [open]);
 
+  const reportStatus = (status: ShareSendStatus) => {
+    onSendStatus?.(status);
+    if (status.severity === 'error') {
+      setError(status.message);
+      setSuccessMessage(null);
+    } else {
+      setSuccessMessage(status.message);
+      setError(null);
+    }
+  };
+
   const handleSend = async () => {
     if (!recipient) {
-      setError('Select a recipient.');
+      reportStatus({
+        severity: 'error',
+        message: 'Select a recipient before sending.',
+      });
       return;
     }
     setSending(true);
     setError(null);
+    setSuccessMessage(null);
+    const recipientName = recipient.username;
     try {
       await createSongShare({
         recipientUserId: recipient.id,
         songId,
         message: message.trim(),
       });
+      reportStatus({
+        severity: 'success',
+        message: `"${songTitle}" was sent to ${recipientName}. They can open it from their inbox or app notifications.`,
+      });
       onSent?.();
-      onClose();
+      window.setTimeout(() => {
+        onClose();
+      }, 1200);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to send.');
+      const msg =
+        e instanceof Error ? e.message : 'The song could not be sent. Please try again.';
+      reportStatus({ severity: 'error', message: msg });
     } finally {
       setSending(false);
     }
@@ -81,6 +115,11 @@ const SendSongShareDialog: React.FC<SendSongShareDialogProps> = ({
         <Alert severity="info" sx={{ mb: 2 }}>
           Sending <strong>{songTitle}</strong> to another user&apos;s inbox.
         </Alert>
+        {successMessage && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {successMessage}
+          </Alert>
+        )}
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         {loadingUsers ? (
           <CircularProgress size={24} />
@@ -108,7 +147,11 @@ const SendSongShareDialog: React.FC<SendSongShareDialogProps> = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={sending}>Cancel</Button>
-        <Button variant="contained" onClick={() => void handleSend()} disabled={sending || !recipient}>
+        <Button
+          variant="contained"
+          onClick={() => void handleSend()}
+          disabled={sending || !recipient || Boolean(successMessage)}
+        >
           {sending ? <CircularProgress size={22} color="inherit" /> : 'Send'}
         </Button>
       </DialogActions>

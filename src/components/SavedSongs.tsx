@@ -6,7 +6,7 @@ import {
   TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Select, MenuItem, FormControl, InputLabel, Checkbox, Accordion,
   AccordionSummary, AccordionDetails,
-  Autocomplete, Rating, SvgIcon, Tooltip
+  Autocomplete, Rating, SvgIcon, Tooltip, Snackbar
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EmailIcon from '@mui/icons-material/Email';
@@ -21,7 +21,7 @@ import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SongLookup from './SongLookup';
-import SendSongShareDialog from './SendSongShareDialog';
+import SendSongShareDialog, { type ShareSendStatus } from './SendSongShareDialog';
 import EmptyState from './EmptyState';
 import {
   fetchSongs as loadSongs,
@@ -31,6 +31,7 @@ import {
   fetchPerformances as loadPerformances,
   patchSong,
   addSongTag,
+  createTag,
   removeSongTag,
   deleteSong,
   fetchPerformanceTagIds,
@@ -131,7 +132,9 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
   const [letterFilter, setLetterFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
   const [pendingDeleteSong, setPendingDeleteSong] = useState<Song | null>(null);
+  const [songTagsCommaInput, setSongTagsCommaInput] = useState('');
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareSendStatus, setShareSendStatus] = useState<ShareSendStatus | null>(null);
 
   // Performance Dialog State
   const [perfDialogOpen, setPerfDialogOpen] = useState(false);
@@ -276,16 +279,49 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
 
   const handleAddSongTag = async (tagId: number) => {
     if (!selectedSong) return;
-    console.log(`Adding tag ${tagId} to song ${selectedSong.id}`);
     try {
       await addSongTag(selectedSong.id, tagId);
-      console.log('Successfully inserted/ignored song tag');
       await fetchSongTags(selectedSong.id);
       window.dispatchEvent(new Event(KARAOKE_SONGS_REFRESH_EVENT));
-      console.log('Refetched song tags');
     } catch (err) {
       console.error('Error in handleAddSongTag:', err);
       alert('Failed to add tag. Check console for details.');
+    }
+  };
+
+  const resolveTagIdByName = async (name: string): Promise<number | null> => {
+    const existing = availableTags.find(
+      (t) => t.name.localeCompare(name, undefined, { sensitivity: 'base' }) === 0
+    );
+    if (existing) return existing.id;
+    try {
+      await createTag(name);
+      const refreshed = await loadTagsAndLocations();
+      const tags = (refreshed.tags ?? []) as { id: number; name: string }[];
+      setAvailableTags(tags);
+      const created = tags.find(
+        (t) => t.name.localeCompare(name, undefined, { sensitivity: 'base' }) === 0
+      );
+      return created?.id ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleAddSongTagsFromInput = async (raw: string) => {
+    if (!selectedSong || !raw.trim()) return;
+    const names = raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (names.length === 0) return;
+    const attached = new Set(selectedSongTags.map((t) => t.id));
+    for (const name of names) {
+      const tagId = await resolveTagIdByName(name);
+      if (tagId && !attached.has(tagId)) {
+        await handleAddSongTag(tagId);
+        attached.add(tagId);
+      }
     }
   };
 
@@ -471,17 +507,9 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Button startIcon={<ArrowBackIcon />} onClick={() => setSelectedSong(null)}>Back to list</Button>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Chip
-              icon={<EmailIcon />}
-              label="Share"
-              onClick={() => setShareDialogOpen(true)}
-              color="primary"
-              variant="outlined"
-              clickable
-              aria-label="Share song with another user"
-            />
             <Button variant="contained" color="primary" startIcon={<MicIcon />} onClick={handleOpenPerfDialog}>Record performance</Button>
             <Button variant="contained" color="error" startIcon={<DeleteIcon />} onClick={() => setPendingDeleteSong(selectedSong)}>Remove from list</Button>
+            <Button variant="contained" color="primary" startIcon={<EmailIcon />} onClick={() => setShareDialogOpen(true)} aria-label="Share with someone">Share with someone</Button>
           </Box>
         </Box>
 
@@ -573,17 +601,44 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                   ))}
                 </Box>
                 
-                <Box sx={{ mt: 2 }}>
+                <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'flex-start' }}>
                   <Autocomplete
                     size="small"
                     options={availableTags.filter(t => !selectedSongTags.find(st => st.id === t.id))}
                     getOptionLabel={(option) => option.name}
                     renderInput={(params) => <TextField {...params} label="Search tags" sx={{ maxWidth: 200 }} />}
-                    onChange={(_, value) => value && handleAddSongTag(value.id)}
+                    onChange={(_, value) => value && void handleAddSongTag(value.id)}
                     value={null}
                     blurOnSelect
                     clearOnBlur
                   />
+                  <TextField
+                    size="small"
+                    label="Add tags (comma-separated)"
+                    placeholder="rock, party"
+                    value={songTagsCommaInput}
+                    onChange={(e) => setSongTagsCommaInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter') return;
+                      e.preventDefault();
+                      const raw = songTagsCommaInput;
+                      setSongTagsCommaInput('');
+                      void handleAddSongTagsFromInput(raw);
+                    }}
+                    sx={{ minWidth: 200 }}
+                  />
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => {
+                      const raw = songTagsCommaInput;
+                      setSongTagsCommaInput('');
+                      void handleAddSongTagsFromInput(raw);
+                    }}
+                    disabled={!songTagsCommaInput.trim()}
+                  >
+                    Add
+                  </Button>
                 </Box>
               </Box>
 
@@ -865,8 +920,24 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
             songTitle={selectedSong.track_name}
             onClose={() => setShareDialogOpen(false)}
             onSent={() => window.dispatchEvent(new Event(KARAOKE_SHARES_REFRESH_EVENT))}
+            onSendStatus={setShareSendStatus}
           />
         )}
+        <Snackbar
+          open={shareSendStatus !== null}
+          autoHideDuration={shareSendStatus?.severity === 'success' ? 6000 : 8000}
+          onClose={() => setShareSendStatus(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert
+            severity={shareSendStatus?.severity ?? 'info'}
+            variant="filled"
+            onClose={() => setShareSendStatus(null)}
+            sx={{ width: '100%', maxWidth: 480 }}
+          >
+            {shareSendStatus?.message}
+          </Alert>
+        </Snackbar>
       </Box>
     );
   }

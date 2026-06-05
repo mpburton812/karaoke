@@ -22,14 +22,20 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import KeyIcon from "@mui/icons-material/Key";
 import ListAltIcon from "@mui/icons-material/ListAlt";
+import PersonIcon from "@mui/icons-material/Person";
+import type { AuthUser, ImpersonationInfo } from "../api/auth";
 import {
   changeGodModeUserPassword,
   deleteGodModeUser,
   fetchGodModePerformances,
   fetchGodModeUsers,
+  impersonateGodModeUser,
   type GodModePerformance,
   type GodModeUser,
 } from "../api/godMode";
+import AllUsersSongEnrichment from "./AllUsersSongEnrichment";
+import EnrichmentAdmin from "./EnrichmentAdmin";
+import SystemStatus from "./SystemStatus";
 import { panelTitleSx } from "../theme";
 
 function fmtDate(value: string | null): string {
@@ -38,7 +44,12 @@ function fmtDate(value: string | null): string {
   return Number.isNaN(d.getTime()) ? value : d.toLocaleString();
 }
 
-const GodMode: React.FC = () => {
+interface GodModeProps {
+  adminUserId: number;
+  onImpersonated: (user: AuthUser, impersonation: ImpersonationInfo) => void;
+}
+
+const GodMode: React.FC<GodModeProps> = ({ adminUserId, onImpersonated }) => {
   const [users, setUsers] = useState<GodModeUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +63,7 @@ const GodMode: React.FC = () => {
   const [performances, setPerformances] = useState<GodModePerformance[]>([]);
   const [performancesLoading, setPerformancesLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [impersonateTarget, setImpersonateTarget] = useState<GodModeUser | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,6 +93,21 @@ const GodMode: React.FC = () => {
       setNewPassword("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to change password.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const startImpersonation = async () => {
+    if (!impersonateTarget) return;
+    setActionLoading(true);
+    setError(null);
+    try {
+      const result = await impersonateGodModeUser(impersonateTarget.id);
+      onImpersonated(result.user, result.impersonation);
+      setImpersonateTarget(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to impersonate user.");
     } finally {
       setActionLoading(false);
     }
@@ -121,11 +148,19 @@ const GodMode: React.FC = () => {
   return (
     <Box sx={{ mt: 3 }}>
       <Typography variant="h5" gutterBottom sx={{ ...panelTitleSx, color: "primary.main" }}>
+        Admin health
+      </Typography>
+      <SystemStatus />
+
+      <AllUsersSongEnrichment />
+
+      <EnrichmentAdmin />
+
+      <Typography variant="h5" gutterBottom sx={{ ...panelTitleSx, color: "primary.main", mt: 4 }}>
         User administration
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        User accounts and password controls. System health and enrichment tools are
-        in Settings (gear icon).
+        User accounts, password controls, and account deletion.
       </Typography>
 
       {error && (
@@ -174,6 +209,16 @@ const GodMode: React.FC = () => {
                   <TableCell align="right">{user.venueCount}</TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                      {user.id !== adminUserId && (
+                        <Button
+                          size="small"
+                          color="warning"
+                          startIcon={<PersonIcon />}
+                          onClick={() => setImpersonateTarget(user)}
+                        >
+                          Impersonate
+                        </Button>
+                      )}
                       <Button
                         size="small"
                         startIcon={<ListAltIcon />}
@@ -234,6 +279,32 @@ const GodMode: React.FC = () => {
             disabled={actionLoading || newPassword.length < 8}
           >
             Change password
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(impersonateTarget)}
+        onClose={() => setImpersonateTarget(null)}
+      >
+        <DialogTitle>Impersonate user?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            View the app as {impersonateTarget?.username}. A red banner at the top
+            lets you exit impersonation at any time.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setImpersonateTarget(null)} disabled={actionLoading}>
+            Cancel
+          </Button>
+          <Button
+            color="warning"
+            variant="contained"
+            onClick={() => void startImpersonation()}
+            disabled={actionLoading}
+          >
+            Impersonate
           </Button>
         </DialogActions>
       </Dialog>
