@@ -246,7 +246,7 @@ const GodMode: React.FC<GodModeProps> = ({ adminUserId, onImpersonated }) => {
           <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", mb: 1 }}>
             {motdCurrent.body}
           </Typography>
-          <Typography variant="caption" color="text.secondary" display="block">
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
             Expires: {motdCurrent.expiresAt} · Seen by {motdCurrent.seenCount} user
             {motdCurrent.seenCount === 1 ? "" : "s"} · Created {fmtDate(motdCurrent.createdAt)}
           </Typography>
@@ -272,7 +272,7 @@ const GodMode: React.FC<GodModeProps> = ({ adminUserId, onImpersonated }) => {
         type="date"
         value={motdExpires}
         onChange={(e) => setMotdExpires(e.target.value)}
-        InputLabelProps={{ shrink: true }}
+        slotProps={{ inputLabel: { shrink: true } }}
         sx={{ mb: 2, mr: 2, minWidth: 220 }}
       />
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
