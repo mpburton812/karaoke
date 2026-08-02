@@ -442,6 +442,28 @@ export const initDb = async () => {
       `CREATE INDEX IF NOT EXISTS idx_event_logs_occurred ON event_logs (occurred_at DESC, id DESC)`
     );
 
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS admin_motd (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        body TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        cleared_at TEXT
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS admin_motd_seen (
+        motd_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (motd_id, user_id),
+        FOREIGN KEY (motd_id) REFERENCES admin_motd(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
     await runSchemaMigrations();
 
   } catch (error) {

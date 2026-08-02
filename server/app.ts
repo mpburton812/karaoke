@@ -63,6 +63,14 @@ import {
   logCatalogEvent,
   logEvent,
 } from "./eventLog.js";
+import {
+  MotdError,
+  ackMotd,
+  expireMotdNow,
+  getAdminMotdStatus,
+  getMotdForUser,
+  publishMotd,
+} from "./motd.js";
 
 function sqlGuardStatus(message: string): number {
   if (
@@ -109,6 +117,9 @@ function apiIndexPayload(serveStatic: boolean) {
       "/api/admin/health",
       "/api/admin/event-logs",
       "/api/admin/event-logs/export",
+      "/api/admin/motd",
+      "/api/admin/motd/expire",
+      "/api/motd",
       "/api/events/log",
     ],
     data: [
@@ -887,6 +898,100 @@ export function createApp(options: { serveStatic?: boolean } = {}) {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to read admin health.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.get("/api/admin/motd", requireAuth, requireAdmin, async (_req, res) => {
+    try {
+      const motd = await getAdminMotdStatus();
+      res.json({ motd });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to load MOTD.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.put("/api/admin/motd", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const authed = req as express.Request & {
+        userId: number;
+        jwtPayload?: ReturnType<typeof verifyToken>;
+      };
+      const adminId = adminUserIdFromPayload(
+        authed.jwtPayload ?? { sub: authed.userId, username: "" }
+      );
+      const message =
+        typeof req.body?.message === "string" ? req.body.message : "";
+      const expiresAt =
+        req.body?.expiresAt === null || req.body?.expiresAt === undefined
+          ? null
+          : typeof req.body.expiresAt === "string"
+            ? req.body.expiresAt
+            : null;
+      const motd = await publishMotd(adminId, message, expiresAt);
+      res.json({ motd });
+    } catch (err) {
+      if (err instanceof MotdError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
+      const msg =
+        err instanceof Error ? err.message : "Failed to publish MOTD.";
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  app.post(
+    "/api/admin/motd/expire",
+    requireAuth,
+    requireAdmin,
+    async (_req, res) => {
+      try {
+        const result = await expireMotdNow();
+        res.json({ ok: true, ...result });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to expire MOTD.";
+        res.status(500).json({ error: message });
+      }
+    }
+  );
+
+  app.get("/api/motd", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as express.Request & { userId: number }).userId;
+      const motd = await getMotdForUser(userId);
+      res.json({ motd });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to load MOTD.";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.post("/api/motd/ack", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as express.Request & { userId: number }).userId;
+      const motdId =
+        typeof req.body?.motdId === "number"
+          ? req.body.motdId
+          : typeof req.body?.motdId === "string"
+            ? Number(req.body.motdId)
+            : undefined;
+      await ackMotd(
+        userId,
+        Number.isFinite(motdId as number) ? (motdId as number) : undefined
+      );
+      res.json({ ok: true });
+    } catch (err) {
+      if (err instanceof MotdError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
+      const message =
+        err instanceof Error ? err.message : "Failed to acknowledge MOTD.";
       res.status(500).json({ error: message });
     }
   });

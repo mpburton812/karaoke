@@ -2,6 +2,7 @@
 
 ## [2026-08-02]
 
+- **God mode:** MOTD — publish up to 255 characters with optional expire (default +1 month); Auto-expire now hides it from users who have not seen it; users see “Message from Admins:” once on next login until OK or expire.
 - **UI:** Bottom icon navigation for Songs, Places, Tags, and Stats; cog menu offers Settings, God Mode (admins), and Exit (logout).
 - **Repertoire:** New vocal status **Considering** (below Practicing); default for newly added songs. One-time migration moves `mpburton` songs from Practicing to Considering.
 - **Performances:** After the first performance is saved in a session, the next Record dialog defaults to that date + 1 day.

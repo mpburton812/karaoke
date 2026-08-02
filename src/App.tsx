@@ -42,10 +42,12 @@ import {
 import { lazyRetry } from './lib/lazyRetry';
 import AppConfigDialog from './components/AppConfigDialog';
 import WelcomeMessageDialog from './components/WelcomeMessageDialog';
+import MotdDialog from './components/MotdDialog';
 import SongShareNotifications from './components/SongShareNotifications';
 import { logCatalogClientEvent, logUserAction } from './api/eventLog';
 import { reportClientBuildOnce } from './lib/reportBuild';
 import { isWelcomeDismissed } from './lib/welcomeMessage';
+import { fetchUserMotd, type UserMotd } from './api/motd';
 import { createAppTheme, type ThemeMode } from './theme';
 
 const SavedSongs = lazyRetry(() => import('./components/SavedSongs'));
@@ -97,6 +99,8 @@ function App() {
   const [godModeOpen, setGodModeOpen] = useState(false);
   const [cogAnchor, setCogAnchor] = useState<null | HTMLElement>(null);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [motd, setMotd] = useState<UserMotd | null>(null);
+  const [motdOpen, setMotdOpen] = useState(false);
   const [songIdToOpenFromExplorer, setSongIdToOpenFromExplorer] = useState<number | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     return (localStorage.getItem('theme_mode') as ThemeMode) || 'dark';
@@ -325,6 +329,30 @@ function App() {
   }, [currentUser?.id]);
 
   useEffect(() => {
+    if (!currentUser || welcomeOpen) {
+      if (!currentUser) {
+        setMotd(null);
+        setMotdOpen(false);
+      }
+      return;
+    }
+    if (new URLSearchParams(window.location.search).has("spotify")) return;
+    let cancelled = false;
+    void fetchUserMotd()
+      .then((next) => {
+        if (cancelled) return;
+        setMotd(next);
+        setMotdOpen(Boolean(next));
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.id, welcomeOpen]);
+
+  useEffect(() => {
     if (!currentUser) return;
     const handler = (e: Event) => {
       const ce = e as CustomEvent<KaraokeOpenSongDetail>;
@@ -504,6 +532,14 @@ function App() {
         open={welcomeOpen}
         userId={currentUser.id}
         onClose={() => setWelcomeOpen(false)}
+      />
+      <MotdDialog
+        open={motdOpen}
+        motd={motd}
+        onClose={() => {
+          setMotdOpen(false);
+          setMotd(null);
+        }}
       />
       <SongShareNotifications active />
 

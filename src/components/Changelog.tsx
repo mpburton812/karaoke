@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-08-02', description: 'God mode: MOTD publish (255 chars, optional expire, auto-expire now); users see Message from Admins once on next login' },
   { date: '2026-08-02', description: 'UI: Bottom icon nav for Songs, Places, Tags, Stats; cog menu has Settings, God Mode (admin), and Exit' },
   { date: '2026-08-02', description: 'Repertoire: Considering status (default for new songs); mpburton Practicing songs migrated to Considering' },
   { date: '2026-08-02', description: 'Performances: After first recorded performance, next Record dialog defaults to that date + 1 day' },

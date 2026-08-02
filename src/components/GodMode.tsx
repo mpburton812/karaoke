@@ -33,10 +33,18 @@ import {
   type GodModePerformance,
   type GodModeUser,
 } from "../api/godMode";
+import {
+  expireAdminMotdNow,
+  fetchAdminMotd,
+  publishAdminMotd,
+  type AdminMotd,
+} from "../api/motd";
 import AllUsersSongEnrichment from "./AllUsersSongEnrichment";
 import EnrichmentAdmin from "./EnrichmentAdmin";
 import SystemStatus from "./SystemStatus";
 import { panelTitleSx } from "../theme";
+
+const MOTD_MAX = 255;
 
 function fmtDate(value: string | null): string {
   if (!value) return "Never";
@@ -64,6 +72,23 @@ const GodMode: React.FC<GodModeProps> = ({ adminUserId, onImpersonated }) => {
   const [performancesLoading, setPerformancesLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [impersonateTarget, setImpersonateTarget] = useState<GodModeUser | null>(null);
+  const [motdCurrent, setMotdCurrent] = useState<AdminMotd | null>(null);
+  const [motdDraft, setMotdDraft] = useState("");
+  const [motdExpires, setMotdExpires] = useState("");
+  const [motdLoading, setMotdLoading] = useState(true);
+  const [motdSaving, setMotdSaving] = useState(false);
+
+  const loadMotd = useCallback(async () => {
+    setMotdLoading(true);
+    try {
+      const current = await fetchAdminMotd();
+      setMotdCurrent(current);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load MOTD.");
+    } finally {
+      setMotdLoading(false);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,9 +103,12 @@ const GodMode: React.FC<GodModeProps> = ({ adminUserId, onImpersonated }) => {
   }, []);
 
   useEffect(() => {
-    const id = window.setTimeout(() => void load(), 0);
+    const id = window.setTimeout(() => {
+      void load();
+      void loadMotd();
+    }, 0);
     return () => window.clearTimeout(id);
-  }, [load]);
+  }, [load, loadMotd]);
 
   const savePassword = async () => {
     if (!passwordTarget) return;
@@ -145,6 +173,50 @@ const GodMode: React.FC<GodModeProps> = ({ adminUserId, onImpersonated }) => {
     }
   };
 
+  const publishMotd = async () => {
+    setMotdSaving(true);
+    setError(null);
+    try {
+      const motd = await publishAdminMotd(
+        motdDraft,
+        motdExpires.trim() ? motdExpires : null
+      );
+      setMotdCurrent(motd);
+      setMotdDraft("");
+      setMotdExpires("");
+      setNotice("MOTD published. Users will see it on their next login.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to publish MOTD.");
+    } finally {
+      setMotdSaving(false);
+    }
+  };
+
+  const autoExpireMotd = async () => {
+    if (
+      !window.confirm(
+        "Auto-expire the current MOTD now? Users who have not seen it will not see it."
+      )
+    ) {
+      return;
+    }
+    setMotdSaving(true);
+    setError(null);
+    try {
+      const result = await expireAdminMotdNow();
+      await loadMotd();
+      setNotice(
+        result.cleared
+          ? "MOTD auto-expired. Unseen users will not receive it."
+          : "No active MOTD to expire."
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to expire MOTD.");
+    } finally {
+      setMotdSaving(false);
+    }
+  };
+
   return (
     <Box sx={{ mt: 3 }}>
       <Typography variant="h5" gutterBottom sx={{ ...panelTitleSx, color: "primary.main" }}>
@@ -155,6 +227,71 @@ const GodMode: React.FC<GodModeProps> = ({ adminUserId, onImpersonated }) => {
       <AllUsersSongEnrichment />
 
       <EnrichmentAdmin />
+
+      <Typography variant="h5" gutterBottom sx={{ ...panelTitleSx, color: "primary.main", mt: 4 }}>
+        MOTD
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Send a short message (max {MOTD_MAX} characters) that appears once for each user on
+        their next login. Leave expire blank to default to one month from today.
+      </Typography>
+
+      {motdLoading ? (
+        <CircularProgress size={24} sx={{ mb: 2 }} />
+      ) : motdCurrent ? (
+        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Active MOTD
+          </Typography>
+          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", mb: 1 }}>
+            {motdCurrent.body}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block">
+            Expires: {motdCurrent.expiresAt} · Seen by {motdCurrent.seenCount} user
+            {motdCurrent.seenCount === 1 ? "" : "s"} · Created {fmtDate(motdCurrent.createdAt)}
+          </Typography>
+        </Paper>
+      ) : (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          No active MOTD.
+        </Typography>
+      )}
+
+      <TextField
+        label="Message"
+        value={motdDraft}
+        onChange={(e) => setMotdDraft(e.target.value.slice(0, MOTD_MAX))}
+        fullWidth
+        multiline
+        minRows={2}
+        helperText={`${motdDraft.length}/${MOTD_MAX}`}
+        sx={{ mb: 2 }}
+      />
+      <TextField
+        label="Expire date (optional)"
+        type="date"
+        value={motdExpires}
+        onChange={(e) => setMotdExpires(e.target.value)}
+        InputLabelProps={{ shrink: true }}
+        sx={{ mb: 2, mr: 2, minWidth: 220 }}
+      />
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
+        <Button
+          variant="contained"
+          onClick={() => void publishMotd()}
+          disabled={motdSaving || !motdDraft.trim()}
+        >
+          Publish
+        </Button>
+        <Button
+          variant="outlined"
+          color="warning"
+          onClick={() => void autoExpireMotd()}
+          disabled={motdSaving || !motdCurrent}
+        >
+          Auto-expire now
+        </Button>
+      </Box>
 
       <Typography variant="h5" gutterBottom sx={{ ...panelTitleSx, color: "primary.main", mt: 4 }}>
         User administration
