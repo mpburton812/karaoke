@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-08-02]
+
+- **UI:** Bottom icon navigation for Songs, Places, Tags, and Stats; cog menu offers Settings, God Mode (admins), and Exit (logout).
+- **Repertoire:** New vocal status **Considering** (below Practicing); default for newly added songs. One-time migration moves `mpburton` songs from Practicing to Considering.
+- **Performances:** After the first performance is saved in a session, the next Record dialog defaults to that date + 1 day.
+- **Songs:** After importing a track from the web, song details open automatically.
+- **Deploy:** Primary UI on Vercel; API and fallback SPA remain on Render.
+
 ## [2026-06-04]
 
 - **God mode:** Admin impersonation of any user with a red exit banner; admin health and all-users enrichment moved from Settings; optional account deletion when clearing data in Danger zone.

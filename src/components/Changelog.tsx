@@ -5,6 +5,10 @@ import {
 } from '@mui/material';
 
 const changelogData = [
+  { date: '2026-08-02', description: 'UI: Bottom icon nav for Songs, Places, Tags, Stats; cog menu has Settings, God Mode (admin), and Exit' },
+  { date: '2026-08-02', description: 'Repertoire: Considering status (default for new songs); mpburton Practicing songs migrated to Considering' },
+  { date: '2026-08-02', description: 'Performances: After first recorded performance, next Record dialog defaults to that date + 1 day' },
+  { date: '2026-08-02', description: 'Songs: Web import opens song details after save' },
   { date: '2026-06-04', description: 'Data portability: one JSON file exports or restores all repertoire data' },
   { date: '2026-06-04', description: 'Sharing: Send songs to other users, inbox, in-app notifications, replies, and sent/received stats' },
   { date: '2026-06-04', description: 'Tags: Tag cloud shows song counts on chips and scales chip size by usage' },

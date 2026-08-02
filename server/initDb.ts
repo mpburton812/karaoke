@@ -102,7 +102,7 @@ export const initDb = async () => {
         genre TEXT,
         release_year INTEGER,
         personal_key TEXT DEFAULT '0',
-        vocal_status TEXT DEFAULT 'Practicing',
+        vocal_status TEXT DEFAULT 'Considering',
         lyrics TEXT,
         last_practiced TEXT,
         enriched_at TEXT,
@@ -116,7 +116,7 @@ export const initDb = async () => {
       { name: 'genre', type: 'TEXT' },
       { name: 'release_year', type: 'INTEGER' },
       { name: 'personal_key', type: "TEXT DEFAULT '0'" },
-      { name: 'vocal_status', type: "TEXT DEFAULT 'Practicing'" },
+      { name: 'vocal_status', type: "TEXT DEFAULT 'Considering'" },
       { name: 'lyrics', type: 'TEXT' },
       { name: 'last_practiced', type: 'TEXT' },
       { name: 'enriched_at', type: 'TEXT' }

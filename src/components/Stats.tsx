@@ -60,6 +60,7 @@ interface GlobalStats {
   masteredCount: number;
   proficientCount: number;
   practicingCount: number;
+  consideringCount: number;
   songsSent: number;
   songsReceived: number;
 }
@@ -94,6 +95,7 @@ interface ChartData {
   Mastered: number;
   Proficient: number;
   Practicing: number;
+  Considering: number;
 }
 
 interface PerformanceListRow {
@@ -153,11 +155,12 @@ const Stats: React.FC<{ currentUser: { id: number } }> = () => {
         }
       }
       
-      const counts = { Mastered: 0, Proficient: 0, Practicing: 0 };
+      const counts = { Mastered: 0, Proficient: 0, Practicing: 0, Considering: 0 };
       songStatusMap.forEach((status) => {
         if (status === 'Mastered') counts.Mastered++;
         else if (status === 'Proficient') counts.Proficient++;
         else if (status === 'Practicing') counts.Practicing++;
+        else if (status === 'Considering') counts.Considering++;
       });
       
       data.push({
@@ -182,6 +185,7 @@ const Stats: React.FC<{ currentUser: { id: number } }> = () => {
         masteredCount: Number(g.masteredCount),
         proficientCount: Number(g.proficientCount),
         practicingCount: Number(g.practicingCount),
+        consideringCount: Number(g.consideringCount ?? 0),
         songsSent: Number(g.songsSent ?? 0),
         songsReceived: Number(g.songsReceived ?? 0),
       });
@@ -349,8 +353,9 @@ const Stats: React.FC<{ currentUser: { id: number } }> = () => {
           { label: 'Mastered', value: stats?.masteredCount, icon: <StarIcon sx={{ color: '#FFD700' }} />, color: '#FFD700' },
           { label: 'Proficient', value: stats?.proficientCount, icon: <SchoolIcon color="success" />, color: 'success.main' },
           { label: 'Practicing', value: stats?.practicingCount, icon: <FitnessCenterIcon color="info" />, color: 'info.main' },
+          { label: 'Considering', value: stats?.consideringCount, icon: <MusicNoteIcon color="secondary" />, color: 'secondary.main' },
         ].map((item, i) => (
-          <Grid size={{ xs: 4 }} key={i}>
+          <Grid size={{ xs: 6, sm: 3 }} key={i}>
             <Paper elevation={2} sx={{ p: 2, textAlign: 'center', borderRadius: 3, borderLeft: '4px solid', borderLeftColor: item.color }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                 {item.icon}
@@ -410,6 +415,13 @@ const Stats: React.FC<{ currentUser: { id: number } }> = () => {
                   stroke={theme.palette.info.main} 
                   strokeWidth={3} 
                   dot={{ r: 4, fill: theme.palette.info.main }} 
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="Considering" 
+                  stroke={theme.palette.secondary.main} 
+                  strokeWidth={3} 
+                  dot={{ r: 4, fill: theme.palette.secondary.main }} 
                 />
               </LineChart>
             </ResponsiveContainer>

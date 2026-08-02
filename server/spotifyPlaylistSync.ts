@@ -434,7 +434,7 @@ export async function syncSpotifyPlaylist(
         track_name, artist_name, artwork_url, duration_ms, album, explicit,
         popularity, release_date, release_year,
         personal_key, vocal_status
-      ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '0', 'Practicing')
+      ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '0', 'Considering')
       RETURNING id`,
       args: [
         userId,

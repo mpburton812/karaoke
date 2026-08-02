@@ -135,7 +135,7 @@ export async function upsertSong(
             user_id, itunes_id, track_name, artist_name, artwork_url,
             duration_ms, release_date, explicit, album, release_year, lyrics,
             personal_key, vocal_status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '0', 'Practicing')
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '0', 'Considering')
           ON CONFLICT(user_id, itunes_id) DO UPDATE SET
             track_name = excluded.track_name,
             artist_name = excluded.artist_name,
@@ -178,7 +178,7 @@ export async function upsertSong(
   );
   if (count === 0) {
     await db.execute({
-      sql: "INSERT INTO song_status_history (song_id, status) VALUES (?, 'Practicing')",
+      sql: "INSERT INTO song_status_history (song_id, status) VALUES (?, 'Considering')",
       args: [id],
     });
   }
@@ -600,9 +600,10 @@ export async function getStatsDashboard(userId: number): Promise<{
               (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Mastered') as masteredCount,
               (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Proficient') as proficientCount,
               (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Practicing') as practicingCount,
+              (SELECT COUNT(*) FROM songs WHERE user_id = ? AND vocal_status = 'Considering') as consideringCount,
               (SELECT COUNT(*) FROM song_shares WHERE sender_user_id = ?) as songsSent,
               (SELECT COUNT(*) FROM song_shares WHERE recipient_user_id = ?) as songsReceived`,
-      args: [uid, uid, uid, uid, uid, uid, uid, uid, uid],
+      args: [uid, uid, uid, uid, uid, uid, uid, uid, uid, uid],
     }),
     db.execute({
       sql: `SELECT artist_name, COUNT(*) as count

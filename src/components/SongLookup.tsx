@@ -43,7 +43,7 @@ interface iTunesSong {
 
 interface SongLookupProps {
   currentUser: { id: number; username: string };
-  onSongAdded?: () => void;
+  onSongAdded?: (songId?: number) => void;
 }
 
 type LookupState = 'idle' | 'loading' | 'success' | 'error';
@@ -127,7 +127,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
           message: `"${existing.track_name ?? selectedSong.trackName}" is already in your song list. No duplicate was added.`,
           severity: "success",
         });
-        if (onSongAdded) onSongAdded();
+        if (onSongAdded) onSongAdded(existing.id);
         setSaving(false);
         return;
       }
@@ -172,7 +172,7 @@ const SongLookup: React.FC<SongLookupProps> = ({ currentUser, onSongAdded }) => 
         severity: "success",
       });
 
-      if (onSongAdded) onSongAdded();
+      if (onSongAdded) onSongAdded(songId);
       window.dispatchEvent(new Event(KARAOKE_SONGS_REFRESH_EVENT));
       setTimeout(() => {
         setSelectedSong(null);

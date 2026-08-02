@@ -44,7 +44,7 @@ export async function seedWelcomeSongForUser(userId: number): Promise<void> {
         user_id, itunes_id, spotify_track_id, track_name, artist_name, artwork_url,
         album, release_date, release_year, duration_ms,
         personal_key, vocal_status
-      ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, '0', 'Practicing')
+      ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, '0', 'Considering')
       RETURNING id`,
       args: [
         userId,

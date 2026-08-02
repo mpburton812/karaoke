@@ -2,8 +2,6 @@ import React, { useState, Suspense, useMemo, useEffect, useCallback } from 'reac
 import { 
   Container, 
   Box, 
-  Tabs, 
-  Tab, 
   Typography, 
   ThemeProvider, 
   CssBaseline,
@@ -13,9 +11,26 @@ import {
   CircularProgress,
   Snackbar,
   Alert,
+  BottomNavigation,
+  BottomNavigationAction,
+  Paper,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from '@mui/material';
-import LogoutIcon from '@mui/icons-material/Logout';
 import SettingsIcon from '@mui/icons-material/Settings';
+import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
+import PlaceIcon from '@mui/icons-material/Place';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { wipeAccountData } from './api/repertoire';
 import { clearSession, fetchCurrentUser, type AuthUser, type ImpersonationInfo } from './api/auth';
 import { exitGodModeImpersonation } from './api/godMode';
@@ -33,7 +48,6 @@ import { reportClientBuildOnce } from './lib/reportBuild';
 import { isWelcomeDismissed } from './lib/welcomeMessage';
 import { createAppTheme, type ThemeMode } from './theme';
 
-// Lazy load tab components (retry once on chunk load failure after deploy)
 const SavedSongs = lazyRetry(() => import('./components/SavedSongs'));
 const TagManager = lazyRetry(() => import('./components/TagManager'));
 const LocationManager = lazyRetry(() => import('./components/LocationManager'));
@@ -48,7 +62,6 @@ type SpotifySnackbarState = {
   severity: "success" | "error" | "info";
 };
 const SONGS_TAB_INDEX = 0;
-const GOD_MODE_TAB_INDEX = 4;
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -81,6 +94,8 @@ function App() {
   const [configOpen, setConfigOpen] = useState(() =>
     new URLSearchParams(window.location.search).has("spotify")
   );
+  const [godModeOpen, setGodModeOpen] = useState(false);
+  const [cogAnchor, setCogAnchor] = useState<null | HTMLElement>(null);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [songIdToOpenFromExplorer, setSongIdToOpenFromExplorer] = useState<number | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
@@ -145,7 +160,6 @@ function App() {
     severity: "success",
   });
 
-  /** OAuth return: run once on load (not tied to React user state) so ?spotify= is never missed. */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const spotify = params.get("spotify");
@@ -212,7 +226,6 @@ function App() {
       if (loggedIn) {
         setConfigOpen(true);
       }
-      // Defer until after React commits Settings + SpotifyConnect (listeners miss same-tick dispatch).
       if (shouldNotifySpotifyListeners) {
         notifySpotifyListeners();
       }
@@ -240,6 +253,8 @@ function App() {
     setSessionNotice(null);
     clearSession();
     setValue(0);
+    setCogAnchor(null);
+    setGodModeOpen(false);
   };
 
   const handleExitImpersonation = async () => {
@@ -289,10 +304,6 @@ function App() {
         alert("Failed to wipe data. Check console for details.");
       }
     }
-  };
-
-  const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setValue(newValue);
   };
 
   const handleSongIdOpenConsumed = useCallback(() => {
@@ -384,45 +395,62 @@ function App() {
             </Typography>
             <IconButton
               color="inherit"
-              aria-label="Settings"
-              onClick={() => setConfigOpen(true)}
+              aria-label="Menu"
+              aria-controls={cogAnchor ? 'cog-menu' : undefined}
+              aria-haspopup="true"
+              aria-expanded={cogAnchor ? 'true' : undefined}
+              onClick={(e) => setCogAnchor(e.currentTarget)}
             >
               <SettingsIcon />
             </IconButton>
-            <IconButton color="inherit" aria-label="Log out" onClick={handleLogout}>
-              <LogoutIcon />
-            </IconButton>
+            <Menu
+              id="cog-menu"
+              anchorEl={cogAnchor}
+              open={Boolean(cogAnchor)}
+              onClose={() => setCogAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+              <MenuItem
+                onClick={() => {
+                  setCogAnchor(null);
+                  setConfigOpen(true);
+                }}
+              >
+                <ListItemIcon>
+                  <SettingsIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Settings</ListItemText>
+              </MenuItem>
+              {isAdmin && (
+                <MenuItem
+                  onClick={() => {
+                    setCogAnchor(null);
+                    setGodModeOpen(true);
+                  }}
+                >
+                  <ListItemIcon>
+                    <AdminPanelSettingsIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>God Mode</ListItemText>
+                </MenuItem>
+              )}
+              <MenuItem
+                onClick={() => {
+                  setCogAnchor(null);
+                  handleLogout();
+                }}
+              >
+                <ListItemIcon>
+                  <LogoutIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Exit</ListItemText>
+              </MenuItem>
+            </Menu>
           </Box>
         </Toolbar>
       </AppBar>
-      <Container maxWidth="lg" sx={{ mt: 3 }}>
-        <Box sx={{ width: '100%', overflow: 'visible', pt: 0.5, px: { xs: 0.5, sm: 1 } }}>
-          <Tabs
-            value={value}
-            onChange={handleChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
-            sx={{
-              overflow: 'visible !important',
-              '& .MuiTabs-list': {
-                paddingTop: '20px',
-                paddingBottom: '18px',
-                gap: 1,
-              },
-              '& .MuiTab-root': {
-                minWidth: { xs: 'auto', sm: 88 },
-              },
-            }}
-          >
-            <Tab label="Songs" />
-            <Tab label="Places" />
-            <Tab label="Tags" />
-            <Tab label="Stats" />
-            {isAdmin && <Tab label="God mode" />}
-          </Tabs>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }} />
-        </Box>
+      <Container maxWidth="lg" sx={{ mt: 3, pb: 10 }}>
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>}>
           <CustomTabPanel value={value} index={0}>
             <SavedSongs
@@ -440,22 +468,37 @@ function App() {
           <CustomTabPanel value={value} index={3}>
             <Stats currentUser={currentUser} />
           </CustomTabPanel>
-          {isAdmin && (
-            <CustomTabPanel value={value} index={GOD_MODE_TAB_INDEX}>
-              <EventLogViewer />
-              <GodMode
-                adminUserId={currentUser.id}
-                onImpersonated={(user, imp) => {
-                  setCurrentUser(user);
-                  setImpersonation(imp);
-                  setValue(SONGS_TAB_INDEX);
-                  window.location.reload();
-                }}
-              />
-            </CustomTabPanel>
-          )}
         </Suspense>
       </Container>
+
+      <Paper
+        elevation={3}
+        sx={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1200,
+          borderTop: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <BottomNavigation
+          showLabels
+          value={value}
+          onChange={(_event, newValue: number) => setValue(newValue)}
+        >
+          <BottomNavigationAction label="Songs" icon={<LibraryMusicIcon />} />
+          <BottomNavigationAction label="Places" icon={<PlaceIcon />} />
+          <BottomNavigationAction label="Tags" icon={<LocalOfferIcon />} />
+          <BottomNavigationAction label="Stats" icon={<BarChartIcon />} />
+        </BottomNavigation>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', px: 1, pb: 0.25 }}>
+          <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.65rem', opacity: 0.7, fontFamily: 'monospace' }}>
+            {__COMMIT_HASH__}
+          </Typography>
+        </Box>
+      </Paper>
 
       <WelcomeMessageDialog
         open={welcomeOpen}
@@ -474,12 +517,45 @@ function App() {
         onNukeData={handleNukeData}
         onOpenWelcome={() => setWelcomeOpen(true)}
       />
+
+      <Dialog
+        open={godModeOpen}
+        onClose={() => setGodModeOpen(false)}
+        fullWidth
+        maxWidth="lg"
+        scroll="paper"
+      >
+        <DialogTitle>God Mode</DialogTitle>
+        <DialogContent dividers>
+          <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>}>
+            {godModeOpen && (
+              <>
+                <EventLogViewer />
+                <GodMode
+                  adminUserId={currentUser.id}
+                  onImpersonated={(user, imp) => {
+                    setCurrentUser(user);
+                    setImpersonation(imp);
+                    setGodModeOpen(false);
+                    setValue(SONGS_TAB_INDEX);
+                    window.location.reload();
+                  }}
+                />
+              </>
+            )}
+          </Suspense>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setGodModeOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
       
       <Snackbar
         open={spotifySnackbar.open}
         autoHideDuration={8000}
         onClose={() => setSpotifySnackbar((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        sx={{ bottom: { xs: 72, sm: 72 } }}
       >
         <Alert
           severity={spotifySnackbar.severity}
@@ -490,25 +566,6 @@ function App() {
           {spotifySnackbar.message}
         </Alert>
       </Snackbar>
-
-      <Box component="footer" sx={{ 
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        py: 0.5, 
-        px: 2, 
-        backgroundColor: 'background.default',
-        borderTop: 1,
-        borderColor: 'divider',
-        zIndex: 1100,
-        display: 'flex',
-        justifyContent: 'flex-end'
-      }}>
-        <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.65rem', opacity: 0.7, fontFamily: 'monospace' }}>
-          {__COMMIT_HASH__}
-        </Typography>
-      </Box>
     </ThemeProvider>
   );
 }

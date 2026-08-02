@@ -118,6 +118,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  /** After creating a performance dated D, next Record dialog defaults to D+1. */
+  const [lastEnteredPerfDate, setLastEnteredPerfDate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [performances, setPerformances] = useState<Performance[]>([]);
   
@@ -263,7 +265,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
       if (field === 'personal_key') {
         await patchSong(songId, { personal_key: value ?? '0' });
       } else if (field === 'vocal_status') {
-        await patchSong(songId, { vocal_status: value ?? 'Practicing' });
+        await patchSong(songId, { vocal_status: value ?? 'Considering' });
       } else if (field === 'lyrics') {
         await patchSong(songId, { lyrics: value ?? undefined });
       }
@@ -367,10 +369,20 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     }
   };
 
+  const defaultPerfDateForNew = (): string => {
+    if (lastEnteredPerfDate) {
+      const d = new Date(`${lastEnteredPerfDate}T00:00:00.000Z`);
+      if (!Number.isNaN(d.getTime())) {
+        d.setUTCDate(d.getUTCDate() + 1);
+        return d.toISOString().split('T')[0];
+      }
+    }
+    return new Date().toISOString().split('T')[0];
+  };
+
   const handleOpenPerfDialog = () => {
-    const now = new Date();
     setEditingPerfId(null);
-    setPerfDate(now.toISOString().split('T')[0]);
+    setPerfDate(defaultPerfDateForNew());
     setPerfLocation('');
     setPerfNotes('');
     setPerfRating(3);
@@ -416,6 +428,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
         await updatePerformance(editingPerfId, perfPayload);
       } else {
         await createPerformance(selectedSong.id, perfPayload);
+        setLastEnteredPerfDate(perfDate);
       }
 
       closePerfDialog();
@@ -497,7 +510,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
     setLetterFilter((prev) => (prev === letter ? null : letter));
   };
 
-  const statusOptions = ['Mastered', 'Proficient', 'Practicing'];
+  const statusOptions = ['Mastered', 'Proficient', 'Practicing', 'Considering'];
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
   if (error) return <Alert severity="error">{error}</Alert>;
 
@@ -656,8 +669,8 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl fullWidth>
                     <InputLabel>Status</InputLabel>
-                    <Select value={selectedSong.vocal_status || 'Practicing'} label="Status" onChange={(e) => handleUpdateSongProperty(selectedSong.id, 'vocal_status', e.target.value)}>
-                      {['Mastered', 'Proficient', 'Practicing'].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                    <Select value={selectedSong.vocal_status || 'Considering'} label="Status" onChange={(e) => handleUpdateSongProperty(selectedSong.id, 'vocal_status', e.target.value)}>
+                      {['Mastered', 'Proficient', 'Practicing', 'Considering'].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
                     </Select>
                   </FormControl>
                 </Grid>
@@ -949,7 +962,24 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
         <Typography variant="h5" gutterBottom align="center" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
           Add songs from the web
         </Typography>
-        <SongLookup currentUser={currentUser} onSongAdded={fetchSongs} />
+        <SongLookup
+          currentUser={currentUser}
+          onSongAdded={(songId) => {
+            void fetchSongs();
+            if (typeof songId === 'number' && songId > 0) {
+              void (async () => {
+                try {
+                  const row = await fetchSong(songId);
+                  if (row) {
+                    setSelectedSong(row as unknown as Song);
+                  }
+                } catch (err) {
+                  console.error('Failed to open imported song:', err);
+                }
+              })();
+            }
+          }}
+        />
       </Box>
 
       <Divider sx={{ my: 4 }} />
@@ -1087,7 +1117,7 @@ const SavedSongs: React.FC<SavedSongsProps> = ({
                       {song.artist_name}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 0.5, mt: 1, flexWrap: 'wrap' }}>
-                      <Chip size="small" label={song.vocal_status || 'Practicing'} />
+                      <Chip size="small" label={song.vocal_status || 'Considering'} />
                       {song.spotify_source_playlist_name && (
                         <Chip size="small" icon={<SpotifyGlyphIcon />} label="Spotify" />
                       )}

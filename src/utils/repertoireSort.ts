@@ -4,7 +4,7 @@ export interface RepertoireTitleRow {
   vocal_status?: string;
 }
 
-const STATUS_DEFAULT = "Practicing";
+const STATUS_DEFAULT = "Considering";
 
 /** First bucket for A–Z index: A–Z or "#" for other leading characters. */
 export function getLetterBucket(trackName: string): string {

@@ -368,7 +368,7 @@ async function insertSongFromSnapshot(
             happiness, acousticness, instrumentalness, liveness, speechiness, loudness,
             release_date, explicit, album, genre, release_year, lyrics,
             personal_key, vocal_status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '0', 'Practicing')
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '0', 'Considering')
           RETURNING id`,
     args: [
       userId,
@@ -403,7 +403,7 @@ async function insertSongFromSnapshot(
     throw new SongShareError("Failed to save song.", 500);
   }
   await db.execute({
-    sql: "INSERT INTO song_status_history (song_id, status) VALUES (?, 'Practicing')",
+    sql: "INSERT INTO song_status_history (song_id, status) VALUES (?, 'Considering')",
     args: [id],
   });
   return id;

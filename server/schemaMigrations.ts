@@ -69,4 +69,32 @@ export async function runSchemaMigrations(): Promise<void> {
       WHERE personal_key IS NULL OR trim(personal_key) = '' OR personal_key = 'Standard'
     `);
   });
+
+  await applyMigration("004_mpburton_practicing_to_considering", async () => {
+    const userRes = await db.execute({
+      sql: "SELECT id FROM users WHERE username = ? LIMIT 1",
+      args: ["mpburton"],
+    });
+    const userId = Number((userRes.rows[0] as { id?: number } | undefined)?.id);
+    if (!Number.isFinite(userId) || userId <= 0) return;
+
+    const songsRes = await db.execute({
+      sql: `SELECT id FROM songs
+            WHERE user_id = ? AND vocal_status = 'Practicing'`,
+      args: [userId],
+    });
+
+    for (const row of songsRes.rows) {
+      const songId = Number((row as { id?: number }).id);
+      if (!Number.isFinite(songId) || songId <= 0) continue;
+      await db.execute({
+        sql: `UPDATE songs SET vocal_status = 'Considering' WHERE id = ? AND user_id = ?`,
+        args: [songId, userId],
+      });
+      await db.execute({
+        sql: `INSERT INTO song_status_history (song_id, status) VALUES (?, 'Considering')`,
+        args: [songId],
+      });
+    }
+  });
 }

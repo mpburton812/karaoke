@@ -105,9 +105,32 @@ If secrets are missing in CI, integration tests skip automatically.
 
 ## Deployment
 
-### Render (recommended — one URL for app + API)
+### Current production layout
 
-The live site must be a **Web Service**, not a **Static Site**. A static deploy only serves `dist/` files; `/api/*` returns 404 and the app shows “API server unavailable”.
+| Role | Host | URL |
+|------|------|-----|
+| Primary UI | Vercel (Vite static) | https://karaoke-companion-nine.vercel.app |
+| API + fallback UI | Render Web Service | `https://karaoke-companion-api.onrender.com` |
+
+The Vercel build sets `VITE_API_URL=https://karaoke-companion-api.onrender.com` so the SPA calls the Render API. Render keeps `SERVE_STATIC=true` so the same-host app remains a working fallback.
+
+**Spotify OAuth stays on the legacy Render app** (`PUBLIC_APP_URL` / redirect URI point at Render). Use Connect Spotify from the Render URL, not from Vercel, until a deliberate OAuth cutover.
+
+### Vercel (primary frontend)
+
+Config: [`vercel.json`](vercel.json) (Vite → `dist/`, SPA rewrite).
+
+```bash
+npx vercel link --yes --scope michael-burton-s-projects
+# Set VITE_API_URL for production + preview (no trailing slash):
+echo https://karaoke-companion-api.onrender.com | npx vercel env add VITE_API_URL production
+echo https://karaoke-companion-api.onrender.com | npx vercel env add VITE_API_URL preview
+npx vercel deploy --prod
+```
+
+### Render (API + fallback SPA)
+
+The live API must be a **Web Service**, not a **Static Site**. A static deploy only serves `dist/` files; `/api/*` returns 404 and the app shows “API server unavailable”.
 
 1. Use the repo’s [`render.yaml`](render.yaml) or create a **Web Service** from GitHub (`main` branch per blueprint).
 2. **Build command:** `npm install --include=dev && npm run build`  
@@ -122,18 +145,16 @@ The live site must be a **Web Service**, not a **Static Site**. A static deploy 
    | `JWT_SECRET` | Session signing secret |
    | `SERVE_STATIC` | `true` (serves built frontend; set in `render.yaml`) |
 
-5. Leave **`VITE_API_URL` empty** — the browser calls `/api` on the same host.
-6. After deploy, open `https://your-service.onrender.com/api/health` — expect `{"ok":true,"turso":true}`.
+5. Leave **`VITE_API_URL` empty** on Render — the browser calls `/api` on the same host.
+6. After deploy, open `https://karaoke-companion-api.onrender.com/api/health` — expect `{"ok":true,"turso":true}`.
 
-If you already have a Static Site named `karaoke-companion`, delete it or switch to a Web Service with the settings above (same custom domain can be reattached).
+### Spotify OAuth (optional — Render SPA)
 
-### Spotify OAuth (optional)
-
-Used by **Admin → Spotify account** to link a Spotify user for playlist access (sync can build on this later).
+Used by **Admin → Spotify account** to link a Spotify user for playlist access.
 
 1. [Create a Spotify app](https://developer.spotify.com/dashboard) and note **Client ID** and **Client Secret**.
 2. **Redirect URI** (must match exactly):  
-   `https://<your-render-host>/api/spotify/callback`  
+   `https://karaoke-companion-api.onrender.com/api/spotify/callback`  
    For local API: `http://127.0.0.1:3001/api/spotify/callback`
 3. Set environment variables on the **API** (Render / `.env`):
 
@@ -142,9 +163,9 @@ Used by **Admin → Spotify account** to link a Spotify user for playlist access
    | `SPOTIFY_CLIENT_ID` | from dashboard | Required to enable OAuth |
    | `SPOTIFY_CLIENT_SECRET` | from dashboard | Server only |
    | `SPOTIFY_REDIRECT_URI` | `http://127.0.0.1:3001/api/spotify/callback` | Must match Spotify app settings |
-   | `PUBLIC_APP_URL` | `http://127.0.0.1:5173` | Where the **browser** returns after OAuth when `Origin` is unavailable. Use the exact SPA origin you open in the address bar. On one Render service, set this to that service URL (e.g. `https://karaoke-companion-api.onrender.com`). If it is wrong, the app still redirects correctly when the SPA and callback share the same host—the Connect request’s `Origin` is stored in signed OAuth state. |
+   | `PUBLIC_APP_URL` | `http://127.0.0.1:5173` | Keep this as the **Render** SPA origin in production (legacy). Do not point it at Vercel until OAuth is cut over. |
 
-4. In the app, log in → **Admin** → **Connect Spotify** → approve on Spotify → you should land back on the app with a success message.
+4. In the **Render** app, log in → **Admin** → **Connect Spotify** → approve on Spotify → you should land back on the app with a success message.
 
 Scopes requested: `playlist-read-private`, `playlist-read-collaborative`. Refresh tokens are stored in Turso on the `users` row.
 
@@ -154,23 +175,9 @@ After import, the server background job fetches **lyrics** (lyrics.ovh) and sets
 `enriched_at`. iTunes import may also fetch lyrics in the browser before save.
 Admin → **Song enrichment** runs the queue for songs missing `enriched_at`.
 
-### Split deploy (API + static frontend on different hosts)
+### Split deploy notes
 
-**API** — any Node host:
-
-```bash
-npm run start:server
-```
-
-Env: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `JWT_SECRET`, `PORT`.
-
-**Frontend** — build with the public API URL:
-
-```bash
-VITE_API_URL=https://your-api.example.com npm run build
-```
-
-Serve `dist/` (Netlify, Vercel, Render static site, etc.). CORS is enabled on the API; consider restricting origins in `server/app.ts` for production.
+API remains on Render (`npm start` / `npm run start:server`). Frontend on Vercel is built with `VITE_API_URL` pointing at that API. CORS is enabled on the API; consider restricting origins in `server/app.ts` for production.
 
 ### Android APK (optional)
 

@@ -47,11 +47,17 @@ describe("runSchemaMigrations", () => {
 
   it("applies karafun cleanup when migration is new", async () => {
     let migrationChecks = 0;
-    mockExecute.mockImplementation(async (stmt: string | { sql: string }) => {
+    mockExecute.mockImplementation(async (stmt: string | { sql: string; args?: unknown[] }) => {
       const sql = typeof stmt === "string" ? stmt : stmt.sql;
       if (sql.includes("SELECT 1 FROM schema_migrations WHERE id = ?")) {
         migrationChecks += 1;
         return { rows: [] };
+      }
+      if (sql.includes("SELECT id FROM users WHERE username")) {
+        return { rows: [{ id: 1 }] };
+      }
+      if (sql.includes("SELECT id FROM songs") && sql.includes("Practicing")) {
+        return { rows: [{ id: 10 }] };
       }
       return { rows: [] };
     });
@@ -63,6 +69,7 @@ describe("runSchemaMigrations", () => {
       true
     );
     expect(sqls.some((s) => s.includes("personal_key = '0'"))).toBe(true);
-    expect(migrationChecks).toBeGreaterThanOrEqual(3);
+    expect(sqls.some((s) => s.includes("Considering"))).toBe(true);
+    expect(migrationChecks).toBeGreaterThanOrEqual(4);
   });
 });
